@@ -1,0 +1,158 @@
+﻿@{
+    ViewData["Title"] = "Dashboard KPI TTT";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-dark">Bảng Điều Khiển Tổng Quan</h2>
+        <button class="btn btn-success shadow-sm">
+            <i class="fas fa-download me-2"></i> Xuất Báo Cáo
+        </button>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Đơn hàng OTD (Đúng hạn)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">94.2%</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Chuyến xe đang chạy</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">128 Chuyến</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-truck-moving fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Tỉ lệ lấp đầy kho</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">85.5%</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-warehouse fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-danger border-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Cần bảo trì (Xe)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">04 Xe</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-tools fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Biểu đồ Chi phí & Doanh thu (7 ngày qua)</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="operatingChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Tình trạng Đội xe</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="fleetPieChart"></canvas>
+                    <div class="mt-4 text-center small">
+                        <span class="mr-2"><i class="fas fa-circle text-success"></i> Sẵn sàng</span>
+                        <span class="mr-2"><i class="fas fa-circle text-primary"></i> Đang giao</span>
+                        <span class="mr-2"><i class="fas fa-circle text-warning"></i> Bảo trì</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // 1. Biểu đồ đường (Line Chart) cho Chi phí
+        const ctxLine = document.getElementById('operatingChart').getContext('2d');
+        new Chart(ctxLine, {
+            type: 'line',
+            data: {
+                labels: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
+                datasets: [{
+                    label: 'Doanh thu (Triệu VNĐ)',
+                    data: [45, 52, 48, 70, 65, 80, 55],
+                    borderColor: '#2ecc71',
+                    backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'Chi phí (Triệu VNĐ)',
+                    data: [30, 35, 32, 40, 38, 45, 30],
+                    borderColor: '#e74c3c',
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // 2. Biểu đồ tròn (Pie Chart) cho Đội xe
+        const ctxPie = document.getElementById('fleetPieChart').getContext('2d');
+        new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: ['Sẵn sàng', 'Đang giao', 'Bảo trì'],
+                datasets: [{
+                    data: [50, 35, 15],
+                    backgroundColor: ['#2ecc71', '#3498db', '#f1c40f'],
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                cutout: '70%',
+                plugins: { legend: { display: false } }
+            }
+        });
+    </script>
+}

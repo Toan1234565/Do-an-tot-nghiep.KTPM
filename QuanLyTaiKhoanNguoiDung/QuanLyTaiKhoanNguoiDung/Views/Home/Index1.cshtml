@@ -1,0 +1,368 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang
+@model IEnumerable<MucDoDichVuModesl>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản Lý Đơn Hàng - Logistics</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --bulk-color: #6366f1; /* Màu cho trọn gói */
+            --direct-color: #f43f5e; /* Màu cho giao thẳng */
+            --bg-body: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: #2b2d42;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            margin: 20px auto;
+            max-width: 98%;
+        }
+
+        /* Style cho Table */
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+            .custom-table thead th {
+                color: #718096;
+                text-transform: uppercase;
+                font-size: 0.7rem;
+                font-weight: 700;
+                padding: 12px 20px;
+                border: none;
+            }
+
+            .custom-table tbody tr {
+                background: #fff;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                border-radius: 12px;
+                transition: all 0.2s ease;
+            }
+
+                .custom-table tbody tr:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+                }
+
+            .custom-table tbody td {
+                padding: 15px 20px;
+                vertical-align: middle;
+                border: none;
+            }
+
+        /* Badges */
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .bg-cho-lay {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .bg-dang-giao {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .bg-da-giao {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .service-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-bulk {
+            background: var(--bulk-color);
+            color: white;
+        }
+
+        .badge-retail {
+            background: #94a3b8;
+            color: white;
+        }
+
+        .direct-tag {
+            background: var(--direct-color);
+            color: white;
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 800;
+            animation: blinker 2s linear infinite;
+        }
+
+
+
+        .price-text {
+            color: #10b981;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .contract-link {
+            color: var(--primary-color);
+            font-size: 0.75rem;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .filter-section {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+    </style>
+</head>
+<body>
+    <main class="container-fluid py-4">
+        <div class="main-card">
+            <h4 class="fw-bold mb-4 text-dark"><i class="fa-solid fa-chart-pie me-2"></i>Mức Độ Dịch Vụ</h4>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-widget">
+                        <div class="text-muted small fw-bold text-uppercase">Tổng số dịch vụ</div>
+                        <div class="h3 fw-bold mb-0">@Model?.Count()</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-widget" style="border-left-color: var(--success-color)">
+                        <div class="text-muted small fw-bold text-uppercase">Tổng lượt đặt hàng</div>
+                        <div class="h3 fw-bold mb-0 text-success" id="totalUsage"><i class="fas fa-spinner fa-spin"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-bar">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                            <input type="text" id="filterSearch" class="form-control border-start-0" placeholder="Tìm tên dịch vụ hoặc mã ID...">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filterClass" class="form-select">
+                            <option value="all">-- Tất cả phân loại --</option>
+                            <option value="premium">Cao cấp</option>
+                            <option value="standard">Cơ bản</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filterStatus" class="form-select">
+                            <option value="all">-- Tất cả trạng thái --</option>
+                            <option value="active">Đang hoạt động</option>
+                            <option value="paused">Tạm dừng</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                            <i class="fa-solid fa-rotate-left me-1"></i> Làm mới
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-card">
+                <div class="table-responsive">
+                    <table class="table custom-table mb-0" id="serviceTable">
+                        <thead>
+                            <tr>
+                                <th>Dịch Vụ</th>
+                                <th>Cam kết</th>
+                                <th>Hệ số</th>
+                                <th>Phân loại</th>
+                                <th>Thống kê sử dụng</th>
+                                <th>Trạng thái</th>
+                                <th class="text-end">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model != null && Model.Any())
+                            {
+                                foreach (var item in Model)
+                                {
+                                    <tr class="align-middle service-row"
+                                        data-name="@item.?TenDichVu.ToLower()"
+                                        data-id="@item.MaDichVu"
+                                        data-class="@(item.LaCaoCap == true ? "premium" : "standard")"
+                                        data-status="@(item.TrangThai == true ? "active" : "paused")">
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="service-icon me-3">
+                                                    <i class="fa-solid fa-box-archive"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold text-dark">@item.TenDichVu</div>
+                                                    <div class="small text-muted">ID: #@item.MaDichVu</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="fw-medium">@item.ThoiGianCamKet Giờ</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">x @item.HeSoNhiPhan</span>
+                                        </td>
+                                        <td>
+                                            @if (item.LaCaoCap == true)
+                                            {
+                                                <span class="text-warning fw-bold small"><i class="fa-solid fa-crown me-1"></i>CAO CẤP</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-secondary fw-bold small"><i class="fa-solid fa-tag me-1"></i>CƠ BẢN</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="usage-count" id="usage-@item.MaDichVu">
+                                                <span class="loading-shimmer small"><i class="fa-solid fa-spinner fa-spin"></i></span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @if (item.TrangThai == true)
+                                            {
+                                                <span class="badge bg-success-subtle text-success border border-success px-2">Hoạt động</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger-subtle text-danger border border-danger px-2">Tạm dừng</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <button class="btn btn-sm btn-light border" onclick='editPrice(@Html.Raw(Json.Serialize(item)))'>
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            @if (ViewBag.TotalPages > 1)
+            {
+                <nav class="mt-4">
+                    <ul class="pagination pagination-sm justify-content-center">
+                        @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                        {
+                            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                <a class="page-link shadow-none" href="@Url.Action("DanhSachDonHang", new { searchTerm = ViewBag.CurrentSearch, trangthai = ViewBag.CurrentStatus, batday = ViewBag.BatDay, ketthuc = ViewBag.KetThuc, maLoaiDv = ViewBag.CurrentService, page = i })">@i</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            fetchThongKe();
+
+            // Gắn sự kiện lọc
+            document.getElementById('filterSearch').addEventListener('input', applyFilters);
+            document.getElementById('filterClass').addEventListener('change', applyFilters);
+            document.getElementById('filterStatus').addEventListener('change', applyFilters);
+        });
+
+        // 1. Hàm gọi API Thống kê
+        async function fetchThongKe() {
+            const apiURL = "https://localhost:7264/api/thongke_dichvu/thongke-mucdichvu";
+            try {
+                const response = await fetch(apiURL);
+                const data = await response.json();
+                let totalUsage = 0;
+                const processedIds = new Set();
+
+                data.forEach(stat => {
+                    const maLoai = stat.maLoaiDv || stat.MaLoaiDv;
+                    const soLuong = stat.soLuongDonHang || stat.SoLuongDonHang || 0;
+                    const element = document.getElementById(`usage-${maLoai}`);
+
+                    if (element) {
+                        element.innerHTML = `<span class="stat-badge">${soLuong.toLocaleString()} đơn</span>`;
+                        totalUsage += soLuong;
+                        processedIds.add(`usage-${maLoai}`);
+                    }
+                });
+
+                document.getElementById("totalUsage").innerText = totalUsage.toLocaleString();
+
+                // Gán 0 cho những mục không có dữ liệu
+                document.querySelectorAll(".usage-count").forEach(el => {
+                    if (!processedIds.has(el.id)) el.innerHTML = '<span class="text-muted small">0 đơn</span>';
+                });
+            } catch (error) {
+                console.error("Lỗi:", error);
+                document.getElementById("totalUsage").innerText = "Lỗi";
+            }
+        }
+
+        // 2. Hàm xử lý lọc dữ liệu (Client-side)
+        function applyFilters() {
+            const searchText = document.getElementById('filterSearch').value.toLowerCase();
+            const classFilter = document.getElementById('filterClass').value;
+            const statusFilter = document.getElementById('filterStatus').value;
+            const rows = document.querySelectorAll('.service-row');
+
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name');
+                const id = row.getAttribute('data-id');
+                const cls = row.getAttribute('data-class');
+                const status = row.getAttribute('data-status');
+
+                const matchesSearch = name.includes(searchText) || id.includes(searchText);
+                const matchesClass = (classFilter === 'all' || cls === classFilter);
+                const matchesStatus = (statusFilter === 'all' || status === statusFilter);
+
+                if (matchesSearch && matchesClass && matchesStatus) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetFilters() {
+            document.getElementById('filterSearch').value = "";
+            document.getElementById('filterClass').value = "all";
+            document.getElementById('filterStatus').value = "all";
+            applyFilters();
+        }
+    </script>
+</body>
+</html>

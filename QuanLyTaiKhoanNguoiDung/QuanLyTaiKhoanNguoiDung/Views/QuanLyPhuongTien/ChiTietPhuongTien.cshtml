@@ -1,0 +1,447 @@
+﻿@model QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien.PhuongTienModel
+
+@{
+    ViewData["Title"] = "Chi tiết phương tiện";
+}
+
+<style>
+    /* KHỐI BACKGROUP TRẮNG */
+    .main-content-container {
+        background-color: #ffffff;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.03);
+        margin-top: 20px;
+    }
+
+    /* Card & Header Custom */
+    .card {
+        border: 1px solid #f0f0f0;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    .card-header-custom {
+        background-color: #3b71ca;
+        color: white;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 15px;
+        text-align: center;
+    }
+
+    /* Tab navigation style */
+    .nav-tabs-custom {
+        border-bottom: 2px solid #f0f0f0;
+        margin-bottom: 20px;
+    }
+
+        .nav-tabs-custom .nav-link {
+            border: none;
+            color: #6c757d;
+            padding: 12px 25px;
+            font-weight: 600;
+            position: relative;
+        }
+
+            .nav-tabs-custom .nav-link.active {
+                color: #3b71ca;
+                background: none;
+            }
+
+                .nav-tabs-custom .nav-link.active::after {
+                    content: "";
+                    position: absolute;
+                    bottom: -2px;
+                    left: 0;
+                    right: 0;
+                    height: 2px;
+                    background-color: #3b71ca;
+                }
+
+    /* Badge trạng thái */
+    .status-pill {
+        padding: 6px 16px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    /* Hiệu ứng ảnh đăng kiểm */
+    .registration-img-container {
+        position: relative;
+        cursor: zoom-in;
+        overflow: hidden;
+        border-radius: 10px;
+        transition: transform 0.2s;
+    }
+
+        .registration-img-container:hover {
+            transform: scale(1.05);
+        }
+
+    .registration-img {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        border: 1px solid #dee2e6;
+    }
+</style>
+
+<div class="page-wrapper">
+    <div class="main-content-container">
+        <div class="d-flex justify-content-between align-items-center px-2 mb-4">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1">
+                        <li class="breadcrumb-item"><a href="/QuanLyPhuongTien/DanhSachPhuongTien" class="text-decoration-none">Quản lý</a></li>
+                        <li class="breadcrumb-item active">Chi tiết xe</li>
+                    </ol>
+                </nav>
+                <h2 class="fw-bold m-0" style="color: #333;">@Model.BienSo</h2>
+            </div>
+            <a href="javascript:history.back()" class="btn btn-outline-secondary px-4 shadow-sm" style="border-radius: 10px; background: white;">
+                <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+            </a>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header-custom">
+                        <h5 class="m-0 fw-bold">HỒ SƠ PHƯƠNG TIỆN</h5>
+                    </div>
+                    <div class="card-body text-center pt-4">
+                        <div class="mb-3">
+                            <img src="https://cdn-icons-png.flaticon.com/512/3202/3202926.png" alt="truck" style="width: 80px; opacity: 0.8;">
+                        </div>
+                        <h3 class="fw-bold mb-1">@Model.BienSo</h3>
+                        <p class="text-muted mb-3">Mã phương tiện: #@Model.MaPhuongTien</p>
+
+                        <span class="status-pill @(Model.TrangThai == "Đang hoạt động" ? "bg-success text-white" : (Model.TrangThai == "Bảo trì" ? "bg-warning text-dark" : "bg-danger text-white"))">
+                            @Model.TrangThai
+                        </span>
+
+                        <div class="mt-4 text-start px-2">
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Loại xe</span>
+                                <span class="fw-semibold">@Model.TenLoaiXe</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Tải trọng</span>
+                                <span class="fw-semibold text-primary">@Model.TaiTrongToiDaKg kg</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Định mức NL</span>
+                                <span class="fw-semibold text-danger">@Model.MucTieuHaoNhienLieu L/100km</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Odometer</span>
+                                <span class="fw-semibold text-dark">@Model.SoKmHienTai km</span>
+                            </div>
+                            <div class="mt-4 p-3 bg-light rounded-3">
+                                <small class="text-muted d-block mb-1">Vị trí hiện tại:</small>
+                                <span class="fw-bold"><i class="fa-solid fa-location-dot text-danger me-1"></i>@Model.TenKho</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card h-100">
+                    <div class="card-body p-4">
+                        <ul class="nav nav-tabs nav-tabs-custom" id="vehicleTab" role="tablist">
+                            <li class="nav-item">
+                                <button class="nav-link active" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button">Lịch sử bảo trì</button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link position-relative" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button">
+                                    Cần bảo trì sắp tới
+                                    @if (Model.DanhSachCanBaoTri != null && Model.DanhSachCanBaoTri.Any())
+                                    {
+                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 10px;">
+                                            @Model.DanhSachCanBaoTri.Count
+                                        </span>
+                                    }
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" id="registration-tab" data-bs-toggle="tab" data-bs-target="#registration" type="button">Hồ sơ đăng kiểm</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="vehicleTabContent">
+                            <div class="tab-pane fade show active" id="history" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Ngày</th>
+                                                <th>Số km bảo trì</th>
+                                                <th>Loại bảo trì</th>
+                                                <th class="text-end">Chi phí (VNĐ)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if (Model.LichSuBaoTris != null && Model.LichSuBaoTris.Any())
+                                            {
+                                                foreach (var item in Model.LichSuBaoTris.OrderByDescending(x => x.Ngay))
+                                                {
+                                                    <tr>
+                                                        <td class="text-muted">@item.Ngay</td>
+                                                        <td class="text-muted">@item.SoKmThucTe</td>
+                                                        <td class="fw-medium">@item.LoaiBaoTri</td>
+                                                        <td class="text-end fw-bold text-dark">@item.ChiPhi?.ToString("N0")</td>
+                                                    </tr>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <tr><td colspan="3" class="text-center py-5 text-muted">Chưa có dữ liệu bảo trì</td></tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="upcoming" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Hạng mục</th>
+                                                <th>Chi tiết cảnh báo</th>
+                                                <th class="text-end">Thời hạn còn lại</th>
+                                                <th class="text-center">Trạng thái</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if (Model.DanhSachCanBaoTri != null && Model.DanhSachCanBaoTri.Any())
+                                            {
+                                                foreach (var item in Model.DanhSachCanBaoTri)
+                                                {
+                                                    <tr>
+                                                        <td class="fw-bold text-dark">@item.TenHangMuc</td>
+                                                        <td>
+                                                            <div><i class="fa-solid fa-circle-info text-info me-2"></i>@item.LyDo</div>
+                                                            @if (item.NgayDuKien != null)
+                                                            {
+                                                                <small class="text-muted">
+                                                                    <i class="fa-solid fa-calendar-day me-1"></i>
+                                                                    Ngày đến hạn: <strong>@item.NgayDuKien.Value.ToString("dd/MM/yyyy")</strong>
+                                                                </small>
+                                                            }
+                                                        </td>
+                                                        <td class="text-end">
+                                                            @if (item.ConLaiKm != null)
+                                                            {
+                                                                <div class="small">Còn: <strong>@item.ConLaiKm?.ToString("N0") km</strong></div>
+                                                            }
+                                                            @if (item.ConLaiNgay != null)
+                                                            {
+                                                                <div class="small text-muted">
+                                                                    @(item.ConLaiNgay < 0 ? "Quá hạn:" : "Còn:")
+                                                                    <strong class="@(item.ConLaiNgay < 0 ? "text-danger" : "")">
+                                                                        @Math.Abs(item.ConLaiNgay.Value) ngày
+                                                                    </strong>
+                                                                </div>
+                                                            }
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <span class="badge @(item.TrangThai == "Nguy cấp" ? "bg-danger" : "bg-warning text-dark")">
+                                                                @item.TrangThai
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                            else
+                                            {
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="registration" role="tabpanel">
+                                @if (Model.DangKiems != null && Model.DangKiems.Any())
+                                {
+                                    foreach (var dk in Model.DangKiems.OrderByDescending(x => x.NgayHetHan))
+                                    {
+                                        <div class="border rounded-3 p-3 mb-3 shadow-sm" style="background-color: #fcfcfc; border-left: 4px solid #3b71ca !important;">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-5 border-end">
+                                                    <small class="text-muted d-block mb-1">Số hiệu & Ghi chú</small>
+                                                    <p class="mb-1"><strong>GP:</strong> @dk.SoSeriGiayPhep</p>
+                                                    <p class="mb-1"><strong>Tem:</strong> @dk.SoTemKiemDinh</p>
+                                                    <p class="mb-0 small text-secondary"><strong>Ghi chú:</strong> @dk.GhiChu</p>
+                                                </div>
+                                                <div class="col-md-4 ps-md-4">
+                                                    <small class="text-muted d-block mb-1">Thời hạn & Cơ quan</small>
+                                                    <p class="mb-1 small"><strong>Ngày ĐK:</strong> @dk.NgayKiemDinh.ToString("dd/MM/yyyy")</p>
+                                                    <p class="mb-1 text-danger small"><strong>Hết hạn:</strong> @dk.NgayHetHan.ToString("dd/MM/yyyy")</p>
+                                                    <p class="mb-0 small"><strong>Cơ quan:</strong> @dk.DonViKiemDinh</p>
+                                                </div>
+                                                <div class="col-md-3 text-center ps-md-3">
+                                                    <button class="btn btn-sm btn-outline-primary mb-2 w-100" onclick='openEditModal(@Html.Raw(Json.Serialize(dk)))'>
+                                                        <i class="fa-solid fa-pen-to-square"></i> Sửa thông tin
+                                                    </button>
+
+                                                    @if (!string.IsNullOrEmpty(dk.HinhAnhDangKiem))
+                                                    {
+                                                        var apiDomain = "https://localhost:7286";
+                                                        var fullImgPath = apiDomain + dk.HinhAnhDangKiem;
+                                                        <div class="registration-img-container" onclick="zoomImage('@fullImgPath')">
+                                                            <img src="@fullImgPath" class="registration-img" alt="Ảnh đăng kiểm" onerror="this.src='/images/no-image.png';">
+                                                            <div class="small text-primary mt-1"><i class="fa-solid fa-magnifying-glass-plus"></i> Xem ảnh</div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="text-center py-5 text-muted">Chưa có thông tin đăng kiểm</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="imageZoomModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 bg-transparent">
+            <div class="modal-header border-0 p-0 justify-content-end">
+                <button type="button" class="btn-close btn-close-white shadow-none mb-2" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0 text-center">
+                <img id="zoomedImg" src="" class="img-fluid rounded shadow-lg" style="max-height: 85vh;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editDangKiemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-pen me-2"></i>Cập nhật hồ sơ đăng kiểm</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEditDangKiem" enctype="multipart/form-data">
+                    <input type="hidden" id="edit_Id" name="Id">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Số Seri Giấy Phép</label>
+                            <input type="text" class="form-control" id="edit_SoSeri" name="SoSeriGiayPhep" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Số Tem Kiểm Định</label>
+                            <input type="text" class="form-control" id="edit_SoTem" name="SoTemKiemDinh" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Ngày Kiểm Định</label>
+                            <input type="date" class="form-control" id="edit_NgayKiem" name="NgayKiemDinh" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Ngày Hết Hạn</label>
+                            <input type="date" class="form-control" id="edit_NgayHetHan" name="NgayHetHan" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Đơn Vị Kiểm Định</label>
+                            <input type="text" class="form-control" id="edit_DonVi" name="DonViKiemDinh">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Phí đường bộ đến ngày</label>
+                            <input type="date" class="form-control" id="edit_NgayPhi" name="PhiDuongBoDenNgay">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Ghi chú</label>
+                            <textarea class="form-control" id="edit_GhiChu" name="GhiChu" rows="2" placeholder="Nhập ghi chú nếu có..."></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Hình ảnh mới (để trống nếu không đổi)</label>
+                            <input type="file" class="form-control" id="edit_HinhAnh" name="hinhAnh" accept="image/*">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary px-4" id="btnSubmitEdit" onclick="submitEditDangKiem()">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function openEditModal(data) {
+        console.log("Dữ liệu nạp vào modal:", data);
+        const recordId = data.idDangKiem;
+
+        if (!recordId) {
+            Swal.fire('Lỗi', 'Không tìm thấy ID bản ghi.', 'error');
+            return;
+        }
+
+        document.getElementById('edit_Id').value = recordId;
+        document.getElementById('edit_SoSeri').value = data.soSeriGiayPhep || "";
+        document.getElementById('edit_SoTem').value = data.soTemKiemDinh || "";
+        document.getElementById('edit_DonVi').value = data.donViKiemDinh || "";
+        document.getElementById('edit_GhiChu').value = data.ghiChu || "";
+
+        const formatToInputDate = (dateStr) => {
+            if (!dateStr) return "";
+            return dateStr.split('T')[0];
+        };
+
+        document.getElementById('edit_NgayKiem').value = formatToInputDate(data.ngayKiemDinh);
+        document.getElementById('edit_NgayHetHan').value = formatToInputDate(data.ngayHetHan);
+        document.getElementById('edit_NgayPhi').value = formatToInputDate(data.phiDuongBoDenNgay);
+
+        new bootstrap.Modal(document.getElementById('editDangKiemModal')).show();
+    }
+
+    async function submitEditDangKiem() {
+        const id = document.getElementById('edit_Id').value;
+        const btnSave = document.getElementById('btnSubmitEdit');
+        const formData = new FormData(document.getElementById('formEditDangKiem'));
+
+        btnSave.disabled = true;
+        const originalText = btnSave.innerHTML;
+        btnSave.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang xử lý...';
+
+        try {
+            const response = await fetch(`https://localhost:7286/api/quanlyxe/capnhatdangkiem/${id}`, {
+                method: 'PUT',
+                body: formData
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                Swal.fire({ icon: 'success', title: 'Thành công!', timer: 1500, showConfirmButton: false })
+                    .then(() => location.reload());
+            } else {
+                Swal.fire('Thất bại', result.message || "Lỗi cập nhật", 'error');
+            }
+        } catch (error) {
+            Swal.fire('Lỗi', 'Kết nối thất bại!', 'error');
+        } finally {
+            btnSave.disabled = false;
+            btnSave.innerHTML = originalText;
+        }
+    }
+
+    function zoomImage(src) {
+        document.getElementById('zoomedImg').src = src;
+        new bootstrap.Modal(document.getElementById('imageZoomModal')).show();
+    }
+</script>

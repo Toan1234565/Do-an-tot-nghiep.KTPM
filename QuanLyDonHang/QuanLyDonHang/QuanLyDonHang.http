@@ -1,0 +1,6 @@
+@QuanLyDonHang_HostAddress = http://localhost:5121
+
+GET {{QuanLyDonHang_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,314 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyLoTrinhTheoDoi
+@model IEnumerable<SuCoModels>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hệ Thống Quản Lý Sự Cố</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --success-color: #10b981;
+            --bg-body: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: #2b2d42;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            margin: 20px auto;
+            max-width: 98%;
+        }
+
+        /* Style cho Table */
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+            .custom-table thead th {
+                color: #718096;
+                text-transform: uppercase;
+                font-size: 0.7rem;
+                font-weight: 700;
+                padding: 12px 20px;
+                border: none;
+            }
+
+            .custom-table tbody tr {
+                background: #fff;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                border-radius: 12px;
+                transition: all 0.2s ease;
+            }
+
+                .custom-table tbody tr:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+                }
+
+            .custom-table tbody td {
+                padding: 15px 20px;
+                vertical-align: middle;
+                border: none;
+            }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .bg-moi {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .bg-cho {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .bg-xuly {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .bg-tuchoi {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .severity-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        /* Màu cho trạng thái Xác nhận */
+        .bg-xacnhan {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        /* Hiệu ứng cho nút Báo cáo */
+        .btn-analysis {
+            background-color: #f8fafc;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            transition: all 0.3s ease;
+        }
+
+            .btn-analysis:hover {
+                background-color: var(--primary-color);
+                color: white;
+                transform: translateY(-1px);
+            }
+    </style>
+</head>
+<body>
+    <main class="container-fluid py-4">
+        <div class="main-card">
+            <div class="page-header d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h4 fw-bold m-0 text-dark">
+                    <i class="fa-solid fa-triangle-exclamation me-2 text-danger"></i>Quản Lý Báo Cáo Sự Cố
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="@Url.Action("BaoCaoPhanTich", "QuanLySuCo")" class="btn btn-analysis btn-sm rounded-pill px-3 fw-medium">
+                        <i class="fa-solid fa-chart-line me-1"></i> Báo cáo phân tích
+                    </a>
+
+                    <a href="@Url.Action("DanhSachSuCo")" class="btn btn-light btn-sm border rounded-pill px-3">
+                        <i class="fa-solid fa-arrows-rotate me-1 text-muted"></i> Làm mới
+                    </a>
+                </div>
+            </div>
+
+            <form id="filterForm" method="get" asp-action="DanhSachSuCo" class="bg-light border rounded-3 p-3 mb-4 shadow-sm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="small fw-bold text-muted mb-1">Từ khóa tìm kiếm</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                            <input type="text" name="searchTerm" class="form-control auto-submit" placeholder="Mô tả sự cố..." value="@ViewBag.CurrentSearch" />
+                        </div>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Loại sự cố</label>
+                        <select name="loai" class="form-select form-select-sm auto-submit">
+                            <option value="Tất cả">Tất cả loại</option>
+
+                            @if (ViewBag.LoaiSuCoList != null)
+                            {
+                                foreach (var l in (List<LoaiSuCoModels>)ViewBag.LoaiSuCoList)
+                                {
+                                    <option value="@l.MaLoaiSuCo"
+                                            selected="@(ViewBag.CurrentLoai == l.MaLoaiSuCo.ToString())">
+                                        @l.TenLoaiSuCo
+                                    </option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Trạng thái</label>
+                        <select name="trangthai" class="form-select form-select-sm auto-submit">
+                            <option value="Tất cả">Tất cả trạng thái</option>
+                            <option value="Mới" selected="@(ViewBag.CurrentStatus == "Mới")">Mới</option>
+                            <option value="Đã xử lý" selected="@(ViewBag.CurrentStatus == "Đã xử lý")">Đã xử lý</option>
+                            <option value="Từ chối" selected="@(ViewBag.CurrentStatus == "Từ chối")">Từ chối</option>
+                            <option value="Chờ phản hồi" selected="@(ViewBag.CurrentStatus == "Chờ phản hồi")">Chờ phản hồi</option>
+                            <option value="Chưa xử lý" selected="@(ViewBag.CurrentStatus == "Chưa xử lý")">Đã xử lý</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="small fw-bold text-muted mb-1">Thời gian báo cáo</label>
+                        <div class="d-flex gap-2">
+                            <input type="date" name="fromDate" class="form-control form-control-sm auto-submit" value="@ViewBag.BatDay" />
+                            <input type="date" name="toDate" class="form-control form-control-sm auto-submit" value="@ViewBag.KetThuc" />
+                        </div>
+                    </div>
+
+                    @* Nút Lọc có thể giữ lại hoặc bỏ vì đã có tự động, nhưng nên giữ để người dùng dùng phím Enter *@
+                    <div class="col-md-2 d-flex align-items-end d-none">
+                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Lọc</button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>                          
+                            <th>Thông tin sự cố</th>
+                            <th>Phân loại</th>
+                            <th>Thời gian</th>
+                            <th>Trạng thái</th>
+                            <th class="text-end">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var item in Model)
+                            {
+
+                                <tr onclick="location.href='@Url.Action("ChiTietSuCo", "QuanLySuCo", new { maSuCo = item.MaSuCo })'"
+                                    style="cursor: pointer;"
+                                    class="align-middle">
+                                    <td>
+                                        <div>
+                                            @item.MaSuCo
+                                            <div class="small text-muted text-truncate" style="max-width: 300px;">
+                                                <i class="fa-solid fa-quote-left me-1 opacity-50"></i>@item.MoTa
+                                            </div>
+                                        </div>
+                                      
+                                    </td>
+                                    <td>
+                                        @if (item.MaLoaiSuCoNavigation != null)
+                                        {
+
+                                            <div><span class="fw-medium text-dark">@item.MaLoaiSuCoNavigation.TenLoaiSuCo</span></div>
+                                            <div class="small text-muted">Mức độ: @item.MaLoaiSuCoNavigation.MucDoNghiemTrong</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Chưa phân loại</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="small fw-bold text-dark">@item.ThoiGianBaoCao</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">@item.ThoiGianBaoCao</div>
+                                    </td>
+                                    <td>
+                                        @{
+                                            var statusClass = item.TrangThai switch
+                                            {
+                                                "Mới" => "bg-moi",
+                                                "Đã xử lý" => "bg-xuly",
+                                                "Xác nhận" => "bg-xacnhan", 
+                                                "Từ chối" => "bg-tuchoi",
+                                                _ => "bg-cho"
+                                            };
+                                        }
+                                        <span class="status-badge @statusClass">@item.TrangThai</span>
+                                    </td>                                   
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="6" class="text-center py-5 text-muted">Không có dữ liệu sự cố nào.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (ViewBag.TotalPages > 1)
+            {
+                <nav class="mt-4">
+                    <ul class="pagination pagination-sm justify-content-center">
+                        @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                        {
+                            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                <a class="page-link shadow-none" href="@Url.Action("DanhSachSuCo", new { searchTerm = ViewBag.SearchTerm, trangthai = ViewBag.TrangThai, loai = ViewBag.Loai, page = i })">@i</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        </div>
+    </main>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const filterForm = document.getElementById('filterForm');
+            const autoSubmitElements = document.querySelectorAll('.auto-submit');
+
+            autoSubmitElements.forEach(item => {
+                // Sự kiện thay đổi cho Select và Date input
+                if (item.tagName === 'SELECT' || item.type === 'date') {
+                    item.addEventListener('change', () => {
+                        filterForm.submit();
+                    });
+                }
+
+                // Sự kiện gõ phím cho Text input (Search) với cơ chế Debounce
+                if (item.type === 'text') {
+                    let timeout = null;
+                    item.addEventListener('input', () => { // Dùng 'input' sẽ nhạy hơn 'keyup'
+                        clearTimeout(timeout);
+                        timeout = setTimeout(() => {
+                            filterForm.submit();
+                        }, 800); // Đợi 0.8 giây sau khi ngừng gõ mới submit
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

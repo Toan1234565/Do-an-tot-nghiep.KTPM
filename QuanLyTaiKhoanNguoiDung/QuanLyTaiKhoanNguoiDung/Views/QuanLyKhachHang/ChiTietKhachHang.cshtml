@@ -1,0 +1,312 @@
+﻿@model QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang.KhachHangModels
+@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDonHang
+@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang
+
+@{
+    ViewData["Title"] = "Hồ Sơ Khách Hàng";
+    var danhSachDonHang = ViewBag.DonHangs as IEnumerable<DonHangModels>;
+
+    // Tính toán điểm thưởng
+    var diemHienTai = Model?.DiemThuongs?.FirstOrDefault();
+    var diemKhaDung = (diemHienTai?.TongDiemTichLuy ?? 0) - (diemHienTai?.DiemDaDung ?? 0);
+}
+
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #4361ee 0%, #3f37c9 100%);
+        --reward-gradient: linear-gradient(135deg, #ff9f43 0%, #ff6b6b 100%);
+    }
+
+    .main-content-container {
+        background-color: #f8f9fa;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    }
+
+    /* Header Profile */
+    .profile-header {
+        background: var(--primary-gradient);
+        border-radius: 15px;
+        color: white;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+    }
+
+    .avatar-circle {
+        width: 80px;
+        height: 80px;
+        background: rgba(255,255,255,0.2);
+        border: 3px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: bold;
+    }
+
+    /* Cards */
+    .info-card {
+        border: none;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+        }
+
+    .reward-card {
+        background: var(--reward-gradient);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .reward-card i.bg-icon {
+            position: absolute;
+            right: -10px;
+            bottom: -10px;
+            font-size: 6rem;
+            opacity: 0.15;
+            transform: rotate(-15deg);
+        }
+
+    .stat-box {
+        background: #f8f9ff;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        border: 1px solid #eef0f7;
+    }
+
+    /* Status Badges */
+    .order-status-badge {
+        font-size: 0.75rem;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+
+    .bg-success-soft {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+
+    .bg-info-soft {
+        background-color: #cff4fc;
+        color: #055160;
+    }
+
+    .bg-warning-soft {
+        background-color: #fff3cd;
+        color: #664d03;
+    }
+
+    .bg-danger-soft {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+
+    /* Table Styling */
+    .table thead th {
+        background-color: #f8f9fa;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        border-bottom: none;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="main-content-container">
+
+        <div class="profile-header d-flex flex-column flex-md-row align-items-center gap-4">
+            <div class="avatar-circle">
+                @(Model?.TenCongTy?.Substring(0, 1).ToUpper() ?? "K")
+            </div>
+            <div class="flex-grow-1 text-center text-md-start">
+                <h2 class="fw-bold m-0 text-white">@Model?.TenCongTy</h2>
+                <div class="d-flex flex-wrap justify-content-center justify-content-md-start gap-3 mt-2 opacity-75">
+                    <span><i class="bi bi-person-badge me-1"></i> @Model?.TenLienHe</span>
+                    <span><i class="bi bi-hash me-1"></i> ID: @Model?.MaKhachHang</span>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="@Url.Action("ChinhSuaKhachHang", new { id = Model?.MaKhachHang })" class="btn btn-light text-primary fw-bold rounded-pill px-4">
+                    <i class="bi bi-pencil-square me-2"></i>Sửa hồ sơ
+                </a>
+                <a href="javascript:history.back()" class="btn btn-outline-light rounded-circle">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-lg-4">
+
+                
+
+                <div class="card info-card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-4 text-dark border-start border-primary border-4 ps-3">Thông tin liên lạc</h5>
+
+                        <div class="d-flex align-items-center mb-4">
+                            <div class="icon-box me-3 text-primary bg-light p-2 rounded">
+                                <i class="bi bi-telephone"></i>
+                            </div>
+                            <div>
+                                <label class="text-muted small d-block">Số điện thoại</label>
+                                <span class="fw-bold">@Model?.SoDienThoai</span>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center mb-4">
+                            <div class="icon-box me-3 text-primary bg-light p-2 rounded">
+                                <i class="bi bi-envelope"></i>
+                            </div>
+                            <div>
+                                <label class="text-muted small d-block">Email công ty</label>
+                                <span class="fw-bold text-break">@Model?.Email</span>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-start mb-4">
+                            <div class="icon-box me-3 text-primary bg-light p-2 rounded">
+                                <i class="bi bi-geo-alt"></i>
+                            </div>
+                            <div>
+                                <label class="text-muted small d-block">Địa chỉ mặc định</label>
+                                <span class="fw-bold">
+                                    @(Model?.MaDiaChiMacDinhNavigation?.Duong), @(Model?.MaDiaChiMacDinhNavigation?.Phuong)<br />
+                                    @(Model?.MaDiaChiMacDinhNavigation?.ThanhPho)
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mt-2">
+                            <div class="col-6">
+                                <div class="stat-box">
+                                    <div class="text-muted small">Tổng đơn</div>
+                                    <div class="fw-bold h5 mb-0 text-primary">@(danhSachDonHang?.Count() ?? 0)</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-box">
+                                    <div class="text-muted small">Công nợ</div>
+                                    <div class="fw-bold h5 mb-0 text-danger">0đ</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card reward-card shadow-sm mb-4 border-0">
+                    <div class="card-body p-4">
+                        <i class="bi bi-gem bg-icon"></i>
+                        <h5 class="fw-bold mb-3 d-flex align-items-center">
+                            <i class="bi bi-stars me-2"></i> Điểm thưởng tích lũy
+                        </h5>
+                        <div class="d-flex align-items-end gap-2 mb-2">
+                            <h1 class="m-0 fw-bold">@diemKhaDung.ToString("N0")</h1>
+                            <span class="mb-2 fw-semibold">điểm khả dụng</span>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top border-white border-opacity-25">
+                            <div class="d-flex justify-content-between mb-1 opacity-90">
+                                <span>Tổng tích lũy</span>
+                                <span class="fw-bold">@((diemHienTai?.TongDiemTichLuy ?? 0).ToString("N0"))</span>
+                            </div>
+                            <div class="d-flex justify-content-between opacity-90">
+                                <span>Đã quy đổi</span>
+                                <span class="fw-bold">@((diemHienTai?.DiemDaDung ?? 0).ToString("N0"))</span>
+                            </div>
+                            @if (diemHienTai?.NgayCapNhatCuoi != null)
+                            {
+                                <div class="mt-3 text-center" style="font-size: 0.75rem; opacity: 0.7;">
+                                    <i class="bi bi-clock-history me-1"></i> Cập nhật: @diemHienTai.NgayCapNhatCuoi.Value.ToString("dd/MM/yyyy HH:mm")
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-8">
+                <div class="card info-card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white py-4 px-4 d-flex justify-content-between align-items-center border-0">
+                        <h5 class="fw-bold mb-0 text-dark">Lịch sử đơn hàng mới nhất</h5>
+                        <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
+                            <i class="bi bi-plus-lg me-1"></i> Tạo đơn mới
+                        </button>
+                    </div>
+                    <div class="table-responsive px-2">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Mã đơn</th>
+                                    <th>Ngày tạo</th>
+                                    <th>Trạng thái</th>
+                                    <th class="text-end pe-4">Tổng tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (danhSachDonHang != null && danhSachDonHang.Any())
+                                {
+                                    foreach (var don in danhSachDonHang)
+                                    {
+                                        <tr onclick="location.href='@Url.Action("ChiTietDonhang", "QuanLyDonHang", new { madonhang = don.MaDonHang })'"
+                                            style="cursor: pointer;">
+                                            <td class="ps-4">
+                                                <div class="d-flex flex-column">
+                                                    <span class="fw-bold text-primary">#@don.MaDonHang</span>
+                                                    <small class="text-muted text-truncate" style="max-width: 150px;">@don.TenDonHang</small>
+                                                </div>
+                                            </td>
+                                            <td class="text-muted small">@don.ThoiGianTao.ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td>
+                                                @{
+                                                    var statusClass = don.TrangThaiHienTai switch
+                                                    {
+                                                        "Thành công" => "bg-success-soft",
+                                                        "Đang giao" => "bg-info-soft",
+                                                        "Chờ xử lý" => "bg-warning-soft",
+                                                        "Đã hủy" => "bg-danger-soft",
+                                                        _ => "bg-light text-dark"
+                                                    };
+                                                }
+                                                <span class="order-status-badge @statusClass">
+                                                    <i class="bi bi-dot"></i> @don.TrangThaiHienTai
+                                                </span>
+                                            </td>
+                                            <td class="text-end pe-4 fw-bold">
+                                               @don.TongTienThucTe <span class="small">đ</span>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="4" class="text-center py-5">
+                                            <img src="https://cdn-icons-png.flaticon.com/512/4076/4076432.png" width="80" class="opacity-25 mb-3" />
+                                            <p class="text-muted">Chưa có lịch sử giao dịch cho khách hàng này.</p>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer bg-white border-0 text-center py-3">
+                        <a href="#" class="text-primary text-decoration-none small fw-bold">Xem tất cả đơn hàng <i class="bi bi-chevron-right"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">

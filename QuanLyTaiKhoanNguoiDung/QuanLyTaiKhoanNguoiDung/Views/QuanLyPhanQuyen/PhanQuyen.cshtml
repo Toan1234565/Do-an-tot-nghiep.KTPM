@@ -1,0 +1,422 @@
+﻿@model IEnumerable<QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan.ChucVuModel>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --success-color: #2ec4b6;
+            --warning-color: #ff9f1c;
+            --danger-color: #e71d36;
+            --bg-body: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: #1e293b;
+        }
+
+        .product-table-container {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            margin: 30px auto;
+            max-width: 95%;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* Tiêu đề hiện đại */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 1.5rem;
+        }
+
+        h1 {
+            font-weight: 800;
+            font-size: 1.75rem;
+            color: #0f172a;
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+
+            h1::before {
+                content: "";
+                width: 6px;
+                height: 32px;
+                background: var(--primary-color);
+                border-radius: 10px;
+                margin-right: 15px;
+            }
+
+        /* Table Styling */
+        .product-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+            .product-table thead th {
+                background-color: #f8fafc;
+                color: #64748b;
+                font-weight: 700;
+                text-transform: uppercase;
+                font-size: 0.75rem;
+                letter-spacing: 0.05em;
+                padding: 16px;
+                border-bottom: 2px solid #e2e8f0;
+            }
+
+            .product-table tbody tr {
+                transition: all 0.2s;
+            }
+
+                .product-table tbody tr:hover {
+                    background-color: #f1f5f9;
+                    transform: scale(1.002);
+                }
+
+            .product-table tbody td {
+                padding: 18px 16px;
+                border-bottom: 1px solid #f1f5f9;
+                vertical-align: middle;
+            }
+
+        /* Badge Styling */
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .badge-info {
+            background-color: #eef2ff;
+            color: #4338ca;
+            border: 1px solid #e0e7ff;
+        }
+
+        /* Button Styling */
+        .btn-add {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(67, 97, 238, 0.3);
+            transition: all 0.3s;
+        }
+
+            .btn-add:hover {
+                background-color: #3730a3;
+                color: white;
+                transform: translateY(-2px);
+                box-shadow: 0 10px 15px -3px rgba(67, 97, 238, 0.4);
+            }
+
+        .action-btn {
+            width: 35px;
+            height: 35px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            margin: 0 3px;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-edit {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+            .btn-edit:hover {
+                background: #fcd34d;
+                color: #78350f;
+            }
+
+        .btn-del {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+            .btn-del:hover {
+                background: #fecaca;
+                color: #7f1d1d;
+            }
+
+        /* Modal Customization */
+        .modal-content {
+            border-radius: 16px;
+            border: none;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            border-bottom: 1px solid #f1f5f9;
+            padding: 1.5rem;
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            padding: 10px 15px;
+            border: 1px solid #e2e8f0;
+        }
+
+            .form-control:focus {
+                box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1);
+                border-color: var(--primary-color);
+            }
+    </style>
+</head>
+<body>
+    <main class="container-fluid">
+        <div class="product-table-container">
+            <div class="page-header">
+                <h1>Danh Sách Chức Vụ</h1>
+                <button class="btn btn-add" data-bs-toggle="modal" data-bs-target="#ThemChucVuModal">
+                    <i class="fas fa-plus-circle me-2"></i> Thêm chức vụ mới
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="product-table">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 80px;">STT</th>
+                            <th>Tên chức vụ</th>
+                            <th class="text-center">Vai trò hệ thống</th>
+                            <th class="text-center" style="width: 150px;">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            int stt = 1;
+                            foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td class="text-center text-muted fw-medium">@stt.ToString("D2")</td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@item.TenChucVu</div>
+                                        <small class="text-muted">Mã: #@item.MaChucVu</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="status-badge badge-info">
+                                            <i class="fas fa-user-shield me-2" style="font-size: 0.7rem;"></i>
+                                            @item.TenVaiTro
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="action-btn btn-edit" title="Sửa" onclick="openEditModal(@item.MaChucVu)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="action-btn btn-del" title="Xóa" onclick="confirmDelete(@item.MaChucVu)">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                stt++;
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center py-5">
+                                    <div class="py-4">
+                                        <i class="fas fa-folder-open fa-3x text-light mb-3"></i>
+                                        <p class="text-muted">Không tìm thấy dữ liệu chức vụ nào trong hệ thống.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal fade" id="ThemChucVuModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2"></i>Thêm Chức Vụ Mới</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formThemChucVu">
+                    <div class="modal-body p-4">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary small">TÊN CHỨC VỤ</label>
+                            <input type="text" class="form-control" name="TenChucVu" placeholder="Ví dụ: Trưởng phòng kinh doanh" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label fw-bold text-secondary small">VAI TRÒ HỆ THỐNG</label>
+                            <select class="form-select select-vaitro-data" id="selectVaiTro" name="MaVaiTro" required>
+                                <option value="">-- Chọn vai trò --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-primary px-4 rounded-3">Lưu thông tin</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="SuaChucVuModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>Cập Nhật Chức Vụ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formSuaChucVu">
+                    <input type="hidden" id="editMaChucVu" name="MaChucVu">
+                    <div class="modal-body p-4">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary small">TÊN CHỨC VỤ</label>
+                            <input type="text" class="form-control" id="editTenChucVu" name="TenChucVu" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label fw-bold text-secondary small">VAI TRÒ HỆ THỐNG</label>
+                            <select class="form-select select-vaitro-data" id="editSelectVaiTro" name="MaVaiTro" required>
+                                <option value="">-- Chọn vai trò --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-warning px-4 rounded-3 fw-bold">Cập nhật ngay</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // 1. GLOBAL FUNCTIONS (Cần để ngoài để onclick=" hàm " hoạt động)
+
+        async function openEditModal(id) {
+            try {
+                // Đảm bảo select vai trò có dữ liệu
+                const selectSua = document.getElementById('editSelectVaiTro');
+                if (selectSua.options.length <= 1) {
+                    await loadVaiTroIntoSelect('editSelectVaiTro');
+                }
+
+                const response = await fetch(`/api/quanlynguoidung/chucvu/${id}`);
+                if (!response.ok) throw new Error();
+                const data = await response.json();
+
+                document.getElementById('editMaChucVu').value = data.maChucVu;
+                document.getElementById('editTenChucVu').value = data.tenChucVu;
+                document.getElementById('editSelectVaiTro').value = data.maVaiTro;
+
+                const myModal = new bootstrap.Modal(document.getElementById('SuaChucVuModal'));
+                myModal.show();
+            } catch (error) {
+                Swal.fire('Lỗi', 'Không lấy được thông tin chức vụ', 'error');
+            }
+        }
+
+        async function confirmDelete(id) {
+            const result = await Swal.fire({
+                title: 'Bạn có chắc không?',
+                text: "Dữ liệu bị xóa không thể khôi phục!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Xóa ngay'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const res = await fetch(`/api/quanlynguoidung/xoachucvu/${id}`, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (res.ok) {
+                        Swal.fire('Thành công', data.message, 'success').then(() => location.reload());
+                    } else {
+                        Swal.fire('Lỗi', data.message, 'error');
+                    }
+                } catch {
+                    Swal.fire('Lỗi', 'Không thể kết nối server', 'error');
+                }
+            }
+        }
+
+        async function loadVaiTroIntoSelect(elementId) {
+            const select = document.getElementById(elementId);
+            try {
+                const response = await fetch('/api/quanlynguoidung/danhsachvaitro');
+                const data = await response.json();
+                select.innerHTML = '<option value="">-- Chọn vai trò --</option>';
+                data.forEach(item => {
+                    select.innerHTML += `<option value="${item.maVaiTro}">${item.tenVaiTro}</option>`;
+                });
+            } catch (err) { console.error("Lỗi load vai trò", err); }
+        }
+
+        // 2. DOM CONTENT LOADED (Khởi tạo sự kiện Form)
+        document.addEventListener("DOMContentLoaded", function () {
+            loadVaiTroIntoSelect('selectVaiTro'); // Load cho form thêm
+
+            // Xử lý Form Thêm
+            document.getElementById('formThemChucVu')?.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const payload = Object.fromEntries(new FormData(this));
+                sendRequest('/api/quanlynguoidung/themchucvu', 'POST', payload);
+            });
+
+            // Xử lý Form Sửa
+            document.getElementById('formSuaChucVu')?.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const id = document.getElementById('editMaChucVu').value;
+                const payload = Object.fromEntries(new FormData(this));
+                sendRequest(`/api/quanlynguoidung/suachucvu/${id}`, 'PUT', payload);
+            });
+        });
+
+        // Hàm gửi request dùng chung
+        async function sendRequest(url, method, body) {
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const result = await res.json();
+                if (res.ok) {
+                    Swal.fire('Thành công', result.message, 'success').then(() => location.reload());
+                } else {
+                    Swal.fire('Lỗi', result.message, 'error');
+                }
+            } catch {
+                Swal.fire('Lỗi', 'Lỗi kết nối máy chủ', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

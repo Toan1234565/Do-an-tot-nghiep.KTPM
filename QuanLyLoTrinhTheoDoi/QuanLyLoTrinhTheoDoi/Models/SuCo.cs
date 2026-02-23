@@ -1,0 +1,37 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace QuanLyLoTrinhTheoDoi.Models;
+
+public partial class SuCo
+{
+    public int MaSuCo { get; set; }
+
+    public int MaLoTrinh { get; set; }
+
+    public string? MoTa { get; set; }
+
+    public DateTime? ThoiGianBaoCao { get; set; }
+
+    public DateTime? ThoiGianXuLy { get; set; }
+
+    public string? TrangThai { get; set; }
+
+    public int? MaLoaiSuCo { get; set; }
+
+    public string? UrlHinhAnhSuCo { get; set; }
+
+    public string? UrlVideoSuCo { get; set; }
+
+    public double? ViDo { get; set; }
+
+    public double? KinhDo { get; set; }
+
+    public string? DiaChiCuThe { get; set; }
+
+    public string? GhiChuTuChoi { get; set; }
+
+    public virtual LoTrinh MaLoTrinhNavigation { get; set; } = null!;
+
+    public virtual LoaiSuCo? MaLoaiSuCoNavigation { get; set; }
+}

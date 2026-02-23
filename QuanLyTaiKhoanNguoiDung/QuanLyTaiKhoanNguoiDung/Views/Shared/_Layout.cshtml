@@ -1,0 +1,315 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Hệ Thống Quản Lý TTT</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        :root {
+            --sidebar-width: 280px;
+            --primary-green: #2ecc71;
+            --light-green: #eafaf1;
+            --dark-sidebar: #2c3e50;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            z-index: 1000;
+            transition: all 0.3s;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #f0f0f0;
+            font-weight: bold;
+            color: var(--primary-green);
+            font-size: 1.2rem;
+        }
+
+        .nav-list {
+            list-style: none;
+            padding: 15px;
+            margin: 0;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: #555;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            transition: all 0.2s;
+        }
+
+        .sidebar-link:hover {
+            background-color: var(--light-green);
+            color: var(--primary-green);
+        }
+
+        .sidebar-link.active {
+            background-color: var(--primary-green);
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(46, 204, 113, 0.2);
+        }
+
+        .sidebar-link svg {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+        }
+
+        /* Submenu */
+        .submenu-list {
+            list-style: none;
+            padding-left: 45px;
+            display: none; /* Hidden by default */
+        }
+
+        .submenu-list li a {
+            display: block;
+            padding: 8px 0;
+            color: #777;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .submenu-list li a:hover {
+            color: var(--primary-green);
+        }
+
+        .rotate-icon {
+            transform: rotate(180deg);
+            transition: 0.3s;
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .content-body {
+            padding: 30px;
+            flex: 1;
+        }
+
+        footer {
+            background: white;
+            padding: 15px;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+        }
+     
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-shipping-fast"></i> LOGISTICS TTT
+        </div>
+        <nav class="mt-2">
+            <ul class="nav-list">
+                <li>
+                    <a href="/Admin/Dashboard" class="sidebar-link active">
+                        <i class="fas fa-th-large"></i>
+                        <span>Dashboard KPI TMS </span>
+                    </a>
+                </li>
+
+                <li class="has-submenu">
+                    <a href="javascript:void(0)" class="sidebar-link d-flex align-items-center" onclick="toggleSubmenu(this)">
+                        <i class="fas fa-users-cog"></i>
+                        <span>Nhân sự & Phân quyền</span>
+                        <i class="fas fa-chevron-down ms-auto submenu-arrow"></i>
+                    </a>
+                    <ul class="submenu-list">
+                        <li><a href="/QuanLyNguoiDung/DanhSachNhanVien"><i class="fas fa-user-friends me-2"></i>Danh sách nhân viên</a></li>
+                        <li><a href="/TaiXe/HoSo"><i class="fas fa-id-card me-2"></i>Hồ sơ Tài xế (KPI)</a></li>
+                        <li><a href="/QuanLyPhanQuyen/PhanQuyen"><i class="fas fa-user-shield me-2"></i>Nhóm quyền RBAC</a></li>
+                    </ul>
+                </li>
+
+                <li class="has-submenu">
+                    <a href="javascript:void(0)" class="sidebar-link d-flex align-items-center" onclick="toggleSubmenu(this)">
+                        <i class="fas fa-handshake"></i>
+                        <span>Khách hàng & Đối tác</span>
+                        <i class="fas fa-chevron-down ms-auto submenu-arrow"></i>
+                    </a>
+                    <ul class="submenu-list">
+                        <li><a href="/QuanLyKhachHang/DanhSachKhachHang"><i class="fas fa-user-tie me-2"></i>Danh sách Khách hàng</a></li>
+                        <li><a href="/QuanLyHopDong/DanhSachHopDong"><i class="fas fa-file-contract me-2"></i>Hợp đồng & Báo giá</a></li>
+
+                        <li>
+                            <a href="/QuanLyVung/GetDanhSachBangGiaVung">
+                                <i class="fas fa-map-marked me-2"></i>Bảng giá vùng
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/MucDoDichVu/DanhSachMucDichVu">
+                                <i class="fas fa-shipping-fast me-2"></i>Mức độ dịch vụ (SLA)
+                            </a>
+                        </li>
+
+                        <li><a href="/NhaCungCap/DanhSach"><i class="fas fa-truck-moving me-2"></i>Nhà cung cấp</a></li>
+                    </ul>
+                </li>
+                <li class="has-submenu">
+                    <a href="javascript:void(0)" class="sidebar-link d-flex align-items-center" onclick="toggleSubmenu(this)">
+                        <i class="fas fa-tags"></i>
+                        <span>Marketing & Ưu đãi</span>
+                        <i class="fas fa-chevron-down ms-auto submenu-arrow"></i>
+                    </a>
+                    <ul class="submenu-list">
+                        <li><a href="/KhuyenMai/DanhSachLoai"><i class="fas fa-list-ul me-2"></i>Loại khuyến mãi</a></li>
+                        <li><a href="/QuanLyKhuyenMai/DanhSachKhuyenMai"><i class="fas fa-ticket-alt me-2"></i>Quản lý Mã giảm giá</a></li>
+                        <li><a href="/KhuyenMai/LichSuDiem"><i class="fas fa-history me-2"></i>Cấu hình tích điểm</a></li>
+                    </ul>
+                </li>
+                <li class="has-submenu">
+                    <a href="javascript:void(0)" class="sidebar-link d-flex align-items-center" onclick="toggleSubmenu(this)">
+                        <i class="fas fa-boxes"></i>
+                        <span>Kho & Đội xe</span>
+                        <i class="fas fa-chevron-down ms-auto submenu-arrow"></i>
+                    </a>
+                    <ul class="submenu-list">
+                        <li><a href="/QuanLyKhoBai/DanhSachKhoBai"><i class="fas fa-warehouse me-2"></i>Quản lý kho bãi</a></li>
+                        <li><a href="/QuanLyPhuongTien/DanhSachPhuongTien"><i class="fas fa-truck-pickup me-2"></i>Phương tiện</a></li>
+                        <li><a href="/QuanLyPhuongTien/LichTrinhBaoTri"><i class="fas fa-tools me-2"></i>Lịch trình Bảo trì</a></li>
+                        <li>
+                            <a href="/QuanLyPhuongTien/DanhSachDinhMuc">
+                                <i class="fas fa-ruler-combined me-2"></i>Quản lý định mức bảo trì
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="nav-label mt-3 mb-1 small text-muted text-uppercase ps-3" style="font-size: 0.7rem; letter-spacing: 1px;">Vận hành</li>
+                <li>
+                    <a href="/QuanLyDonHang/TaoDonHang" class="sidebar-link" style="background-color: rgba(40, 167, 69, 0.1); border-left: 4px solid #28a745;">
+                        <i class="fas fa-plus-circle" style="color: #28a745;"></i>
+                        <span style="font-weight: bold; color: #28a745;">Tạo đơn hàng mới</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/QuanLyDonHang/DanhSachDonHang" class="sidebar-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Đơn hàng & Kiện hàng</span>
+                        <span class="badge rounded-pill bg-primary ms-auto">12</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="/DieuPhoi/BanTuDong" class="sidebar-link">
+                        <i class="fas fa-route"></i>
+                        <span>Điều phối Lộ trình</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="/QuanLySuCo/DanhSachSuCo" class="sidebar-link">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Sự cố vận hành</span>
+                        <span class="badge rounded-pill bg-danger ms-auto">3</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="/GiamSat/BanDoTongQuan" class="sidebar-link">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <span>Bản đồ Giám sát (GPS)</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="/TaiChinh/PhieuThuChi" class="sidebar-link">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span>Kế toán Thu chi</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="/BaoCao/ChiPhiVanHanh" class="sidebar-link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Báo cáo Chi phí & OTD</span>
+                    </a>
+                </li>
+
+                <li>
+                    <a href="/HeThong/CauHinh" class="sidebar-link">
+                        <i class="fas fa-cogs"></i>
+                        <span>Cấu hình hệ thống</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="bg-white border-bottom p-3 d-flex justify-content-between align-items-center shadow-sm">
+            <span class="text-muted">Xin chào, Admin</span>
+            <div class="user-profile">
+                <img src="https://ui-avatars.com/api/?name=Admin&background=2ecc71&color=fff" class="rounded-circle" width="35" alt="avatar">
+            </div>
+        </header>
+
+        <main role="main" class="content-body">
+            <div class="container-fluid">
+                @RenderBody()
+            </div>
+        </main>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        function toggleSubmenu(element) {
+            const submenu = element.nextElementSibling;
+            const icon = element.querySelector('.fa-chevron-down');
+
+            if (submenu.style.display === "block") {
+                submenu.style.display = "none";
+                icon.style.transform = "rotate(0deg)";
+            } else {
+                submenu.style.display = "block";
+                icon.style.transform = "rotate(180deg)";
+            }
+        }
+
+        // Tự động active link dựa trên URL hiện tại
+        $(document).ready(function() {
+            const currentPath = window.location.pathname;
+            $('.sidebar-link').each(function() {
+                if($(this).attr('href') === currentPath) {
+                    $(this).addClass('active');
+                    // Nếu là submenu thì mở luôn menu cha
+                    $(this).closest('.submenu-list').show();
+                }
+            });
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

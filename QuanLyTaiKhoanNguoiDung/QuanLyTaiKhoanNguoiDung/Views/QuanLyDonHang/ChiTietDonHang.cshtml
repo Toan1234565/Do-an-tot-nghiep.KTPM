@@ -1,0 +1,360 @@
+﻿@model QuanLyTaiKhoanNguoiDung.Models12.QuanLyDonHang.DonHangModels
+@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDiaChi
+@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang
+
+@{
+    ViewData["Title"] = "Chi Tiết Đơn Hàng";
+    var diaChiGiao = ViewBag.DiaChiGiao as DiaChiModel;
+    var diaChiLay = ViewBag.DiaChiLayHang as DiaChiModel;
+    
+    var diaChiKho = ViewBag.DiaChiKhoHienTai as DiaChiModel;
+    var khachHang = ViewBag.ThongTinKhachHang as KhachHangModels;
+   
+}
+
+<style>
+    .main-content-container {
+        background-color: #f8f9fa;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    }
+
+    /* Timeline Style */
+    .timeline-steps {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 30px;
+    }
+
+        .timeline-steps .timeline-step {
+            align-items: center;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            margin: 1rem;
+        }
+
+    .timeline-content {
+        width: 200px;
+        text-align: center;
+    }
+
+        .timeline-content .inner-circle {
+            border-radius: 1.5rem;
+            height: 1rem;
+            width: 1rem;
+            margin: 0 auto 0.5rem;
+            background-color: #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+    .timeline-step.active .inner-circle {
+        background-color: #0d6efd;
+        box-shadow: 0 0 0 5px rgba(13, 110, 253, 0.2);
+    }
+
+    .timeline-step:not(:last-child):after {
+        content: "";
+        position: absolute;
+        top: 0.5rem;
+        left: 50%;
+        width: 100%;
+        height: 2px;
+        background-color: #dee2e6;
+        z-index: -1;
+    }
+
+    .timeline-step.active:not(:last-child):after {
+        background-color: #0d6efd;
+    }
+
+    .card {
+        border: none;
+        border-radius: 15px;
+    }
+
+    .info-label {
+        color: #6c757d;
+        font-size: 0.85rem;
+        margin-bottom: 2px;
+    }
+
+    .info-value {
+        font-weight: 600;
+        color: #212529;
+    }
+
+    .bg-success-soft {
+        background-color: #ecfdf5;
+    }
+
+    .italic {
+        font-style: italic;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="main-content-container">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+            <div>
+                <h2 class="fw-bold m-0 text-primary"><i class="bi bi-box2-fill me-2"></i>Chi tiết #@Model?.TenDonHang</h2>
+                <span class="text-muted">Ngày tạo: @Model?.ThoiGianTao.ToString("dd/MM/yyyy HH:mm")</span>
+            </div>
+            <div class="d-flex gap-2">
+                <button onclick="window.print()" class="btn btn-outline-primary"><i class="bi bi-printer me-2"></i>In vận đơn</button>
+                <a href="javascript:history.back()" class="btn btn-secondary px-4"><i class="bi bi-arrow-left me-2"></i>Quay lại</a>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4 py-4">
+            <div class="timeline-steps">
+                <div class="timeline-step active">
+                    <div class="timeline-content">
+                        <div class="inner-circle"></div>
+                        <p class="h6 mt-3 mb-1 fw-bold">Điểm lấy hàng</p>
+                        <p class="small text-muted mb-0">@(diaChiLay?.ThanhPho ?? "Đang cập nhật...")</p>
+                    </div>
+                </div>
+
+                <div class="timeline-step @(diaChiKho != null || Model?.TrangThaiHienTai == "Thành công" ? "active" : "")">
+                    <div class="timeline-content">
+                        <div class="inner-circle"></div>
+                        <p class="h6 mt-3 mb-1 fw-bold">Vị trí hiện tại</p>
+
+                        @if (Model?.TrangThaiHienTai == "Thành công")
+                        {
+                            <span class="badge bg-success text-white mb-1">
+                                <i class="bi bi-check-all me-1"></i>Đã hoàn thành
+                            </span>
+                            <p class="small text-muted mb-0">Hàng đã giao đến nơi</p>
+                        }
+                        else if (ViewBag.DistanceRemaining != null)
+                        {
+                            <span class="badge bg-info text-white mb-1">
+                                Còn @(Math.Round(Convert.ToDouble(ViewBag.DistanceRemaining), 1)) km
+                            </span>
+                            <p class="small text-muted mb-0">@(diaChiKho?.ThanhPho ?? "Đang luân chuyển...")</p>
+                        }
+                        else
+                        {
+                            <p class="small text-muted mb-0">@(diaChiKho?.ThanhPho ?? "Đang luân chuyển...")</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="timeline-step">
+                    <div class="timeline-content">
+                        <div class="inner-circle"></div>
+                        <p class="h6 mt-3 mb-1 fw-bold">Điểm giao hàng</p>
+                        <p class="small text-muted mb-0">@(diaChiGiao?.ThanhPho ?? "---")</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-lg-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-4 border-bottom pb-2">Thông tin vận chuyển</h5>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="info-label">Trạng thái hiện tại</div>
+                                <span class="badge @(Model?.TrangThaiHienTai == "Thành công" ? "bg-success" : "bg-primary") px-3">
+                                    @Model?.TrangThaiHienTai
+                                </span>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="info-label">Phương thức lấy</div>
+                                <div class="info-value">Tại địa chỉ khách hàng</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="info-label">Dự kiến giao</div>
+                                <div class="info-value">@Model?.ThoiGianTao.AddDays(3).ToString("dd/MM/yyyy")</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="fw-bold mb-0">Kiện hàng trong đơn (@Model?.KienHangs?.Count)</h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Mã kiện</th>
+                                    <th>Thông tin kiện hàng</th>
+                                   
+                                    <th>Trạng thái thu</th>
+
+                                    <th class="text-end pe-4">Tiền thu hộ (COD)</th>
+                                    
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model?.KienHangs?.Any() == true)
+                                {
+                                    foreach (var item in Model.KienHangs)
+                                    {
+                                        <tr>
+                                            <td class="ps-4">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi bi-upc-scan me-2 text-muted"></i>
+                                                    <span class="fw-bold">@item.MaVach</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <div class="bg-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                        <i class="bi bi-weight text-primary"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-bold text-dark">@item?.MaLoaiHangNavigation?.TenLoaiHang</div>
+                                                        <div class="fw-bold text-dark">@item.KhoiLuong kg</div>
+                                                        <div class="text-muted" style="font-size: 0.7rem;">Trọng lượng thực</div>
+                                                        
+                                                    </div>
+                                                </div>
+
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="bg-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                        <i class="bi bi-box-seam text-secondary"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div class="small fw-medium">@item.TheTich cm³</div>
+                                                        @if (item.TheTich > 0)
+                                                        {
+                                                            <div class="text-muted" style="font-size: 0.7rem;">
+                                                                Quy đổi: <span class="text-info">@(Math.Round((double)item.TheTich / 6000, 2)) kg</span>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @if (item.DaThuGom == true)
+                                                {
+                                                    <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>Đã vào kho</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted small"><i class="bi bi-clock-history me-1"></i>Chờ lấy hàng</span>
+                                                }
+                                            </td>
+                                            <td class="text-end pe-4 fw-bold text-danger">@((item.SoTien ?? 0).ToString("N0")) đ</td>
+                                        </tr>
+                                    }
+                                    <tr class="table-light">
+                                        <td colspan="4" class="p-3">
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Loại dịch vụ</div>
+                                                    <div class="fw-bold">
+                                                        @(Model.MaLoaiDv == 2 ? "Thuê trọn gói (Bulk)" : "Gửi hàng lẻ (LTL)")
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Vận hành</div>
+                                                    <div class="fw-bold @(Model.LaDonGiaoThang == true ? "text-danger" : "text-primary")">
+                                                        <i class="bi @(Model.LaDonGiaoThang == true ? "bi-lightning-fill" : "bi-truck") me-1"></i>
+                                                        @(Model.LaDonGiaoThang == true ? "GIAO THẲNG" : "Qua kho trung chuyển")
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Ghi chú đơn hàng</div>
+                                                    <div class="small italic">
+                                                        @(string.IsNullOrEmpty(Model.GhiChuDacBiet) ? "Không có ghi chú" : Model.GhiChuDacBiet)
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">Không có kiện hàng nào trong đơn này.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-muted mb-3"><i class="bi bi-geo-alt-fill me-2 text-danger"></i>ĐỊA CHỈ LẤY HÀNG</h6>
+                        @if (diaChiGiao != null)
+                        {
+                           
+                            <p class="small text-dark mb-0 lh-base">
+                                @khachHang?.TenLienHe - @khachHang?.SoDienThoai<br>
+                                @diaChiLay?.Duong, @diaChiLay?.Phuong<br>
+                                <strong>@diaChiLay?.ThanhPho</strong>
+                            </p>
+                            <a href="https://www.google.com/maps/search/?api=1&query=@(diaChiLay?.ViDo),@(diaChiLay?.KinhDo)"
+                               target="_blank" class="btn btn-sm btn-outline-danger mt-3 w-100">
+                                <i class="bi bi-map me-2"></i>Xem trên bản đồ
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="alert alert-light small mb-0">@(ViewBag.DiaChiMessage ?? "Chưa có thông tin địa chỉ")</div>
+                        }
+                    </div>
+                    <div class="card-body">
+                        <h6 class="fw-bold text-muted mb-3"><i class="bi bi-geo-alt-fill me-2 text-danger"></i>ĐỊA CHỈ GIAO HÀNG</h6>
+                        @if (diaChiGiao != null)
+                        {
+
+                            <p class="small text-dark mb-0 lh-base">
+                                @Model?.TenNguoiNhan - @Model?.SdtNguoiNhan<br>
+                                @diaChiGiao.Duong, @diaChiGiao.Phuong<br>
+                                <strong>@diaChiGiao.ThanhPho</strong>
+                            </p>
+                            <a href="https://www.google.com/maps/search/?api=1&query=@(diaChiGiao.ViDo),@(diaChiGiao.KinhDo)"
+                               target="_blank" class="btn btn-sm btn-outline-danger mt-3 w-100">
+                                <i class="bi bi-map me-2"></i>Xem trên bản đồ
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="alert alert-light small mb-0">@(ViewBag.DiaChiMessage ?? "Chưa có thông tin địa chỉ")</div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card shadow-sm bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="opacity-75">Tổng tiền hàng:</span>
+                            <span>@((Model?.KienHangs?.Sum(x => x.SoTien) ?? 0).ToString("N0")) đ</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="opacity-75">Phí dịch vụ:</span>
+                            <span>0 đ</span>
+                        </div>
+                        <hr class="border-white opacity-25">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold">TỔNG CỘNG:</span>
+                            <h3 class="fw-bold mb-0">@((Model?.KienHangs?.Sum(x => x.SoTien) ?? 0).ToString("N0")) đ</h3>
+                        </div>
+                        <button class="btn btn-light w-100 mt-4 fw-bold py-2 text-primary shadow">
+                            XUẤT HÓA ĐƠN PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">

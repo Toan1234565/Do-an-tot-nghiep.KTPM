@@ -1,0 +1,645 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhoBai
+
+@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien
+
+@model IEnumerable<QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien.PhuongTienModel>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hệ Thống Quản Lý Phương Tiện</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --success-color: #2ec4b6;
+            --warning-color: #ff9f1c;
+            --danger-color: #e71d36;
+            --bg-body: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: #2b2d42;
+        }
+
+        .main-card {
+            background: white;
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 2rem;
+            margin: 20px auto;
+            max-width: 98%;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-weight: 700;
+            font-size: 1.6rem;
+            color: #1a202c;
+            margin: 0;
+        }
+
+        /* Table Design */
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 12px;
+        }
+
+            .custom-table thead th {
+                color: #718096;
+                text-transform: uppercase;
+                font-size: 0.75rem;
+                font-weight: 700;
+                padding: 10px 20px;
+                border: none;
+            }
+
+            .custom-table tbody tr {
+                background: #fff;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+                border-radius: 12px;
+                transition: all 0.3s ease;
+            }
+
+                .custom-table tbody tr:hover {
+                    transform: scale(1.005);
+                    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+                }
+
+            .custom-table tbody td {
+                padding: 18px 20px;
+                border: none;
+                vertical-align: middle;
+            }
+
+                .custom-table tbody td:first-child {
+                    border-radius: 12px 0 0 12px;
+                }
+
+                .custom-table tbody td:last-child {
+                    border-radius: 0 12px 12px 0;
+                }
+
+        /* Badges */
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .bg-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .bg-maintenance {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .bg-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .btn-add-new {
+            background: var(--primary-color);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            border: none;
+            box-shadow: 0 4px 14px rgba(67, 97, 238, 0.3);
+        }
+
+            .btn-add-new:hover {
+                background: var(--secondary-color);
+                color: white;
+            }
+
+        /* Modal fixes */
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+        }
+
+        .modal-header {
+            border-bottom: 1px solid #f1f5f9;
+            padding: 1.5rem;
+        }
+        /* Đảm bảo SweetAlert luôn nằm trên Modal của Bootstrap */
+        .swal2-container {
+            z-index: 10000 !important;
+        }
+
+        /* Fix lỗi mờ hoặc không click được trên một số trình duyệt */
+        .modal-open .swal2-container {
+            pointer-events: auto;
+        }
+        /* Thêm style cho nút Export/Excel */
+        .btn-excel {
+            background: #1d6f42; /* Màu xanh Excel */
+            color: white;
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-weight: 600;
+            border: none;
+            transition: all 0.3s;
+        }
+
+            .btn-excel:hover {
+                background: #155231;
+                color: white;
+                transform: translateY(-2px);
+            }
+
+        /* Custom Tabs cho Modal Excel */
+        .nav-tabs-custom .nav-link {
+            border: none;
+            color: #64748b;
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+        }
+
+            .nav-tabs-custom .nav-link.active {
+                color: var(--primary-color);
+                border-bottom: 3px solid var(--primary-color);
+                background: transparent;
+            }
+    </style>
+</head>
+<body>
+        <main class="container-fluid py-4">
+            <div class="main-card">
+            <div class="page-header flex-wrap">
+                <h1><i class="fa-solid fa-truck-moving me-2 text-primary"></i>Hệ Thống Quản Lý Phương Tiện</h1>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-excel" data-bs-toggle="modal" data-bs-target="#ImportExcelModal">
+                        <i class="fas fa-file-excel me-2"></i>Nhập từ Excel
+                    </button>
+                    <button class="btn btn-add-new" data-bs-toggle="modal" data-bs-target="#ThemPhuongTien">
+                        <i class="fas fa-plus-circle me-2"></i>Thêm thủ công
+                    </button>
+                </div>
+            </div>             
+                <form method="get" asp-action="DanhSachPhuongTien" class="row g-3 mb-4 p-3 bg-light rounded-4 border mx-0">
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" name="searchTerm" class="form-control border-start-0" placeholder="Tìm biển số xe..." value="@ViewBag.CurrentSearch" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="maLoaiXe" class="form-select" onchange="this.form.submit()">
+                            <option value="">-- Tất cả loại xe --</option>
+                            @if (ViewBag.DanhSachLoaiXe != null)
+                            {
+                                foreach (var cv in (List<LoaiXeModels>)ViewBag.DanhSachLoaiXe)
+                                {
+                                    <option value="@cv.MaLoaiXe" selected="@(ViewBag.CurrentMaLoaiXe?.ToString() == cv.MaLoaiXe.ToString())">@cv.TenLoai</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="trangThaiDangKiem" class="form-select" onchange="this.form.submit()">
+                            <option value="Tất cả" selected="@(ViewBag.CurrentTrangThaiDangKiem == "Tất cả")">Tất cả đăng kiểm</option>
+                            <option value="Còn hạn" selected="@(ViewBag.CurrentTrangThaiDangKiem == "Còn hạn")">Còn hạn đăng kiểm</option>
+                            <option value="Hết hạn" selected="@(ViewBag.CurrentTrangThaiDangKiem == "Hết hạn")">Hết hạn đăng kiểm</option>
+                        </select>
+                    </div>              
+                    <div class="col-md-3">
+                        <select name="status" class="form-select" onchange="this.form.submit()">
+                            <option value="Tất cả" selected="@(ViewBag.CurrentStatus == "Tất cả")">Tất cả trạng thái</option>
+                            <option value="Đang hoạt động" selected="@(ViewBag.CurrentStatus == "Đang hoạt động")">Đang hoạt động</option>
+                            <option value="Bảo trì" selected="@(ViewBag.CurrentStatus == "Bảo trì")">Bảo trì</option>
+                            <option value="Không hoạt động" selected="@(ViewBag.CurrentStatus == "Không hoạt động")">Không hoạt động</option>
+                        </select>
+                        
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th class="text-center">STT</th>
+                                <th>Thông tin xe</th>
+                                <th class="text-center">Thông số kỹ thuật</th>
+                                <th class="text-center">Tiêu hao (L/km)</th>
+                                <th class="text-center">Tình trạng vận hành</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model != null && Model.Any())
+                            {
+                                int stt = ((ViewBag.CurrentPage - 1) * 20) + 1;
+                                foreach (var item in Model)
+                                {
+                                <tr onclick="location.href='@Url.Action("ChiTietPhuongTien", "QuanLyPhuongTien", new { maPhuongTien = item.MaPhuongTien })'"
+                                    style="cursor: pointer;"
+                                    class="align-middle">
+                                        <td class="text-center fw-bold text-muted">@stt</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-primary bg-opacity-10 p-3 rounded-3 me-3 text-primary">
+                                                    <i class="fas fa-truck fa-lg"></i>
+                                                </div>
+                                                <div>
+                                                    <div>
+                                                        @item.BienSo
+                                                        
+                                                         <span class="badge bg-light text-dark border fw-normal">@item.TenLoaiXe</span>
+                                                    </div>
+                                                   
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="small"><i class="fas fa-weight-hanging me-1 text-muted"></i>@item.TaiTrongToiDaKg kg</div>
+                                            <div class="small"><i class="fas fa-box me-1 text-muted"></i>@item.TheTichToiDaM3 m³</div>
+                                        </td>
+                                        <td class="text-center fw-semibold text-primary">
+                                            @item.MucTieuHaoNhienLieu
+                                        </td>
+                                        <td class="text-center">
+                                            @* Giữ lại hiển thị trạng thái vận hành cũ để theo dõi *@
+                                            @if (item.TrangThai == "Đang hoạt động")
+                                            {
+                                                <span class="status-badge bg-active">Hoạt động</span>
+                                            }
+                                            else if (item.TrangThai == "Bảo trì")
+                                            {
+                                                <span class="status-badge bg-maintenance">Bảo trì</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="status-badge bg-inactive">Tạm dừng</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                    stt++;
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center py-5">
+                                        <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" width="80" class="mb-3 opacity-25">
+                                        <p class="text-muted">Không tìm thấy dữ liệu phương tiện phù hợp.</p>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            @if (ViewBag.TotalPages > 1)
+            {
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <p class="text-muted small mb-0">Hiển thị trang @ViewBag.CurrentPage/@ViewBag.TotalPages</p>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                            {
+                                <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                    <a class="page-link shadow-sm border-0 mx-1 rounded"
+                                       href="@Url.Action("DanhSachPhuongTien", new { searchTerm = ViewBag.CurrentSearch, maLoaiXe = ViewBag.CurrentMaLoaiXe, trangThaiDangKiem = ViewBag.CurrentTrangThaiDangKiem, page = i })">@i</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            }
+            
+        </div>
+        <div class="modal fade" id="ThemPhuongTien" data-bs-backdrop="static" data-bs-keyboard="false">
+       
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2 text-primary"></i>Đăng Ký Phương Tiện Mới</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <form id="formThemPhuongTien">
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Biển số xe *</label>
+                                    <input type="text" class="form-control" name="BienSo" required placeholder="98A-XXXXX">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Loại xe *</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="selectLoaiXe" name="MaLoaiXe" required>
+                                            <option value="">-- Chọn loại xe --</option>
+                                            @if (ViewBag.DanhSachLoaiXe != null)
+                                            {
+                                                foreach (var loai in (List<LoaiXeModels>)ViewBag.DanhSachLoaiXe)
+                                                {
+                                                    <option value="@loai.MaLoaiXe">@loai.TenLoai</option>
+                                                }
+                                            }
+                                        </select>
+                                        <button class="btn btn-outline-primary" type="button" onclick="themNhanhLoaiXe()"><i class="fas fa-plus"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-4">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Tải trọng (kg)</label>
+                                    <input type="number" class="form-control" name="TaiTrongToiDaKg">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Thể tích (m³)</label>
+                                    <input type="number" step="0.1" class="form-control" name="TheTichToiDaM3">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Tiêu hao (L/km)</label>
+                                    <input type="number" step="0.01" class="form-control" name="MucTieuHaoNhienLieu">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Trạng thái vận hành</label>
+                                    <select class="form-select" name="TrangThai">
+                                        <option value="Đang hoạt động text-success">Đang hoạt động</option>
+                                        <option value="Bảo trì">Đang bảo trì</option>
+                                        <option value="Không hoạt động">Không hoạt động</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Vị trí hiện tại (Kho bãi) *</label>
+                                    <select class="form-select" name="MaKho" required>
+                                        <option value="">-- Chọn kho bãi --</option>
+                                        @if (ViewBag.DanhSachKho != null)
+                                        {
+                                            foreach (var kho in (List<QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhoBai.QuanLyKhobaiModels>)ViewBag.DanhSachKho)
+                                            {
+                                                <option value="@kho.MaKho">@kho.TenKhoBai</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                                
+                            </div>
+
+                            <div class="mt-4 pt-3 border-top text-end">
+                                <button type="button" class="btn btn-light px-4 me-2" data-bs-dismiss="modal">Hủy bỏ</button>
+                                <button type="submit" id="btnSubmitForm" class="btn btn-primary px-5 fw-bold">Xác nhận lưu</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="ImportExcelModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title"><i class="fas fa-file-excel me-2"></i>Nhập dữ liệu phương tiện từ Excel</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="text-center mb-4">
+                            <img src="https://cdn-icons-png.flaticon.com/512/281/281760.png" width="60" alt="Excel Icon">
+                            <p class="mt-2 text-muted">Hệ thống hỗ trợ file .xlsx theo đúng cấu trúc mẫu</p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="fileExcel" class="form-label fw-bold text-dark">Bước 1: Chọn tập tin của bạn</label>
+                            <input class="form-control form-control-lg shadow-sm" type="file" id="fileExcel" accept=".xlsx">
+                        </div>
+
+                        <div class="card bg-light border-0">
+                            <div class="card-body p-3">
+                                <label class="fw-bold mb-2"><i class="fas fa-download me-2 text-primary"></i>Bước 2: Sử dụng file mẫu</label>
+                                <p class="small text-muted mb-2">Để đảm bảo không bị lỗi định dạng, hãy tải file mẫu của chúng tôi.</p>
+                                <a href="/templates/Mau_Import_Xe.xlsx" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                                    Tải file mẫu tại đây
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light border-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-success px-4 fw-bold" onclick="uploadExcel()">
+                            <i class="fas fa-cloud-upload-alt me-2"></i>Xác nhận nhập dữ liệu
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.getElementById('formThemPhuongTien');
+
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                // 1. Thu thập và ép kiểu dữ liệu
+                const formData = new FormData(form);
+                const payload = {};
+
+                formData.forEach((value, key) => {
+                    // Các trường cần là số thì ép kiểu để tránh lỗi API
+                    if (['MaLoaiXe', 'MaKho', 'TaiTrongToiDaKg', 'TheTichToiDaM3', 'MucTieuHaoNhienLieu'].includes(key)) {
+                        payload[key] = value ? parseFloat(value) : 0;
+                    } else {
+                        payload[key] = value;
+                    }
+                });
+
+                // 2. Hiển thị Loading
+                Swal.fire({
+                    title: 'Đang gửi dữ liệu...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                try {
+                    // 3. Gửi Fetch Request
+                    const response = await fetch('https://localhost:7286/api/quanlyxe/themxemoi', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    // Kiểm tra nếu không có nội dung trả về (204 No Content)
+                    const text = await response.text();
+                    const result = text ? JSON.parse(text) : {};
+
+                    if (response.ok) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Thành công!',
+                            text: result.message || 'Phương tiện đã được lưu.',
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => {
+                            // Đóng modal chuyên nghiệp bằng Bootstrap API
+                            const modalElement = document.getElementById('ThemPhuongTien');
+                            const modal = bootstrap.Modal.getInstance(modalElement);
+                            if (modal) modal.hide();
+
+                            location.reload(); // Chỉ cần 1 lệnh reload
+                        });
+                    } else {
+                        // Xử lý lỗi từ Server (Ví dụ: 400, 409 trùng biển số)
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Không thể lưu',
+                            text: result.message || 'Dữ liệu không hợp lệ hoặc biển số đã tồn tại.'
+                        });
+                    }
+                } catch (error) {
+                    console.error("Fetch Error:", error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Lỗi CORS hoặc Kết nối',
+                        text: 'Không thể kết nối tới API. Vui lòng kiểm tra lại cấu hình CORS tại Server.'
+                    });
+                }
+            });
+        });
+    </script>
+    <script>     
+        function themNhanhLoaiXe() {
+            Swal.fire({
+                title: 'Thêm loại xe mới',
+                input: 'text',
+                inputPlaceholder: 'Nhập tên loại xe...',
+                showCancelButton: true,
+                confirmButtonText: 'Lưu lại',
+                cancelButtonText: 'Hủy',              
+                backdrop: true,
+                target: document.body,
+                didOpen: () => {
+                    const input = Swal.getInput();
+                    if (input) {
+                        input.focus();
+                    }
+                },
+                inputValidator: (v) => !v && 'Vui lòng không để trống!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Giữ nguyên phần AJAX của bạn...
+                    $.ajax({
+                        url: 'https://localhost:7286/api/quanlyxe/themloaixe',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ TenLoai: result.value }),
+                        success: function (res) {
+                            $('#selectLoaiXe').append(new Option(result.value, res.maLoaiXe)).val(res.maLoaiXe);
+                            Swal.fire('Đã thêm!', '', 'success');
+                            window.location.reload();
+                        },
+                        error: function() {
+                            Swal.fire('Lỗi!', 'Không thể kết nối tới máy chủ', 'error');
+                        }
+                    });
+                }
+            });
+        }
+    </script> 
+    <script>
+        async function uploadExcel() {
+            const fileInput = document.getElementById('fileExcel');
+            const file = fileInput.files[0];
+
+            // 1. Kiểm tra file đầu vào
+            if (!file) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Chú ý',
+                    text: 'Vui lòng chọn một file Excel (.xlsx) trước khi xác nhận!'
+                });
+                return;
+            }
+
+            // 2. Tạo FormData để gửi file
+            const formData = new FormData();
+            formData.append("file", file);
+
+            // 3. Hiển thị Loading
+            Swal.fire({
+                title: 'Đang xử lý dữ liệu...',
+                text: 'Vui lòng chờ trong giây lát',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            try {
+                // 4. Gọi API (Thay đổi URL cho đúng với Port của bạn)
+                const response = await fetch('https://localhost:7286/api/quanlyxe/import-excel', {
+                    method: 'POST',
+                    body: formData
+                    // Lưu ý: Không để Content-Type ở đây, trình duyệt sẽ tự gán multipart/form-data kèm boundary
+                });
+
+                const result = await response.text(); // Đọc dạng text trước để tránh lỗi nếu server ko trả về JSON
+
+                if (response.ok) {
+                    // 5. Thông báo thành công
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công!',
+                        text: result || 'Đã nhập dữ liệu từ Excel thành công.',
+                        confirmButtonText: 'Tuyệt vời'
+                    }).then(() => {
+                        // Đóng Modal và tải lại trang
+                        const modalElement = document.getElementById('ImportExcelModal');
+                        const modal = bootstrap.Modal.getInstance(modalElement);
+                        if (modal) modal.hide();
+
+                        location.reload();
+                    });
+                } else {
+                    // 6. Xử lý lỗi từ Server (ví dụ file sai định dạng, trùng biển số...)
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Lỗi nhập dữ liệu',
+                        text: result || 'Đã có lỗi xảy ra trong quá trình xử lý file.'
+                    });
+                }
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi kết nối',
+                    text: 'Không thể kết nối tới máy chủ hoặc lỗi mạng.'
+                });
+            }
+        }
+    </script>
+</body>
+</html>

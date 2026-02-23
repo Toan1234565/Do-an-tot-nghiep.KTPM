@@ -1,0 +1,439 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien
+@using Microsoft.AspNetCore.Routing
+@{
+    // 1. Ép kiểu dữ liệu từ ViewBag
+    var dsSapBT = ViewBag.DsSapBaoTri as List<PhuongTienModel> ?? new List<PhuongTienModel>();
+    var dsSapDK = ViewBag.DsSapHetDangKiem as List<PhuongTienModel> ?? new List<PhuongTienModel>();
+    var dsSapPDB = ViewBag.DsSapHetPhiDuongBo as List<PhuongTienModel> ?? new List<PhuongTienModel>();
+
+    // 2. Thông số phân trang & lọc
+    int pBT = ViewBag.CurrentPageBT ?? 1;
+    int tPBT = ViewBag.TotalPagesBT ?? 1;
+    int tIBT = ViewBag.TotalItemsBT ?? 0;
+
+    int pDK = ViewBag.CurrentPageDK ?? 1;
+    int tPDK = ViewBag.TotalPagesDK ?? 1;
+    int tIDK = ViewBag.TotalItemsDK ?? 0;
+
+    int pPDB = ViewBag.CurrentPagePDB ?? 1;
+    int tPPDB = ViewBag.TotalPagesPDB ?? 1;
+    int tIPDB = ViewBag.TotalItemsPDB ?? 0;
+
+    int sNBT = ViewBag.SoNgayBaoTri ?? 15;
+    int sNDK = ViewBag.SoNgayDangKiem ?? 30;
+    int sNPDB = ViewBag.SoNgayPhiDb ?? 30;
+
+    // 3. Hàm Local Function thay thế cho @helper (Giải quyết lỗi 'current' and 'helper')
+    void RenderPagination(int current, int total, string pName, int o1, int o2)
+    {
+        if (total <= 1) return;
+        <div class="pagination-container d-flex justify-content-center gap-1 mt-3">
+            @for (int i = Math.Max(1, current - 2); i <= Math.Min(total, current + 2); i++)
+            {
+                var rv = new RouteValueDictionary {
+        { "soNgayBaoTri", sNBT }, { "soNgayDangKiem", sNDK }, { "soNgayPhiDb", sNPDB },
+        { "pageBT", pName == "pageBT" ? i : pBT },
+        { "pageDK", pName == "pageDK" ? i : pDK },
+        { "pagePDB", pName == "pagePDB" ? i : pPDB }
+        };
+                <a href="@Url.Action("LichTrinhBaoTri", rv)"
+                   class="btn-page @(i == current ? "active" : "")">@i</a>
+            }
+        </div>
+    }
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <title>Giám Sát Hạn Định Phương Tiện</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4361ee;
+            --bg: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: #334155;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .filter-box {
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 15px;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+
+            .custom-table tr {
+                cursor: pointer;
+                transition: 0.2s;
+            }
+
+                .custom-table tr:hover {
+                    transform: translateY(-2px);
+                }
+
+            .custom-table td {
+                background: white;
+                padding: 12px;
+                border: 1px solid #e2e8f0;
+            }
+
+                .custom-table td:first-child {
+                    border-radius: 8px 0 0 8px;
+                }
+
+                .custom-table td:last-child {
+                    border-radius: 0 8px 8px 0;
+                    border-left: none;
+                }
+
+        .alert-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .btn-page {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            text-decoration: none;
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+
+            .btn-page.active {
+                background: var(--primary);
+                color: white;
+                border-color: var(--primary);
+            }
+    </style>
+</head>
+<body>
+    <div class="container-fluid px-4">
+        <div class="main-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold m-0 text-primary"><i class="fas fa-shipping-fast me-2"></i>GIÁM SÁT HẠN ĐỊNH</h4>
+                <div class="d-flex gap-2">
+                    <button onclick="exportGeneralReport()" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-file-excel me-1"></i> Xuất báo cáo tổng
+                    </button>
+                    <button onclick="importExcelData()" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-file-import me-1"></i> Nhập dữ liệu (Excel)
+                    </button>
+                </div>
+                
+            </div>
+
+            <form method="get" action="@Url.Action("LichTrinhBaoTri")" class="filter-box shadow-sm">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="small fw-bold">Cảnh báo Bảo trì (Ngày)</label>
+                        <input type="number" name="soNgayBaoTri" class="form-control form-control-sm" value="@sNBT">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="small fw-bold">Hạn Đăng kiểm (Ngày)</label>
+                        <input type="number" name="soNgayDangKiem" class="form-control form-control-sm" value="@sNDK">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="small fw-bold">Phí đường bộ (Ngày)</label>
+                        <input type="number" name="soNgayPhiDb" class="form-control form-control-sm" value="@sNPDB">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">CẬP NHẬT DỮ LIỆU</button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="row">
+                <div class="col-lg-4 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white border-0 py-3 d-flex align-items-center justify-content-between">
+                            <h6 class="m-0 fw-bold text-warning">
+                                <i class="fas fa-tools me-2"></i>LỊCH BẢO TRÌ
+                            </h6>
+                            <span class="badge rounded-pill bg-warning text-dark shadow-sm">@tIBT xe</span>
+                        </div>
+
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0 custom-maintenance-table">
+                                    <tbody>
+                                        @foreach (var item in dsSapBT)
+                                        {
+                                            // Logic xác định mức độ nghiêm trọng để hiển thị màu sắc
+                                            bool isOverdue = item.GhiChu.Contains("QUÁ HẠN") || item.GhiChu.Contains("Mới");
+
+                                            <tr style="cursor: pointer;" onclick="location.href='@Url.Action("ChiTietPhuongTien", new { maPhuongTien = item.MaPhuongTien })'">
+                                                <td class="border-0 px-3 py-3">
+                                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                                        <div>
+                                                            <div class="fw-bold text-dark fs-6">@item.BienSo</div>
+                                                            <div class="text-muted small">@item.TenLoaiXe</div>
+                                                        </div>
+                                                        <div class="text-end">
+                                                            @if (isOverdue)
+                                                            {
+                                                                <span class="badge bg-danger mb-1 d-block emergency-blink">CẦN BẢO TRÌ NGAY</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="badge bg-warning text-dark mb-1 d-block">SẮP ĐẾN HẠN</span>
+                                                            }
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="mt-2">
+                                                        @{
+                                                            var hangMucs = item.GhiChu?.Split(',') ?? new string[] { "Chưa xác định" };
+                                                            foreach (var hm in hangMucs)
+                                                            {
+                                                                <div class="d-flex align-items-center mb-1">
+                                                                    <i class="fa-solid fa-caret-right text-secondary me-2 small"></i>
+                                                                    <span class="small text-secondary" style="font-size: 0.8rem;">@hm.Trim()</span>
+                                                                </div>
+                                                            }
+                                                        }
+                                                    </div>
+
+                                                    @if (item.SoKmHienTai > 0)
+                                                    {
+                                                        <div class="mt-2 d-flex justify-content-between small text-muted mb-1">
+                                                            <span>Hiện tại: @(item.SoKmHienTai?.ToString("N0")) km</span>
+                                                        </div>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                        @if (!dsSapBT.Any())
+                                        {
+                                            <tr>
+                                                <td class="text-center py-4 text-muted">
+                                                    <i class="fa-solid fa-check-circle text-success d-block mb-2 fs-4"></i>
+                                                    Tất cả xe đều vận hành tốt
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="card-footer bg-white border-0 py-3">
+                            @{
+                                RenderPagination(pBT, tPBT, "pageBT", pDK, pPDB);
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 mb-4">
+                    <div class="section-title text-danger"><i class="fas fa-clipboard-check"></i> ĐĂNG KIỂM <span class="badge bg-danger ms-auto">@tIDK</span></div>
+                    <table class="custom-table">
+                        @foreach (var item in dsSapDK)
+                        {
+                            <tr onclick="location.href='@Url.Action("ChiTietPhuongTien", new { maPhuongTien = item.MaPhuongTien })'">
+                                <td><span class="fw-bold">@item.BienSo</span><br><small class="text-muted">@item.TenLoaiXe</small></td>
+                                <td class="text-end"><span class="alert-badge bg-danger text-white">@item.GhiChu</span></td>
+                            </tr>
+                        }
+                    </table>
+                    @{
+                        RenderPagination(pDK, tPDK, "pageDK", pBT, pPDB);
+                    }
+                </div>
+
+                <div class="col-lg-4 mb-4">
+                    <div class="section-title text-success"><i class="fas fa-road"></i> PHÍ ĐƯỜNG BỘ <span class="badge bg-success ms-auto">@tIPDB</span></div>
+                    <table class="custom-table">
+                        @foreach (var item in dsSapPDB)
+                        {
+                            <tr onclick="location.href='@Url.Action("ChiTietPhuongTien", new { maPhuongTien = item.MaPhuongTien })'">
+                                <td><span class="fw-bold">@item.BienSo</span><br><small class="text-muted">@item.TenLoaiXe</small></td>
+                                <td class="text-end"><span class="alert-badge bg-success text-white">@item.GhiChu</span></td>
+                            </tr>
+                        }
+                    </table>
+                    @{
+                        RenderPagination(pPDB, tPPDB, "pagePDB", pBT, pDK);
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+
+        async function handleExport(loai, soNgay) {
+            // 1. Xác định tên hiển thị cho thông báo
+            const labels = {
+                'bao-tri': 'Bảo trì',
+                'dang-kiem': 'Đăng kiểm',
+                'phi-duong-bo': 'Phí đường bộ'
+            };
+
+            try {
+                // 2. Gọi API sử dụng fetch
+                // Lưu ý: Sửa đường dẫn '/api/PhuongTien/export-bao-cao-xe' đúng với Route của bạn
+                const url = `https://localhost:7286/api/quanlyxe/export-bao-cao-xe?loaiBaoCao=${loai}&soNgayCanhBao=${soNgay}`;
+
+                // Hiển thị trạng thái đang xử lý
+                Swal.fire({
+                    title: 'Đang khởi tạo file...',
+                    text: `Vui lòng chờ báo cáo ${labels[loai]}`,
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                const response = await fetch(url, { method: 'GET' });
+
+                if (!response.ok) throw new Error('Không thể tải file từ hệ thống');
+
+                // 3. Xử lý Blob để tải file về trình duyệt
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+
+                // Đặt tên file (hoặc lấy từ content-disposition nếu cần)
+                a.download = `Bao_Cao_${loai}_${new Date().getTime()}.xlsx`;
+
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(downloadUrl);
+
+                Swal.close();
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Lỗi!', 'Có lỗi xảy ra khi xuất báo cáo: ' + error.message, 'error');
+            }
+        }
+
+        /**
+         * Hàm này được gắn vào nút "Xuất báo cáo tổng" hiện tại của bạn
+         * Ở đây tôi mặc định nó sẽ hỏi người dùng muốn xuất loại nào
+         * Hoặc bạn có thể sửa để xuất một file gộp cả 3 sheet.
+         */
+                function exportGeneralReport() {
+            Swal.fire({
+                title: 'Chọn loại báo cáo muốn xuất',
+                icon: 'question',
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: 'Bảo trì',
+                denyButtonText: 'Đăng kiểm',
+                cancelButtonText: 'Phí đường bộ',
+                confirmButtonColor: '#f59e0b',
+                denyButtonColor: '#ef4444',
+                cancelButtonColor: '#10b981',
+            }).then((result) => {
+                // Lấy giá trị từ các ô input trong Form Lọc
+                // Thêm parse để đảm bảo nó là con số, tránh bị lỗi chuỗi trống
+                if (result.isConfirmed) {
+                    const ngay = document.querySelector('input[name="soNgayBaoTri"]').value || 30;
+                    handleExport('bao-tri', ngay);
+                } else if (result.isDenied) {
+                    const ngay = document.querySelector('input[name="soNgayDangKiem"]').value || 30;
+                    handleExport('dang-kiem', ngay);
+                } else if (result.dismiss === Swal.DismissReason.cancel) {
+                    // ĐIỂM CẦN SỬA: Lấy đúng ô input của Phí đường bộ
+                    const ngayInput = document.querySelector('input[name="soNgayPhiDb"]');
+                    const ngay = (ngayInput && ngayInput.value) ? ngayInput.value : 30;
+                    handleExport('phi-duong-bo', ngay);
+                }
+            });
+        }
+
+        // Tự động reload lại trang khi thay đổi số ngày và nhấn enter
+        document.querySelectorAll('#filterForm input').forEach(input => {
+            input.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('filterForm').submit();
+                }
+            });
+        });
+    </script>
+    <script>
+            async function importExcelData() {
+            const { value: file } = await Swal.fire({
+                title: 'Nhập dữ liệu từ Excel',
+                input: 'file',
+                inputAttributes: {
+                    'accept': '.xlsx, .xls',
+                    'aria-label': 'Chọn file Excel của bạn'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Tải lên',
+                cancelButtonText: 'Hủy',
+                footer: '<a href="/templates/Mau_Cap_Nhat_Xe.xlsx">Tải file mẫu tại đây</a>'
+            });
+
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                Swal.fire({
+                    title: 'Đang xử lý dữ liệu...',
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                try {
+                    const response = await fetch('https://localhost:7286/api/quanlyxe/import-du-lieu', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        Swal.fire('Thành công!', 'Dữ liệu các xe đã được cập nhật mới.', 'success')
+                        .then(() => location.reload()); // Reload lại để bảng cập nhật dữ liệu mới
+                    } else {
+                        throw new Error('Định dạng file không đúng hoặc dữ liệu lỗi.');
+                    }
+                } catch (error) {
+                    Swal.fire('Lỗi!', error.message, 'error');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+

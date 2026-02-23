@@ -1,0 +1,355 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang
+@model IEnumerable<HopDongVanChuyenModels>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản Lý Hợp Đồng Vận Chuyển</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --success-color: #10b981;
+            --bg-body: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: #2b2d42;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            margin: 20px auto;
+            max-width: 98%;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+            .custom-table thead th {
+                color: #718096;
+                text-transform: uppercase;
+                font-size: 0.7rem;
+                font-weight: 700;
+                padding: 12px 20px;
+                border: none;
+            }
+
+            .custom-table tbody tr {
+                background: #fff;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                border-radius: 12px;
+                transition: all 0.2s ease;
+            }
+
+                .custom-table tbody tr:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+                }
+
+            .custom-table tbody td {
+                padding: 15px 20px;
+                vertical-align: middle;
+                border: none;
+            }
+
+        .contract-icon {
+            width: 40px;
+            height: 40px;
+            background: #eef2ff;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+        }
+
+        .badge-status {
+            font-size: 0.75rem;
+            padding: 5px 12px;
+            border-radius: 50px;
+            font-weight: 600;
+        }
+
+        .btn-detail {
+            background-color: #f8fafc;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            transition: all 0.3s ease;
+        }
+
+            .btn-detail:hover {
+                background-color: var(--primary-color);
+                color: white;
+            }
+    </style>
+</head>
+<body>
+    <main class="container-fluid py-4">
+        <div class="main-card">
+            <div class="page-header d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h4 fw-bold m-0 text-dark">
+                    <i class="fa-solid fa-file-contract me-2 text-primary"></i>Danh Sách Hợp Đồng
+                </h1>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalThemHopDong">
+                        <i class="fa-solid fa-plus me-1"></i> Thêm hợp đồng
+                    </button>
+                    <a href="@Url.Action("DanhSachHopDong")" class="btn btn-light btn-sm border rounded-pill px-3">
+                        <i class="fa-solid fa-arrows-rotate me-1 text-muted"></i> Làm mới
+                    </a>
+                </div>
+            </div>
+
+           @* Filter Form *@
+            <form id="filterForm" method="get" action="@Url.Action("DanhSachHopDong")" class="bg-light border rounded-3 p-3 mb-4 shadow-sm">
+                <div class="row g-3">
+                    @* Tìm kiếm *@
+                    <div class="col-md-3">
+                        <label class="small fw-bold text-muted mb-1">Tìm kiếm</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                            <input type="text" name="Search" class="form-control" placeholder="Tên hợp đồng..." value="@ViewBag.Search" />
+                        </div>
+                    </div>
+
+                    @* Lọc Trạng Thái (Mới thêm) *@
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Trạng thái</label>
+                        <select name="trangThai" class="form-select form-select-sm">
+                            <option value="Tất cả" selected="@(ViewBag.TrangThai == "Tất cả" ? "selected" : null)">Tất cả</option>
+                            <option value="Đang thực hiện" selected="@(ViewBag.TrangThai == "Đang thực hiện" ? "selected" : null)">Đang thực hiện</option>
+                            <option value="Hết hiệu lực" selected="@(ViewBag.TrangThai == "Hết hiệu lực" ? "selected" : null)">Hết hiệu lực</option>
+                            <option value="Hủy bỏ" selected="@(ViewBag.TrangThai == "Hủy bỏ" ? "selected" : null)">Hủy bỏ</option>
+                        </select>
+                    </div>
+
+                    @* Từ ngày *@
+                    <div class="col-md-3">
+                        <label class="small fw-bold text-muted mb-1">Từ ngày</label>
+                        <input type="date" name="thoiGianBD" class="form-control form-control-sm" value="@ViewBag.ThoiGianBD" />
+                    </div>
+
+                    @* Đến ngày *@
+                    <div class="col-md-3">
+                        <label class="small fw-bold text-muted mb-1">Đến ngày</label>
+                        <input type="date" name="thoiGianKT" class="form-control form-control-sm" value="@ViewBag.ThoiGianKT" />
+                    </div>
+
+                    @* Nút Lọc *@
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-filter"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Tên Hợp Đồng</th>
+                            <th>Thời hạn</th>
+                            <th>Loại hàng hóa</th>
+                            <th>Trạng thái</th>
+                            <th class="text-end">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var item in Model)
+                            {
+                                <tr onclick="location.href='@Url.Action("ChiTietHopDong", new { id = item.MaHopDong })'" style="cursor: pointer;">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="contract-icon me-3">
+                                                <i class="fa-solid fa-file-lines"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold text-dark">@item.TenHopDong</div>
+                                                <div class="small text-muted">Mã HD: #@item.MaHopDong</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="small"><b>Ký:</b> @item.NgayKy?.ToString("dd/MM/yyyy")</div>
+                                        <div class="small text-danger"><b>Hết:</b> @item.NgayHetHan?.ToString("dd/MM/yyyy")</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary opacity-75">@item.LoaiHangHoa</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge-status">@item.TrangThai</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="@Url.Action("ChiTietHopDong", new { id = item.MaHopDong })" class="btn btn-detail btn-sm rounded-pill px-3">
+                                            <i class="fa-solid fa-eye me-1"></i> Chi tiết
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="5" class="text-center py-5 text-muted">Không tìm thấy hợp đồng nào.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Pagination *@
+            @if (ViewBag.TotalPages > 1)
+            {
+                <nav class="mt-4">
+                    <ul class="pagination pagination-sm justify-content-center">
+                        @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                        {
+                            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                <a class="page-link shadow-none" href="@Url.Action("DanhSachHopDong", new { Search = ViewBag.Search, thoiGianBD = ViewBag.ThoiGianBD, thoiGianKT = ViewBag.ThoiGianKT, page = i })">@i</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        </div>
+    </main>
+    <div class="modal fade" id="modalThemHopDong" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fa-solid fa-file-circle-plus me-2"></i>Thêm Hợp Đồng Mới</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formThemHopDong" enctype="multipart/form-data">
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold small">Tên hợp đồng <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="add_TenHopDong" name="TenHopDong" placeholder="Ví dụ: Hợp đồng vận chuyển hàng điện tử" required>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold small">Mã khách hàng <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="add_MaKhachHang" name="MaKhachHang" placeholder="Nhập ID khách hàng" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Loại hàng hóa</label>
+                                <input type="text" class="form-control" id="add_LoaiHangHoa" name="LoaiHangHoa" placeholder="Ví dụ: Đồ gia dụng">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Trạng thái</label>
+                                <select class="form-select" id="add_TrangThai" name="TrangThai">
+                                    <option value="Đang thực hiện">Đang thực hiện</option>
+                                    <option value="Hết hiệu lực">Hết hiệu lực</option>
+                                    <option value="Hủy bỏ">Hủy bỏ</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Ngày ký kết</label>
+                                <input type="date" class="form-control" id="add_NgayKy" name="NgayKy">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Ngày hết hạn</label>
+                                <input type="date" class="form-control" id="add_NgayHetHan" name="NgayHetHan">
+                            </div>
+                            <div class="col-12 mt-4">
+                                <label class="form-label fw-bold small text-primary">Tải lên File mới (PDF, Word) để thay thế</label>
+                                <input type="file" class="form-control" id="add_File" accept=".pdf,.doc,.docx">
+                                
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4" onclick="thucHienThemMoi()">
+                        <i class="fa-solid fa-save me-2"></i>Lưu hợp đồng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+<script>
+        async function thucHienThemMoi() {
+        // 1. Kiểm tra các trường bắt buộc
+        const tenHD = document.getElementById('add_TenHopDong').value.trim();
+        const maKH = document.getElementById('add_MaKhachHang').value;
+
+        if (!tenHD || !maKH) {
+            Swal.fire('Chú ý', 'Vui lòng nhập đầy đủ Tên hợp đồng và Mã khách hàng', 'warning');
+            return;
+        }
+
+        // 2. Khởi tạo FormData để gửi cả Text và File
+        const formData = new FormData();
+        formData.append("TenHopDong", tenHD);
+        formData.append("MaKhachHang", maKH);
+        formData.append("LoaiHangHoa", document.getElementById('add_LoaiHangHoa').value.trim());
+        formData.append("TrangThai", document.getElementById('add_TrangThai').value);
+        formData.append("NgayKy", document.getElementById('add_NgayKy').value);
+        formData.append("NgayHetHan", document.getElementById('add_NgayHetHan').value);
+
+        // Xử lý File
+        const fileInput = document.getElementById('add_File');
+            if (fileInput.files.length > 0) {
+                formData.append("file", fileInput.files[0]); // Key "file" khớp với tham số 'IFormFile? file' trong Controller
+        }
+
+        // 3. Hiển thị Loading
+        Swal.fire({
+            title: 'Đang xử lý...',
+            text: 'Vui lòng chờ trong giây lát',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            // 4. Gọi API (Lưu ý: Không set Content-Type header khi dùng FormData)
+            const response = await fetch('https://localhost:7149/api/quanlyhopdong/them-moi', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Thành công!',
+                    text: 'Hợp đồng đã được thêm mới.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                location.reload();
+            } else {
+                Swal.fire('Lỗi', result.message || 'Có lỗi xảy ra khi lưu dữ liệu', 'error');
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            Swal.fire('Lỗi kết nối', 'Không thể kết nối tới máy chủ API', 'error');
+        }
+    }
+</script>

@@ -1,0 +1,123 @@
+﻿@model TaiKhoan1._1.Model11._1.QuanLyTaiKhoan.TaiKhoanCreate
+
+@{
+    ViewData["Title"] = "Tạo Tài Khoản Mới";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2 class="text-center mb-4">Đăng Ký Tài Khoản</h2>
+
+        <form id="createAccountForm" method="post">
+            <div class="form-group mb-3">
+                <label for="TenDangNhap">Tên đăng nhập:</label>
+                <input type="text" class="form-control" id="TenDangNhap" name="TenDangNhap" required>
+                <div class="text-danger" id="TenDangNhapError"></div>
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="MatKhauHash">Mật khẩu:</label>
+                <input type="password" class="form-control" id="MatKhauHash" name="MatKhauHash" required>
+                <div class="text-danger" id="MatKhauHashError"></div>
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="Email">Email:</label>
+                <input type="email" class="form-control" id="Email" name="Email" required>
+                <div class="text-danger" id="EmailError"></div>
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="SoDienThoai">Số điện thoại:</label>
+                <input type="tel" class="form-control" id="SoDienThoai" name="SoDienThoai">
+                <div class="text-danger" id="SoDienThoaiError"></div>
+            </div>
+
+            <input type="hidden" name="MaNguoiDung" value="0" />
+            <input type="hidden" name="HoatDong" value="true" />
+
+            <button type="submit" class="btn btn-primary w-100 mt-3" id="btnSubmit">
+                <span id="btnText">Tạo Tài Khoản</span>
+                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="spinner"></span>
+            </button>
+        </form>
+
+        <div id="messageArea" class="mt-3"></div>
+
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Lắng nghe sự kiện submit form
+            $('#createAccountForm').submit(function (e) {
+                e.preventDefault(); // Ngăn chặn hành vi submit mặc định của form
+
+                // Ẩn thông báo cũ và lỗi cũ
+                $('#messageArea').empty();
+                $('.text-danger').empty();
+
+                // Hiển thị loading spinner và disable button
+                $('#btnText').addClass('d-none');
+                $('#spinner').removeClass('d-none');
+                $('#btnSubmit').prop('disabled', true);
+
+                // Thu thập dữ liệu từ form
+                var formData = {
+                    MaNguoiDung: parseInt($('#MaNguoiDung').val() || 0), // Giả định giá trị mặc định là 0 nếu không cần thiết
+                    TenDangNhap: $('#TenDangNhap').val(),
+                    MatKhauHash: $('#MatKhauHash').val(),
+                    Email: $('#Email').val(),
+                    SoDienThoai: $('#SoDienThoai').val(),
+                    HoatDong: true // Mặc định HoatDong là true
+                };
+
+                // Gọi API bằng AJAX
+                $.ajax({
+                    url: '@Url.Action("CreateAccount", "QuanLyTaiKhoan")', // Điểm cuối của Controller (không phải API Controller)
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function (response) {
+                        $('#messageArea').html('<div class="alert alert-success">Tạo tài khoản thành công! Bạn có thể đăng nhập.</div>');
+                        $('#createAccountForm')[0].reset(); // Xóa dữ liệu trong form
+                    },
+                    error: function (xhr, status, error) {
+                        var errorMessage = "Đã xảy ra lỗi không xác định.";
+
+                        try {
+                            // Lấy thông báo lỗi từ response JSON (từ API)
+                            var responseJson = JSON.parse(xhr.responseText);
+
+                            if (responseJson.message) {
+                                errorMessage = responseJson.message; // Lấy thông báo lỗi cụ thể (ví dụ: Tên đăng nhập đã tồn tại)
+                            } else if (xhr.status === 400 && responseJson.errors) {
+                                // Xử lý lỗi ModelState (Validation)
+                                errorMessage = "Vui lòng kiểm tra lại thông tin nhập liệu.";
+                                for (var key in responseJson.errors) {
+                                    if (responseJson.errors.hasOwnProperty(key)) {
+                                        // Hiển thị lỗi ngay bên dưới trường tương ứng
+                                        $('#' + key + 'Error').text(responseJson.errors[key][0]);
+                                    }
+                                }
+                            }
+
+                        } catch (e) {
+                            // Xử lý lỗi không phải JSON
+                            errorMessage = 'Lỗi HTTP: ' + xhr.status + ' - ' + error;
+                        }
+
+                        $('#messageArea').html('<div class="alert alert-danger">' + errorMessage + '</div>');
+                    },
+                    complete: function () {
+                        // Tắt loading spinner và enable button
+                        $('#btnText').removeClass('d-none');
+                        $('#spinner').addClass('d-none');
+                        $('#btnSubmit').prop('disabled', false);
+                    }
+                });
+            });
+        });
+    </script>
+}

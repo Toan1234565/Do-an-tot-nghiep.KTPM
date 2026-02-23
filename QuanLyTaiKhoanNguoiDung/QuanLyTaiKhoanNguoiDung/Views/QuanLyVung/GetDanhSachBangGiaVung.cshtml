@@ -1,0 +1,577 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyBangGiaVung
+@model IEnumerable<BangGiaVungModels>
+@{
+    // Lấy danh sách loại hàng từ ViewBag để tra cứu tên
+    var listLoaiHang = ViewBag.ListLoaiHang as List<LoaiHangModels>;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản lý Bảng giá Vận tải | TMS</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --bg-body: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            margin: 20px auto;
+            max-width: 98%;
+        }
+
+        .custom-table thead th {
+            color: #718096;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 12px 20px;
+            border: none;
+        }
+
+        .custom-table tbody tr {
+            background: #fff;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+            .custom-table tbody tr:hover {
+                background: #f8faff;
+                transform: scale(1.002);
+            }
+
+        .bg-xacnhan {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .bg-km {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .bg-vung {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .form-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        /* Làm đẹp nút phân trang */
+        .page-link {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+        }
+
+        .page-item.active .page-link {
+            background-color: var(--primary-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <main class="container-fluid py-4">
+        <div class="main-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 fw-bold mb-1">Cấu hình Bảng giá Vận tải</h1>
+                    <p class="text-muted small">Quản lý linh hoạt giữa tính cước theo Vùng (Bưu kiện) hoặc theo Km (Hàng tấn/Xe tải)</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addPriceModal">
+                        <i class="fa-solid fa-plus me-1"></i> Thêm mới bảng giá
+                    </button>
+                </div>
+            </div>
+
+            
+            <div class="card border-0 bg-light mb-4" style="border-radius: 12px;">
+                <div class="card-body">
+                    <form id="filterForm" method="get" action="@Url.Action("GetDanhSachBangGiaVung", "QuanLyVung")" class="row g-3 align-items-end">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted">Khu vực lấy</label>
+                            <select name="khuvuclay" class="form-select border-0 shadow-sm">
+                                <option value="Tất cả" selected="@(ViewBag.KhuVucLay == "Tất cả")">Tất cả</option>
+                                <option value="Nội thành Hà Nội" selected="@(ViewBag.KhuVucLay == "Nội thành Hà Nội")">Hà Nội</option>
+                                <option value="Miền Bắc" selected="@(ViewBag.KhuVucLay == "Miền Bắc")">Miền Bắc</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-muted">Loại hình</label>
+                            <select name="loaitinhgia" class="form-select border-0 shadow-sm">
+                                <option value="">Tất cả</option>
+                                <option value="Theo vùng" selected="@(ViewBag.loaitinhgia == "Theo vùng")">Theo vùng</option>
+                                <option value="Theo km" selected="@(ViewBag.loaitinhgia == "Theo km")">Theo km</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted">Khu vực giao</label>
+                            <select name="khuvucgiao" class="form-select border-0 shadow-sm">
+                                <option value="Tất cả" selected="@(ViewBag.KhuVucGiao == "Tất cả")">Tất cả</option>
+                                <option value="Miền Nam" selected="@(ViewBag.KhuVucGiao == "Miền Nam")">Miền Nam</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted">Trạng thái</label>
+                            <select name="isActive" class="form-select border-0 shadow-sm">
+                                <option value="" selected="@(ViewBag.IsActive == null)">Tất cả</option>
+                                <option value="true" selected="@(ViewBag.IsActive == true)">Đang dùng</option>
+                                <option value="false" selected="@(ViewBag.IsActive == false)">Lịch sử</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Tìm kiếm mã</label>
+                            <input type="text" name="searchTerm" value="@ViewBag.SearchTerm" class="form-control border-0 shadow-sm" placeholder="Nhập mã bảng giá (ví dụ: 123)...">
+                        </div>
+   
+                    </form>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table custom-table align-middle">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Mã / Hình thức</th>
+                            <th>Lộ trình & Loại xe</th>
+                            <th>Định mức (Kg)</th>
+                            <th>Giá cơ bản</th>
+                            <th>Giá theo Km</th>
+                            <th>Phụ phí khác</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var item in Model)
+                            {
+                                <tr class="@(item.IsActive == false ? "opacity-50" : "")">
+                                    <td class="ps-4">
+                                        <div class="fw-bold">MAV-@item.MaBangGia</div>
+                                        @if (item.LoaiTinhGia == 2)
+                                        {
+                                            <span class="badge bg-km">THEO KM</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-vung">THEO VÙNG</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center mb-1">
+                                            <span class="fw-bold">@item.KhuVucLay</span>
+                                            <i class="fa-solid fa-arrow-right text-muted mx-2" style="font-size: 0.7rem;"></i>
+                                            <span class="fw-bold text-primary">@item.KhuVucGiao</span>
+                                        </div>
+
+                                        @{
+                                            // Tìm tên loại hàng tương ứng với MaLoaiHang của dòng hiện tại
+                                            var danhSachLH = ViewBag.ListLoaiHang as List<LoaiHangModels>;
+                                            var tenLH = danhSachLH?.FirstOrDefault(x => x.MaLoaiHang == item.MaLoaiHang)?.TenLoaiHang;
+                                        }
+                                        <div class="small">
+                                            <i class="fa-solid fa-box text-muted me-1"></i>
+                                            Loại hàng: <span class="badge bg-light text-dark border">@(tenLH ?? "Chưa xác định")</span>
+                                        </div>
+                                        
+                                    </td>
+                                    <td><span class="text-muted small">@item.TrongLuongToiThieuKg - @item.TrongLuongToiDaKg kg</span></td>
+                                    <td><span class="fw-bold text-success">@string.Format("{0:N0}", item.DonGiaCoBan) đ</span></td>
+                                    <td>
+                                        @if (item.LoaiTinhGia == 2)
+                                        {
+                                            <span class="fw-bold text-primary">@string.Format("{0:N0}", item.DonGiaKm) đ/km</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">---</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="small">Phụ phí: @string.Format("{0:N0}", item.PhuPhiMoiKg) đ</div>
+                                        @if (item.PhiDungDiem > 0)
+                                        {
+                                            <div class="small">Dừng điểm: @string.Format("{0:N0}", item.PhiDungDiem) đ</div>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="btn-group">
+                                            @if (item.IsActive == true)
+                                            {
+                                                <button class="btn btn-sm btn-outline-primary rounded-pill me-2 px-3" onclick='editPrice(@Html.Raw(Json.Serialize(item)))'>
+                                                    <i class="fa-solid fa-pen-to-square"></i> Cập nhật
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger rounded-pill me-2" onclick="deactivatePrice(@item.MaBangGia)" title="Vô hiệu hóa">
+                                                    <i class="fa-solid fa-ban"></i>
+                                                </button>
+                                            }
+                                            <button class="btn btn-sm btn-outline-info rounded-pill"
+                                                    title="Lịch sử thay đổi"
+                                                    onclick="showHistory(@item.MaBangGia)">
+                                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                            </button>
+
+                                        </div>
+                                    </td>
+                                    
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+                @if (ViewBag.TotalPages > 1)
+                {
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                                <a class="page-link border-0 shadow-sm rounded-circle mx-1"
+                                   href="@Url.Action("GetDanhSachBangGiaVung", new { page = ViewBag.CurrentPage - 1, searchTerm = ViewBag.SearchTerm })">
+                                    <i class="fa-solid fa-chevron-left"></i>
+                                </a>
+                            </li>
+
+                            @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                            {
+                                <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                    <a class="page-link border-0 shadow-sm rounded-circle mx-1"
+                                       href="@Url.Action("GetDanhSachBangGiaVung", new { page = i, searchTerm = ViewBag.SearchTerm })">@i</a>
+                                </li>
+                            }
+
+                            <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                                <a class="page-link border-0 shadow-sm rounded-circle mx-1"
+                                   href="@Url.Action("GetDanhSachBangGiaVung", new { page = ViewBag.CurrentPage + 1, searchTerm = ViewBag.SearchTerm })">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+
+                
+            </div>
+        </div>
+    </main>
+
+    <div class="modal fade" id="addPriceModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header bg-primary text-white" style="border-radius: 20px 20px 0 0;">
+                    <h5 class="modal-title fw-bold" id="modalTitle">Cấu Hình Bảng Giá Mới</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="priceForm">
+                    <input type="hidden" name="MaBangGia" id="input_MaBangGia">
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-muted">Hình thức tính giá</label>
+                                <select name="LoaiTinhGia" id="input_LoaiTinhGia" class="form-select bg-light border-0" onchange="toggleFormFields()">
+                                    <option value="1">Theo Vùng (Bưu kiện)</option>
+                                    <option value="2">Theo Km (Xe tải/Hàng tấn)</option>
+                                </select>
+                            </div>
+                         
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted">Loại hàng áp dụng</label>
+                                <select name="MaLoaiHang" id="input_MaLoaiHang" class="form-select border-primary" required>
+                                    <option value="">-- Chọn loại hàng --</option>
+                                    @if (listLoaiHang != null)
+                                    {
+                                        foreach (var lh in listLoaiHang)
+                                        {
+                                            <option value="@lh.MaLoaiHang">@lh.TenLoaiHang</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-12" id="section-lydo">
+                                <label class="form-label fw-bold text-muted">Lý do thay đổi (Bắt buộc)</label>
+                                <input type="text" name="LyDoThayDoi" id="input_LyDoThayDoi" class="form-control bg-light border-0" placeholder="Nhập lý do điều chỉnh giá...">
+                            </div>
+
+                            <hr class="my-3">
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted">Điểm Lấy hàng</label>
+                                <input type="text" name="KhuVucLay" id="input_KhuVucLay" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted">Điểm Giao hàng</label>
+                                <input type="text" name="KhuVucGiao" id="input_KhuVucGiao" class="form-control" required>
+                            </div>
+
+                            <div class="col-md-6 section-vung">
+                                <label class="form-label fw-bold text-muted">Trọng lượng từ (Kg)</label>
+                                <input type="number" step="0.01" name="TrongLuongToiThieuKg" id="input_MinKg" class="form-control">
+                            </div>
+                            <div class="col-md-6 section-vung">
+                                <label class="form-label fw-bold text-muted">Trọng lượng đến (Kg)</label>
+                                <input type="number" step="0.01" name="TrongLuongToiDaKg" id="input_MaxKg" class="form-control">
+                            </div>
+
+                            <div class="col-md-4 section-km">
+                                <label class="form-label fw-bold text-primary">Đơn giá/Km (VNĐ)</label>
+                                <input type="number" name="DonGiaKm" id="input_DonGiaKm" class="form-control border-primary">
+                            </div>
+                            <div class="col-md-4 section-km">
+                                <label class="form-label fw-bold text-primary">Phí dừng điểm (VNĐ)</label>
+                                <input type="number" name="PhiDungDiem" id="input_PhiDungDiem" class="form-control border-primary">
+                            </div>
+                            <div class="col-md-4 section-km">
+                                <label class="form-label fw-bold text-primary">Km tối thiểu</label>
+                                <input type="number" name="KmToiThieu" id="input_KmToiThieu" class="form-control border-primary">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted">Phí mở cửa / Giá cơ bản (VNĐ)</label>
+                                <input type="number" name="DonGiaCoBan" id="input_DonGiaCoBan" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted">Phụ phí phát sinh / Phụ phí Kg</label>
+                                <input type="number" name="PhuPhiMoiKg" id="input_PhuPhiMoiKg" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 p-4">
+                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold">Xác nhận Lưu</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="historyModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header border-0 bg-light" style="border-radius: 20px 20px 0 0;">
+                    <div class="ps-2">
+                        <h5 class="modal-title fw-bold"><i class="fa-solid fa-clock-rotate-left me-2"></i>Lịch sử thay đổi bảng giá</h5>
+                        <p class="text-muted small mb-0" id="historyTitle">Mã bảng giá: ...</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Ngày cập nhật</th>
+                                    <th>Nội dung giá</th>
+                                    <th>Trọng lượng</th>
+                                    <th>Lý do thay đổi</th>
+                                    <th class="text-center">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyContent">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        // 1. Cấu hình dùng chung
+        const API_BASE = "https://localhost:7149/api/quanlybangiavung";
+
+        $(document).ready(function () {
+            toggleFormFields();
+
+            // Tự động lọc khi thay đổi dropdown
+            $('#filterForm select').on('change', function () {
+                $('#filterForm').submit();
+            });
+        });
+
+        // 2. Xử lý hiển thị Form theo loại hình
+        function toggleFormFields() {
+            const loai = $('#input_LoaiTinhGia').val();
+            if (loai == "2") { // Theo KM
+                $('.section-km').show();
+                $('.section-vung').hide();
+                $('#input_MinKg, #input_MaxKg').val(0);
+            } else { // Theo Vùng
+                $('.section-km').hide();
+                $('.section-vung').show();
+                $('#input_DonGiaKm, #input_KmToiThieu').val(0);
+            }
+        }
+
+        // 3. Hàm định dạng tiền tệ
+        function formatVND(amount) {
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
+        }
+
+        // 4. Mở modal thêm mới
+               
+        $('[data-bs-target="#addPriceModal"]').click(function() {
+            $('#priceForm')[0].reset();
+            $('#input_MaBangGia').val('');
+            $('#modalTitle').text('Thêm Cấu Hình Bảng Giá Mới');
+
+            // Ẩn thanh lý do và bỏ thuộc tính required
+            $('#section-lydo').hide();
+            $('#input_LyDoThayDoi').removeAttr('required');
+
+            toggleFormFields();
+        });
+
+        // 5. Mở modal cập nhật (Chuyển thành Versioning)
+                
+        function editPrice(item) {
+            $('#priceForm')[0].reset();
+            $('#modalTitle').text('Cập nhật phiên bản MAV-' + item.maBangGia);
+
+            // Map dữ liệu vào Form
+            $('#input_MaLoaiHang').val(item.maLoaiHang);
+            $('#input_MaBangGia').val(item.maBangGia);
+            $('#input_LoaiTinhGia').val(item.loaiTinhGia);
+            $('#input_KhuVucLay').val(item.khuVucLay);
+            $('#input_KhuVucGiao').val(item.khuVucGiao);
+            $('#input_MinKg').val(item.trongLuongToiThieuKg);
+            $('#input_MaxKg').val(item.trongLuongToiDaKg);
+            $('#input_DonGiaCoBan').val(item.donGiaCoBan);
+            $('#input_PhuPhiMoiKg').val(item.phuPhiMoiKg);
+            $('#input_DonGiaKm').val(item.donGiaKm);
+            $('#input_PhiDungDiem').val(item.phiDungDiem);
+            $('#input_KmToiThieu').val(item.kmToiThieu);
+
+            // Hiện thanh lý do và bắt buộc nhập
+            $('#section-lydo').show();
+            $('#input_LyDoThayDoi').attr('required', true).focus();
+
+            toggleFormFields();
+            $('#addPriceModal').modal('show');
+        }
+
+        // 6. Gửi dữ liệu về API (Submit)
+        $('#priceForm').submit(function (e) {
+            e.preventDefault();
+
+            // Chuyển đổi FormData thành JSON Object
+            const dataArray = $(this).serializeArray();
+            const formData = {};
+            dataArray.forEach(item => {
+                // Chuyển các giá trị số từ string sang number để khớp API
+                const numericFields = ["MaBangGia", "LoaiTinhGia", "TrongLuongToiThieuKg", "TrongLuongToiDaKg", "DonGiaCoBan", "PhuPhiMoiKg", "DonGiaKm", "PhiDungDiem", "KmToiThieu"];
+                if (numericFields.includes(item.name)) {
+                    formData[item.name] = parseFloat(item.value) || 0;
+                } else {
+                    formData[item.name] = item.value;
+                }
+            });
+
+            // Xác định endpoint
+            const isUpdate = formData.MaBangGia > 0;
+            const url = isUpdate ? `${API_BASE}/capnhatgiavung` : `${API_BASE}/themmoibanggia`;
+
+            if(isUpdate) formData.Action = "UPDATE";
+
+            Swal.fire({ title: 'Đang xử lý...', didOpen: () => Swal.showLoading() });
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(formData),
+                success: function (res) {
+                    Swal.fire('Thành công', res.message, 'success').then(() => location.reload());
+                },
+                error: function (xhr) {
+                    Swal.fire('Lỗi hệ thống', xhr.responseJSON?.message || "Vui lòng kiểm tra lại dữ liệu", 'error');
+                }
+            });
+        });
+
+        // 7. Vô hiệu hóa bảng giá (API Delete)
+        function deactivatePrice(id) {
+            Swal.fire({
+                title: 'Ngừng áp dụng?',
+                text: "Bảng giá này sẽ bị vô hiệu hóa và lưu vào lịch sử.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Đồng ý',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: `${API_BASE}/vô-hieu-hoa/${id}`,
+                        type: 'DELETE',
+                        success: function(res) {
+                            Swal.fire('Đã vô hiệu hóa', res.message, 'success').then(() => location.reload());
+                        },
+                        error: function() {
+                            Swal.fire('Lỗi', 'Không thể thực hiện thao tác', 'error');
+                        }
+                    });
+                }
+            });
+        }
+
+        // 8. Xem lịch sử thay đổi
+        function showHistory(id) {
+            const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+            const content = $('#historyContent');
+            $('#historyTitle').text(`Truy vết lịch sử: MAV-${id}`);
+            content.html('<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary"></div></td></tr>');
+            historyModal.show();
+
+            $.get(`${API_BASE}/lich-su/${id}`, function (res) {
+                let html = '';
+                res.forEach(item => {
+                    const badgeClass = item.isActive ? 'bg-success' : 'bg-secondary';
+                    const statusText = item.isActive ? 'Đang chạy' : 'Đã thay thế';
+                    const date = new Date(item.ngayCapNhat).toLocaleString('vi-VN');
+
+                    html += `
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold">${date}</div>
+                                <small class="text-muted">ID: #${item.maBangGia}</small>
+                            </td>
+                            <td>
+                                <div class="small">Cơ bản: <b>${formatVND(item.donGiaCoBan)}</b></div>
+                                ${item.donGiaKm > 0 ? `<div class="small">Đơn giá Km: <b>${formatVND(item.donGiaKm)}</b></div>` : ''}
+                            </td>
+                            <td><span class="badge bg-light text-dark">${item.trongLuongToiThieuKg}-${item.trongLuongToiDaKg} kg</span></td>
+                            <td><div class="small text-muted" style="max-width:200px">${item.lyDoThayDoi || '---'}</div></td>
+                            <td class="text-center"><span class="badge ${badgeClass}">${statusText}</span></td>
+                        </tr>`;
+                });
+                content.html(html || '<tr><td colspan="5" class="text-center">Không có lịch sử</td></tr>');
+            });
+        }
+    </script>
+</body>
+</html>

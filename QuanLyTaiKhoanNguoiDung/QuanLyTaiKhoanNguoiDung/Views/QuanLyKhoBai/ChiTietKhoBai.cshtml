@@ -1,0 +1,210 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDiaChi
+@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhoBai
+@using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan
+@model QuanLyKhobaiModels
+
+@{
+    ViewData["Title"] = "Chi tiết kho bãi";
+    // Lấy dữ liệu địa chỉ từ ViewBag đã được Controller xử lý dựa trên Model.MaDiaChi
+    var diaChi = ViewBag.DiaChi as DiaChiModel;
+    var nguoidung = ViewBag.NguoiDung as NguoiDungModel;
+    var diaChiKho = ViewBag.DiaChi as DiaChiModel;
+}
+
+<style>
+    .main-content-container {
+        background-color: #ffffff;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.03);
+        margin-top: 20px;
+    }
+
+    .card {
+        border: 1px solid #f0f0f0;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        transition: transform 0.2s;
+    }
+
+    .card-header-custom {
+        background-color: #2c3e50;
+        color: white;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 15px;
+        text-align: center;
+    }
+
+    .status-pill {
+        padding: 6px 16px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    .address-box {
+        background-color: #f8f9fa;
+        border-left: 4px solid #0d6efd;
+        border-radius: 8px;
+    }
+</style>
+
+<div class="page-wrapper">
+    <div class="main-content-container">
+        <div class="d-flex justify-content-between align-items-center px-2 mb-4">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1">
+                        <li class="breadcrumb-item"><a href="/QuanLyKhoBai/DanhSachKhoBai" class="text-decoration-none">Quản lý kho</a></li>
+                        <li class="breadcrumb-item active">Chi tiết kho</li>
+                    </ol>
+                </nav>
+                <h2 class="fw-bold m-0" style="color: #333;">@(Model?.TenKhoBai ?? "Không xác định")</h2>
+            </div>
+            <a href="javascript:history.back()" class="btn btn-outline-secondary px-4 shadow-sm" style="border-radius: 10px; background: white;">
+                <i class="bi bi-arrow-left me-2"></i>Quay lại
+            </a>
+        </div>
+
+        @if (ViewBag.Error != null)
+        {
+            <div class="alert alert-danger mb-4 shadow-sm">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> @ViewBag.Error
+            </div>
+        }
+
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header-custom">
+                        <h5 class="m-0 fw-bold">THÔNG TIN VẬN HÀNH</h5>
+                    </div>
+                    <div class="card-body text-center pt-4">
+                        <div class="mb-3">
+                            <img src="https://cdn-icons-png.flaticon.com/512/2271/2271068.png" alt="warehouse" style="width: 80px; opacity: 0.8;">
+                        </div>
+                        <h3 class="fw-bold mb-1">@Model?.TenKhoBai</h3>
+                        <p class="text-muted mb-3">Mã kho: #@Model?.MaKho</p>
+
+                        <span class="status-pill @(Model?.TrangThai == "Hoạt động" ? "bg-success text-white" : "bg-secondary text-white")">
+                            @(Model?.TrangThai ?? "N/A")
+                        </span>
+
+                        <div class="mt-4 text-start">
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Loại kho</span>
+                                <span class="fw-semibold">@Model?.TenLoaiKho</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Diện tích</span>
+                                <span class="fw-semibold text-primary">@Model?.DienTichM2 m²</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Dung tích</span>
+                                <span class="fw-semibold text-primary">@Model?.DungTichM3 m³</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Sức chứa</span>
+                                <span class="fw-semibold">@Model?.SucChua tấn</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Còn trống</span>
+                                <span class="fw-semibold">@Model?.SucChua tấn</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Hotline kho</span>
+                                <span class="fw-semibold text-danger">@Model?.SoDienThoaiKho</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card h-100">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-geo-alt me-2"></i>Vị trí & Địa chỉ chi tiết</h5>
+
+                        <div class="p-4 address-box mb-4">
+                            @if (diaChi != null)
+                            {
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="text-muted d-block small">Đường/Số nhà</label>
+                                        <p class="fw-bold fs-5 mb-0">@diaChi.Duong</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="text-muted d-block small">Phường/Xã</label>
+                                        <p class="fw-bold fs-5 mb-0">@diaChi.Phuong</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="text-muted d-block small">Thành phố/Tỉnh</label>
+                                        <p class="fw-bold fs-5 mb-0">@diaChi.ThanhPho</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="text-muted d-block small">Mã bưu điện</label>
+                                        <p class="fw-bold fs-5 mb-0">@diaChi.MaBuuDien</p>
+                                    </div>
+                                    <div>
+                                        <a href="https://www.google.com/maps/search/?api=1&query=@(diaChiKho?.ViDo),@(diaChiKho?.KinhDo)"
+                                           target="_blank" class="btn btn-sm btn-outline-danger mt-3 w-100">
+                                            <i class="bi bi-map me-2"></i>Xem trên bản đồ
+                                        </a>
+                                    </div>
+
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                    <span class="text-muted italic">Không tìm thấy dữ liệu địa chỉ hoặc mã địa chỉ sai...</span>
+                                </div>
+                            }
+                        </div>
+
+                        <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-person-badge me-2"></i>Nhân sự phụ trách</h5>
+                        <div class="border rounded-3 p-3 d-flex align-items-start bg-white shadow-sm">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
+                                    <i class="bi bi-person-fill fs-3"></i>
+                                </div>
+                            </div>
+                            <div class="ms-3 flex-grow-1">
+                                <div class="row g-2">
+                                    <div class="col-12 mb-1">
+                                        <p class="mb-0 text-muted small">Mã Quản lý</p>
+                                        <p class="mb-0 fw-bold text-dark">NV-@Model?.MaQuanLy</p>
+                                    </div>
+
+                                    @if (nguoidung != null)
+                                    {
+                                        <div class="col-md-6">
+                                            <p class="mb-0 text-muted small">Họ và tên</p>
+                                            <p class="mb-0 fw-bold">@nguoidung.HoTenNhanVien</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="mb-0 text-muted small">Số điện thoại</p>
+                                            <p class="mb-0 fw-bold text-danger">@nguoidung.SoDienThoai</p>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="col-12">
+                                            <p class="text-muted small italic mb-0">Đang tải thông tin nhân viên...</p>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info mt-4 border-0 shadow-sm" style="background-color: #e7f3ff;">
+                            <i class="bi bi-info-circle-fill me-2 text-primary"></i>
+                            Mọi thay đổi về sức chứa hoặc diện tích cần được phê duyệt bởi phòng điều vận.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

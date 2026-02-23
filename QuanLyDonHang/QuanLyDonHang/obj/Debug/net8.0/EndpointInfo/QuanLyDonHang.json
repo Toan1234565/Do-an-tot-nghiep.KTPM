@@ -1,0 +1,415 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "QuanLyDonHang",
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/danhmucloaihang/laytatcaloaihang": {
+      "get": {
+        "tags": [
+          "DanhMucLoaiHang"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/danhmucloaihang/laymotloaihang": {
+      "get": {
+        "tags": [
+          "DanhMucLoaiHang"
+        ],
+        "parameters": [
+          {
+            "name": "maloaihang",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlydonhang/danhsachdonhang": {
+      "get": {
+        "tags": [
+          "DonHang"
+        ],
+        "parameters": [
+          {
+            "name": "searchTerm",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "trangthai",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 15
+            }
+          },
+          {
+            "name": "batday",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "ketthuc",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlydonhang/thongtindonhang/{madonhang}": {
+      "get": {
+        "tags": [
+          "DonHang"
+        ],
+        "parameters": [
+          {
+            "name": "madonhang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlydonhang/danhsachdonhangtheokhachhang/{makhachhang}": {
+      "get": {
+        "tags": [
+          "DonHang"
+        ],
+        "parameters": [
+          {
+            "name": "makhachhang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlydonhang/tao-moi": {
+      "post": {
+        "tags": [
+          "DonHang"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DonHangCreate"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DonHangCreate"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DonHangCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/thongke_dichvu/thongke-mucdichvu": {
+      "get": {
+        "tags": [
+          "ThongKe"
+        ],
+        "parameters": [
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "desc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/WeatherForecast": {
+      "get": {
+        "tags": [
+          "WeatherForecast"
+        ],
+        "operationId": "GetWeatherForecast",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeatherForecast"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeatherForecast"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeatherForecast"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DiaChiModels": {
+        "type": "object",
+        "properties": {
+          "duong": {
+            "type": "string",
+            "nullable": true
+          },
+          "phuong": {
+            "type": "string",
+            "nullable": true
+          },
+          "thanhPho": {
+            "type": "string",
+            "nullable": true
+          },
+          "viDo": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "kinhDo": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DonHangCreate": {
+        "type": "object",
+        "properties": {
+          "soDienThoai": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenKhachHang": {
+            "type": "string",
+            "nullable": true
+          },
+          "diaChiLay": {
+            "$ref": "#/components/schemas/DiaChiModels"
+          },
+          "diaChiGiao": {
+            "$ref": "#/components/schemas/DiaChiModels"
+          },
+          "danhSachKienHang": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KienHangDTO"
+            },
+            "nullable": true
+          },
+          "tenNguoiNhan": {
+            "type": "string",
+            "nullable": true
+          },
+          "sdtNguoiNhan": {
+            "type": "string",
+            "nullable": true
+          },
+          "maMucDoChon": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "maKhuyenMaiCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "soDiemDoi": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ghiChu": {
+            "type": "string",
+            "nullable": true
+          },
+          "maMucDoDv": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "tongTienDuKien": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "tongTienThucTe": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "maGiamGia": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "KienHangDTO": {
+        "type": "object",
+        "properties": {
+          "khoiLuong": {
+            "type": "number",
+            "format": "double"
+          },
+          "theTich": {
+            "type": "number",
+            "format": "double"
+          },
+          "tenKienHang": {
+            "type": "string",
+            "nullable": true
+          },
+          "maLoaiHang": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "soLuongKienHang": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WeatherForecast": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "temperatureC": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "temperatureF": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

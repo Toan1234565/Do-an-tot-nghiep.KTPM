@@ -1,0 +1,636 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhuyenMai
+@model IEnumerable<QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhuyenMai.KhuyenMaiModels>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hệ Thống Quản Lý Khuyến Mãi</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --primary-light: #eef2ff;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --bg-body: #f1f5f9;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+        }
+
+        .main-card {
+            background: white;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            padding: 24px;
+            margin: 20px auto;
+        }
+
+        .btn-add-new {
+            background: var(--primary-color);
+            color: white;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-weight: 600;
+            border: none;
+            transition: 0.3s;
+        }
+
+            .btn-add-new:hover {
+                background: #3651d1;
+                color: white;
+                transform: translateY(-1px);
+            }
+
+        /* Table Styles */
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+            .custom-table thead th {
+                background: #f8fafc;
+                color: var(--text-muted);
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                padding: 16px;
+                border-bottom: 1px solid #e2e8f0;
+            }
+
+            .custom-table td {
+                padding: 16px;
+                border-bottom: 1px solid #f1f5f9;
+                vertical-align: middle;
+            }
+
+        .btn-update-custom, .btn-status-custom {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+            transition: all 0.2s;
+            border: 1px solid;
+            margin-left: 5px;
+        }
+
+        .btn-update-custom {
+            border-color: #2d5cf7;
+            color: #2d5cf7;
+        }
+
+            .btn-update-custom:hover {
+                background: #2d5cf7;
+                color: white;
+            }
+
+        .status-pause {
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+        }
+
+            .status-pause:hover {
+                background: var(--danger-color);
+                color: white;
+            }
+
+        .status-active {
+            border-color: var(--success-color);
+            color: var(--success-color);
+        }
+
+            .status-active:hover {
+                background: var(--success-color);
+                color: white;
+            }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .bg-active {
+            background: #ecfdf5;
+            color: #059669;
+        }
+
+            .bg-active .badge-dot {
+                background: #10b981;
+            }
+
+        .bg-inactive {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+            .bg-inactive .badge-dot {
+                background: #ef4444;
+            }
+    </style>
+</head>
+<body>
+    <main class="container-fluid py-4">
+        <div class="main-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="mb-0 fs-4"><i class="fa-solid fa-tags me-2 text-primary"></i>Quản Lý Chương Trình Khuyến Mãi</h1>
+                <button class="btn btn-add-new shadow-sm" data-bs-toggle="modal" data-bs-target="#ThemKhuyenMai">
+                    <i class="fas fa-plus-circle me-2"></i>Tạo khuyến mãi mới
+                </button>
+            </div>
+
+            @* Bộ lọc tìm kiếm *@
+            <form method="get" asp-action="DanhSachKhuyenMai" class="row g-2 mb-4 p-3 bg-light rounded-4 border mx-0">
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted small"></i></span>
+                        <input type="text" name="searchTerm" class="form-control border-start-0" placeholder="Tên hoặc mã KM..." value="@ViewBag.SearchTerm" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <select name="loaikhuyenmai" class="form-select" onchange="this.form.submit()">
+                        <option value="">-- Loại KM --</option>
+                        @if (ViewBag.ListLoaiKM != null)
+                        {
+                            foreach (var loai in (List<LoaiKhuyenMaiModels>)ViewBag.ListLoaiKM)
+                            {
+                                <option value="@loai.MaLoaiKm" selected="@(ViewBag.LoaiKM?.ToString() == loai.MaLoaiKm.ToString())">@loai.TenLoai</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2"><input type="date" name="ngaybd" class="form-control" value="@ViewBag.NgayBD" onchange="this.form.submit()"></div>
+                <div class="col-md-2"><input type="date" name="ngaykt" class="form-control" value="@ViewBag.NgayKT" onchange="this.form.submit()"></div>
+                <div class="col-md-3">
+                    <select name="isActive" class="form-select" onchange="this.form.submit()">
+                        <option value="true" selected="@(ViewBag.IsActive == true)">Đang áp dụng</option>
+                        <option value="false" selected="@(ViewBag.IsActive == false)">Ngừng áp dụng</option>
+                    </select>
+                </div>
+            </form>
+
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th class="text-center">STT</th>
+                            <th>Chương trình khuyến mãi</th>
+                            <th>Thời gian</th>
+                            <th>Giá trị giảm</th>
+                            <th>Trạng thái</th>
+                            <th class="text-end">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            int stt = ((ViewBag.CurrentPage - 1) * 10) + 1;
+                            foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td class="text-center text-muted small">@stt</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-primary-light p-2 rounded-3 me-3">
+                                                <i class="fas fa-ticket-alt text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold mb-0">@item.TenChuongTrinh</div>
+                                                <span class="badge bg-secondary-subtle text-secondary border small" style="font-size: 10px;">@item.CodeKhuyenMai</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><div class="small text-muted">@(item.NgayBatDau?.ToString("dd/MM/yyyy") ?? "??") - @(item.NgayKetThuc?.ToString("dd/MM/yyyy") ?? "??")</div></td>
+                                    <td>
+                                        <span class="fw-bold text-primary">@item.GiaTriGiam@(item.KieuGiamGia == "Phần trăm" ? "%" : " đ")</span>
+                                        @if (item.KieuGiamGia == "Phần trăm" && item.GiamToiDa > 0)
+                                        {
+                                            <div class="text-muted" style="font-size: 10px;">Tối đa: @item.GiamToiDa.Value.ToString("N0")đ</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.TrangThai ?? false)
+                                        {
+                                            <span class="status-badge bg-active"><span class="badge-dot"></span>Đang chạy</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-badge bg-inactive"><span class="badge-dot"></span>Đã dừng</span>
+                                        }
+                                    </td>                            
+                                    <td class="text-end">
+                                        @if(item.TrangThai == true)
+                                        {
+                                            <button class="btn-update-custom" title="Chỉnh sửa" onclick='editPrice(@Html.Raw(Json.Serialize(item)))'><i class="fa-solid fa-pen-to-square"></i></button>
+                                        }                                       
+                                        <button class="btn-status-custom @(item.TrangThai ?? false ? "status-pause" : "status-active")"
+                                                onclick="toggleStatus(@item.MaKhuyenMai, @((item.TrangThai ?? false).ToString().ToLower()))">
+                                            <i class="fa-solid @(item.TrangThai ?? false ? "fa-ban" : "fa-circle-check")"></i>
+                                        </button>
+                                    </td>
+                                   
+                                </tr>
+                                stt++;
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="6" class="text-center py-5 text-muted">Không tìm thấy khuyến mãi nào.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Phân trang *@
+            @if (ViewBag.TotalPages > 1)
+            {
+                <div class="pagination-container d-flex justify-content-between align-items-center mt-3">
+                    <div class="text-muted small">Trang <b>@ViewBag.CurrentPage</b>/@ViewBag.TotalPages</div>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                            {
+                                <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                    <a class="page-link" href="@Url.Action("DanhSachKhuyenMai", new { searchTerm = ViewBag.SearchTerm, page = i, loaikhuyenmai = ViewBag.LoaiKM, isActive = ViewBag.IsActive })">@i</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            }
+        </div>
+    </main>
+
+    @* Modal Thêm Mới *@
+    <div class="modal fade" id="ThemKhuyenMai" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2 text-primary"></i>Tạo Khuyến Mãi Mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formThemKhuyenMai">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label small fw-semibold">Tên chương trình *</label>
+                                <input type="text" class="form-control" name="TenChuongTrinh" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Mã Code</label>
+                                <input type="text" class="form-control" name="CodeKhuyenMai">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Loại chương trình *</label>
+                                <select class="form-select" name="MaLoaiKm" required>
+                                    <option value="">-- Chọn loại --</option>
+                                    @if (ViewBag.ListLoaiKM != null)
+                                    {
+                                        foreach (var loai in (List<LoaiKhuyenMaiModels>)ViewBag.ListLoaiKM)
+                                        {
+                                            <option value="@loai.MaLoaiKm">@loai.TenLoai</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Đơn vị giảm</label>
+                                <select class="form-select kieu-giam-gia" name="KieuGiamGia">
+                                    <option value="Phần trăm">Phần trăm (%)</option>
+                                    <option value="Số tiền">Số tiền (VNĐ)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Ngày bắt đầu *</label>
+                                <input type="date" class="form-control" name="NgayBatDau" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Ngày kết thúc *</label>
+                                <input type="date" class="form-control" name="NgayKetThuc" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Giá trị giảm *</label>
+                                <input type="number" class="form-control" name="GiaTriGiam" required placeholder="0">
+                            </div>
+                            <div class="col-md-6 field-giam-toi-da">
+                                <label class="form-label small fw-semibold">Giá trị giảm tối đa *</label>
+                                <input type="number" class="form-control" name="GiamToiDa" value="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Số lượng phát hành *</label>
+                                <input type="number" class="form-control" name="SoLuongToiDa" required value="100">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Đơn hàng tối thiểu *</label>
+                                <input type="number" class="form-control" name="DonHangToiThieu" required value="0">
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-top text-end">
+                            <button type="button" class="btn btn-light px-4 me-2" data-bs-dismiss="modal">Hủy</button>
+                            <button type="submit" class="btn btn-primary px-5 fw-bold">Lưu chương trình</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Modal Chỉnh Sửa *@
+    <div class="modal fade" id="EditKhuyenMaiModal" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2 text-primary"></i>Cập Nhật Khuyến Mãi</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formEditKhuyenMai">
+                        <input type="hidden" name="MaKhuyenMai" id="edit_MaKhuyenMai">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label small fw-semibold">Tên chương trình *</label>
+                                <input type="text" class="form-control" name="TenChuongTrinh" id="edit_TenChuongTrinh" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Mã Code</label>
+                                <input type="text" class="form-control" name="CodeKhuyenMai" id="edit_CodeKhuyenMai">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Đơn vị giảm</label>
+                                <select class="form-select kieu-giam-gia" name="KieuGiamGia" id="edit_KieuGiamGia">
+                                    <option value="Phần trăm">Phần trăm (%)</option>
+                                    <option value="Số tiền">Số tiền (VNĐ)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Loại chương trình *</label>
+                                <select class="form-select" name="MaLoaiKm" id="edit_MaLoaiKm" required>
+                                    @if (ViewBag.ListLoaiKM != null)
+                                    {
+                                        foreach (var loai in (List<LoaiKhuyenMaiModels>)ViewBag.ListLoaiKM)
+                                        {
+                                            <option value="@loai.MaLoaiKm">@loai.TenLoai</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Ngày bắt đầu *</label>
+                                <input type="date" class="form-control" name="NgayBatDau" id="edit_NgayBatDau" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Ngày kết thúc *</label>
+                                <input type="date" class="form-control" name="NgayKetThuc" id="edit_NgayKetThuc" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Giá trị giảm *</label>
+                                <input type="number" class="form-control" name="GiaTriGiam" id="edit_GiaTriGiam" required>
+                            </div>
+                            <div class="col-md-6 field-giam-toi-da">
+                                <label class="form-label small fw-semibold">Giá trị giảm tối đa *</label>
+                                <input type="number" class="form-control" name="GiamToiDa" id="edit_GiaTriGiamToiDa">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Số lượng phát hành *</label>
+                                <input type="number" class="form-control" name="SoLuongToiDa" id="edit_SoLuong" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Đơn hàng tối thiểu *</label>
+                                <input type="number" class="form-control" name="DonHangToiThieu" id="edit_DonHangToiThieu" required>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-top text-end">
+                            <button type="button" class="btn btn-light px-4 me-2" data-bs-dismiss="modal">Hủy</button>
+                            <button type="submit" class="btn btn-primary px-5 fw-bold">Cập nhật ngay</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="GiaHanModal" data-bs-backdrop="static">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header">
+                    <h6 class="modal-title fw-bold">Gia hạn chương trình</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted">Chương trình đã hết hạn. Vui lòng cập nhật thời gian mới:</p>
+                    <div class="mb-3">
+                        <label class="form-label small">Ngày bắt đầu</label>
+                        <input type="date" id="gh_NgayBatDau" class="form-control form-control-sm">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Ngày kết thúc</label>
+                        <input type="date" id="gh_NgayKetThuc" class="form-control form-control-sm">
+                    </div>
+                    <input type="hidden" id="gh_Id">
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-primary w-100" onclick="submitGiaHan()">Kích hoạt ngay</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const API_BASE = "https://localhost:7149/api/quanlykhuyenmai";
+
+        // Logic ẩn hiện trường "Giảm tối đa"
+        function updateMaxDiscountVisibility() {
+            $('.kieu-giam-gia').each(function() {
+                const isPercent = $(this).val() === "Phần trăm";
+                const row = $(this).closest('form').find('.field-giam-toi-da');
+                isPercent ? row.show() : row.hide();
+            });
+        }
+
+        $(document).ready(function() {
+            $('.kieu-giam-gia').on('change', updateMaxDiscountVisibility);
+            updateMaxDiscountVisibility();
+        });
+
+        async function handleApiCall(url, method, data) {
+            Swal.fire({ title: 'Đang xử lý...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: data ? JSON.stringify(data) : null
+                });
+                const result = await response.json();
+                if (result.success) {
+                    await Swal.fire('Thành công!', result.message, 'success');
+                    location.reload();
+                } else {
+                    Swal.fire('Lỗi', result.message || 'Thao tác thất bại', 'error');
+                }
+            } catch (error) {
+                Swal.fire('Lỗi hệ thống', 'Không thể kết nối tới máy chủ', 'error');
+            }
+        }
+
+        // Thêm mới
+        $('#formThemKhuyenMai').on('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const payload = Object.fromEntries(formData.entries());
+
+            payload.GiaTriGiam = parseFloat(payload.GiaTriGiam);
+            payload.GiamToiDa = parseFloat(payload.GiamToiDa) || 0;
+            payload.SoLuongToiDa = parseInt(payload.SoLuongToiDa);
+            payload.DonHangToiThieu = parseFloat(payload.DonHangToiThieu);
+            payload.TrangThai = true;
+
+            handleApiCall(`${API_BASE}/taomoikhuyenmai`, 'POST', payload);
+        });
+
+        // Đổ dữ liệu sửa
+        function editPrice(item) {
+            // Log ra console để bạn kiểm tra chính xác tên thuộc tính nếu vẫn chưa được
+            console.log("Dữ liệu nhận được:", item);
+
+            $('#edit_MaKhuyenMai').val(item.maKhuyenMai);
+            $('#edit_TenChuongTrinh').val(item.tenChuongTrinh);
+            $('#edit_CodeKhuyenMai').val(item.codeKhuyenMai);
+            $('#edit_MaLoaiKm').val(item.maLoaiKm);
+            $('#edit_GiaTriGiam').val(item.giaTriGiam);
+
+            // Lưu ý: Tên thuộc tính JSON thường viết thường chữ cái đầu
+            $('#edit_GiaTriGiamToiDa').val(item.giamToiDa || 0);
+            $('#edit_KieuGiamGia').val(item.kieuGiamGia);
+            $('#edit_SoLuong').val(item.soLuongToiDa || 0);
+            $('#edit_DonHangToiThieu').val(item.donHangToiThieu || 0);
+
+            if (item.ngayBatDau) $('#edit_NgayBatDau').val(item.ngayBatDau.split('T')[0]);
+            if (item.ngayKetThuc) $('#edit_NgayKetThuc').val(item.ngayKetThuc.split('T')[0]);
+
+            updateMaxDiscountVisibility();
+
+            // Hiển thị modal
+            var editModal = new bootstrap.Modal(document.getElementById('EditKhuyenMaiModal'));
+            editModal.show();
+        }
+        // Cập nhật
+        $('#formEditKhuyenMai').on('submit', function(e) {
+            e.preventDefault();
+            const id = $('#edit_MaKhuyenMai').val();
+            const formData = new FormData(this);
+            const payload = Object.fromEntries(formData.entries());
+
+            payload.MaKhuyenMai = parseInt(id);
+            payload.GiaTriGiam = parseFloat(payload.GiaTriGiam);
+            payload.GiaTriGiamToiDa = parseFloat(payload.GiaTriGiamToiDa) || 0;
+            payload.SoLuongKM = parseInt(payload.SoLuongKM);
+            payload.DonHangToiThieu = parseFloat(payload.DonHangToiThieu);
+
+            handleApiCall(`${API_BASE}/capnhatkhuyenmai/${id}`, 'POST', payload);
+        });
+
+        async function toggleStatus(id, currentStatus) {
+            if (currentStatus === true) {
+                // TRƯỜNG HỢP 1: ĐANG HOẠT ĐỘNG -> VÔ HIỆU HÓA (DELETE)
+                const result = await Swal.fire({
+                    title: 'Vô hiệu hóa?',
+                    text: "Chương trình sẽ ngừng áp dụng ngay lập tức.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonText: 'Hủy bỏ',
+                    confirmButtonText: 'Đồng ý dừng'
+                });
+
+                if (result.isConfirmed) {
+                    // Sử dụng hàm handleApiCall có sẵn của bạn
+                    handleApiCall(`${API_BASE}/vo-hieu-hoa/${id}`, 'DELETE', null);
+                }
+            } else {
+                // TRƯỜNG HỢP 2: ĐANG TẠM DỪNG -> KÍCH HOẠT (POST)
+                const result = await Swal.fire({
+                    title: 'Kích hoạt?',
+                    text: "Bạn muốn chạy lại chương trình khuyến mãi này?",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonText: 'Hủy bỏ',
+                    confirmButtonText: 'Kích hoạt ngay'
+                });
+
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Đang kiểm tra...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                    try {
+                        // Gọi thử kích hoạt với body rỗng
+                        const response = await fetch(`${API_BASE}/kich-hoat/${id}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({}) // Gửi rỗng để Backend kiểm tra hạn định
+                        });
+
+                        const resData = await response.json();
+
+                        if (response.ok) {
+                            // Thành công trực tiếp (chưa hết hạn)
+                            await Swal.fire('Thành công!', resData.message, 'success');
+                            location.reload();
+                        } else {
+                            // Backend trả về lỗi (thường là 400 BadRequest do hết hạn)
+                            // Hoặc bạn có thể check chính xác: if(resData.message.includes("Ngày kết thúc"))
+
+                            Swal.close(); // Đóng loading hiện tại
+
+                            // Đổ dữ liệu vào Modal Gia hạn
+                            $('#gh_Id').val(id);
+
+                            // Gợi ý ngày: Bắt đầu từ hôm nay, kết thúc sau 7 ngày
+                            const now = new Date();
+                            const nextWeek = new Date();
+                            nextWeek.setDate(now.getDate() + 7);
+
+                            $('#gh_NgayBatDau').val(now.toISOString().split('T')[0]);
+                            $('#gh_NgayKetThuc').val(nextWeek.toISOString().split('T')[0]);
+
+                            // Hiện Modal
+                            const giaHanModal = new bootstrap.Modal(document.getElementById('GiaHanModal'));
+                            giaHanModal.show();
+                        }
+                    } catch (error) {
+                        Swal.fire('Lỗi hệ thống', 'Không thể kết nối tới máy chủ', 'error');
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

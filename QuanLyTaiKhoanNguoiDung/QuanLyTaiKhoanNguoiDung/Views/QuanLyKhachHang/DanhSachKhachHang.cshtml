@@ -1,0 +1,203 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang
+@model IEnumerable<KhachHangModels> 
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hệ Thống Quản Lý Khách Hàng</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --success-color: #10b981;
+            --bg-body: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: #2b2d42;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            margin: 20px auto;
+            max-width: 98%;
+        }
+
+        /* Style cho Table */
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+        .custom-table thead th {
+            color: #718096;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 12px 20px;
+            border: none;
+        }
+
+        .custom-table tbody tr {
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .custom-table tbody tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .custom-table tbody td {
+            padding: 15px 20px;
+            vertical-align: middle;
+            border: none;
+        }
+
+        /* Avatar & Contact Info */
+        .client-avatar {
+            width: 40px;
+            height: 40px;
+            background: #eef2ff;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .btn-detail {
+            background-color: #f8fafc;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            transition: all 0.3s ease;
+        }
+
+        .btn-detail:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <main class="container-fluid py-4">
+        <div class="main-card">
+            <div class="page-header d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h4 fw-bold m-0 text-dark">
+                    <i class="fa-solid fa-users me-2 text-primary"></i>Danh Sách Khách Hàng
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="@Url.Action("DanhSachKhachHang")" class="btn btn-light btn-sm border rounded-pill px-3">
+                        <i class="fa-solid fa-arrows-rotate me-1 text-muted"></i> Làm mới
+                    </a>
+                </div>
+            </div>
+
+            @* Filter Form *@
+            <form id="filterForm" method="get" action="@Url.Action("DanhSachKhachHang")" class="bg-light border rounded-3 p-3 mb-4 shadow-sm">
+                <div class="row g-3">
+                    <div class="col-md-9">
+                        <label class="small fw-bold text-muted mb-1">Tìm kiếm khách hàng</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                            <input type="text" name="searchTerm" class="form-control" placeholder="Tên công ty, người liên hệ, số điện thoại..." value="@ViewBag.CurrentSearch" />
+                            <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Khách hàng / Công ty</th>
+                            <th>Liên hệ</th>
+                            <th>Thông tin kết nối</th>
+                            <th class="text-end">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var item in Model)
+                            {
+                                <tr onclick="location.href='@Url.Action("ChiTietKhachHang", "QuanLyKhachHang", new { maKhachHang = item.MaKhachHang })'"
+                                    style="cursor: pointer;"
+                                    class="align-middle">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="client-avatar me-3">
+                                                @(string.IsNullOrEmpty(item.TenCongTy) ? "CN" : item.TenCongTy.Substring(0, 1).ToUpper())
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold text-dark">@item.TenCongTy</div>
+                                                <div class="small text-muted">Mã: @(item.Email?.Split('@')[0] ?? "N/A")</div>
+                                                
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">@item.TenLienHe</div>
+                                        <div class="small text-muted"><i class="fa-solid fa-phone-flip me-1"></i>@item.SoDienThoai</div>
+                                    </td>
+                                    <td>
+                                        <div class="small"><i class="fa-solid fa-envelope me-1 text-muted"></i>@item.Email</div>
+                                        @if(item.MaDiaChiMacDinhNavigation != null)
+                                        {
+                                            <div class="small text-muted text-truncate" style="max-width: 250px;">
+                                                <i class="fa-solid fa-location-dot me-1"></i>@item.MaDiaChiMacDinhNavigation.ThanhPho
+                                            </div>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="@Url.Action("ChiTietKhachHang", new { maKhachHang = item.MaKhachHang })" class="btn btn-detail btn-sm rounded-pill px-3">
+                                            <i class="fa-solid fa-eye me-1"></i> Chi tiết
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="4" class="text-center py-5 text-muted">Không tìm thấy khách hàng nào.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Pagination *@
+            @if (ViewBag.TotalPages > 1)
+            {
+                <nav class="mt-4">
+                    <ul class="pagination pagination-sm justify-content-center">
+                        @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                        {
+                            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                <a class="page-link shadow-none" href="@Url.Action("DanhSachKhachHang", new { searchTerm = ViewBag.SearchTerm, page = i })">@i</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        </div>
+    </main>
+</body>
+</html>

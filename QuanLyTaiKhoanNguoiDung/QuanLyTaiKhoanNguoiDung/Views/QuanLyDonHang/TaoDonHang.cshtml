@@ -1,0 +1,562 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDonHang
+@model DonHangCreate
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tạo Đơn Hàng Mới - Logistics TTT</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-bg: #f8f9fa;
+            --border-color: #e2e8f0;
+            --text-main: #1e293b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            color: var(--text-main);
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            padding: 2rem;
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--primary-color);
+            border-left: 4px solid var(--primary-color);
+            padding: 8px 12px;
+            margin: 1.5rem 0 1rem 0;
+            background: rgba(67, 97, 238, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .service-option {
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            height: 100%;
+        }
+
+            .service-option:hover {
+                border-color: var(--primary-color);
+            }
+
+            .service-option.active {
+                border-color: var(--primary-color);
+                background-color: #eef2ff;
+            }
+
+            .service-option input {
+                display: none;
+            }
+
+            .service-option .price {
+                color: #ef4444;
+                font-weight: 700;
+            }
+
+        .voucher-item {
+            border: 1px dashed var(--primary-color);
+            background: #fdfdfd;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .package-item {
+            background: #fff;
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .summary-box {
+            background: #1e293b;
+            color: white;
+            border-radius: 12px;
+            padding: 1.2rem;
+            position: sticky;
+            bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-top: 2rem;
+            z-index: 100;
+        }
+
+        .btn-create {
+            background: var(--primary-color);
+            border: none;
+            font-weight: 700;
+            padding: 12px;
+            border-radius: 8px;
+            width: 100%;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <main class="container py-4">
+        <div class="main-card">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+                <h1 class="h4 fw-bold m-0"><i class="fa-solid fa-paper-plane me-2 text-primary"></i>TẠO VẬN ĐƠN</h1>
+                <a href="/" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left"></i> Quay lại</a>
+            </div>
+
+            <form id="createOrderForm">
+                <div class="row">
+                    <div class="col-lg-7">
+                        <div class="section-title">1. Thông tin lấy hàng</div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">SĐT người gửi</label>
+                                <input type="text" class="form-control" name="SoDienThoai" id="SoDienThoai" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Tên người gửi</label>
+                                <input type="text" class="form-control" name="TenKhachHang" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Số nhà, tên đường</label>
+                                <input type="text" class="form-control" name="DiaChiLay.SoNhaTenDuong" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Tỉnh/Thành</label>
+                                <select class="form-select province-select" data-target="lay" name="DiaChiLay.ThanhPho" required></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Quận/Huyện</label>
+                                <select class="form-select district-select" data-target="lay" name="DiaChiLay.QuanHuyen" required disabled></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Phường/Xã</label>
+                                <select class="form-select ward-select" data-target="lay" name="DiaChiLay.PhuongXa" required disabled></select>
+                            </div>
+                        </div>
+
+                        <div class="section-title">2. Thông tin giao hàng</div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Tên người nhận</label>
+                                <input type="text" class="form-control" name="TenNguoiNhan" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">SĐT nhận hàng</label>
+                                <input type="text" class="form-control" name="SdtNguoiNhan" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Số nhà, tên đường</label>
+                                <input type="text" class="form-control" name="DiaChiGiao.SoNhaTenDuong" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Tỉnh/Thành</label>
+                                <select class="form-select province-select" data-target="giao" name="DiaChiGiao.ThanhPho" required></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Quận/Huyện</label>
+                                <select class="form-select district-select" data-target="giao" name="DiaChiGiao.QuanHuyen" required disabled></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Phường/Xã</label>
+                                <select class="form-select ward-select" data-target="giao" name="DiaChiGiao.PhuongXa" required disabled></select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-5">
+                        <div class="section-title">
+                            3. Chi tiết kiện hàng
+                            <button type="button" class="btn btn-sm btn-primary py-0 px-2" onclick="addPackage()"><i class="fas fa-plus"></i> Thêm</button>
+                        </div>
+
+                        <div id="packageList">
+                            <div class="package-item">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="badge bg-secondary item-count">Kiện #1</span>
+                                    <button type="button" class="btn-close" onclick="removePackage(this)"></button>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <select class="form-select form-select-sm select-loai-hang" name="MaLoaiHang" required></select>
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="small text-muted">Số lượng</label>
+                                        <input type="number" class="form-control form-control-sm" name="SoLuongKienHang" value="1" min="1">
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="small text-muted">Nặng (kg)</label>
+                                        <input type="number" class="form-control form-control-sm calc-trigger" name="KhoiLuong" step="0.1" required>
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="small text-muted">Khối (m³)</label>
+                                        <input type="number" class="form-control form-control-sm calc-trigger" name="TheTich" step="0.001" value="0.001" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-title">4. Mức độ dịch vụ</div>
+                        <div id="serviceLevels" class="row g-2 mb-3">
+                            <div class="col-12 text-center py-3 text-muted border rounded">
+                                <small>Vui lòng nhập đủ địa chỉ & khối lượng để tính giá</small>
+                            </div>
+                        </div>
+
+                        <div class="section-title">5. Ưu đãi</div>
+                        <div class="row g-2">
+                            <div class="col-7">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="MaGiamGia" id="MaGiamGia" placeholder="Mã giảm giá">
+                                    <button class="btn btn-outline-primary" type="button" onclick="openVoucherModal()"><i class="fas fa-ticket"></i></button>
+                                </div>
+                            </div>
+                            <div class="col-5">
+                                <input type="number" class="form-control" name="SoDiemDoi" id="SoDiemDoi" placeholder="Đổi điểm" value="0" min="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="summary-box">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex flex-wrap gap-4">
+                                <div><small class="text-white-50 d-block">Tổng kiện</small><span class="h5 m-0" id="lblTotalKien">1</span></div>
+                                <div><small class="text-white-50 d-block">Khối lượng</small><span class="h5 m-0" id="lblTotalWeight">0</span> kg</div>
+                                <div><small class="text-white-50 d-block">Tổng phí dự kiến</small><span class="h5 m-0 text-warning" id="lblFinalPrice">0đ</span></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button type="submit" class="btn btn-create" id="btnSubmit">
+                                <i class="fas fa-rocket me-2"></i> ĐẶT ĐƠN NGAY
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <div class="modal fade" id="voucherModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold">Chọn ưu đãi cho bạn</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="voucherContainer" style="max-height: 400px; overflow-y: auto;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        let listLoaiHangGlobal = [];
+        let selectedServiceId = null;
+        const apiVN = "https://provinces.open-api.vn/api/";
+
+        $(document).ready(function() {
+            loadDanhMucLoaiHang();
+            loadProvinces();
+
+            // Lắng nghe thay đổi để tính giá
+            $(document).on('change', '.province-select, .district-select, .ward-select', checkAndCalc);
+            $(document).on('input', '.calc-trigger, input[name="SoLuongKienHang"]', function() {
+                updateSummary();
+                debounceCalc();
+            });
+
+            $('#createOrderForm').on('submit', function(e) {
+                e.preventDefault();
+                submitOrder();
+            });
+        });
+
+        // --- 1. XỬ LÝ ĐỊA CHÍNH ---
+        function loadProvinces() {
+            $.getJSON(`${apiVN}?depth=1`, function (data) {
+                let options = '<option value="">Chọn Tỉnh/Thành</option>';
+                data.forEach(p => options += `<option value="${p.name}" data-code="${p.code}">${p.name}</option>`);
+                $(".province-select").html(options);
+            });
+        }
+
+        $(".province-select").on("change", function () {
+            const target = $(this).data("target");
+            const code = $(this).find(":selected").data("code");
+            const dSel = $(`.district-select[data-target="${target}"]`);
+            const wSel = $(`.ward-select[data-target="${target}"]`);
+            dSel.html('<option value="">Đang tải...</option>').prop("disabled", true);
+            if (!code) return;
+            $.getJSON(`${apiVN}p/${code}?depth=2`, function (data) {
+                let opts = '<option value="">Chọn Quận/Huyện</option>';
+                data.districts.forEach(d => opts += `<option value="${d.name}" data-code="${d.code}">${d.name}</option>`);
+                dSel.html(opts).prop("disabled", false);
+            });
+        });
+
+        $(".district-select").on("change", function () {
+            const target = $(this).data("target");
+            const code = $(this).find(":selected").data("code");
+            const wSel = $(`.ward-select[data-target="${target}"]`);
+            wSel.html('<option value="">Đang tải...</option>').prop("disabled", true);
+            $.getJSON(`${apiVN}d/${code}?depth=2`, function (data) {
+                let opts = '<option value="">Chọn Phường/Xã</option>';
+                data.wards.forEach(w => opts += `<option value="${w.name}">${w.name}</option>`);
+                wSel.html(opts).prop("disabled", false);
+            });
+        });
+
+        // --- 2. LOGIC TÍNH PHÍ (GỌI API SERVER 2) ---
+        let calcTimeout = null;
+        function debounceCalc() {
+            clearTimeout(calcTimeout);
+            calcTimeout = setTimeout(checkAndCalc, 800);
+        }
+
+        async function checkAndCalc() {
+            const provinceGiao = $('select[name="DiaChiGiao.ThanhPho"]').val();
+            const provinceLay = $('select[name="DiaChiLay.ThanhPho"]').val();
+            const totalWeight = parseFloat($('#lblTotalWeight').text());
+
+            if (provinceGiao && provinceLay && totalWeight > 0) {
+                $('#serviceLevels').html('<div class="col-12 text-center py-2"><i class="fas fa-spinner fa-spin"></i> Đang tính giá...</div>');
+
+                const requestData = {
+                    ThanhPhoLay: provinceLay,
+                    ThanhPhoGiao: provinceGiao,
+                    DanhSachKienHang: []
+                };
+
+                $('.package-item').each(function() {
+                    requestData.DanhSachKienHang.push({
+                        KhoiLuong: parseFloat($(this).find('[name="KhoiLuong"]').val()) || 0,
+                        TheTich: parseFloat($(this).find('[name="TheTich"]').val()) || 0,
+                        SoLuongKienHang: parseInt($(this).find('[name="SoLuongKienHang"]').val()) || 1,
+                        MaLoaiHang: parseInt($(this).find('[name="MaLoaiHang"]').val()) || 1
+                    });
+                });
+
+                try {
+                    // Lưu ý: URL này nên trỏ về Server 2 API phân tích giá
+                    const response = await fetch('https://localhost:7149/api/mucdichvu/phan-tich-muc-do-phu-hop', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestData)
+                    });
+                    const data = await response.json();
+                    renderServiceLevels(data.luaChonDichVu);
+                } catch (e) {
+                    $('#serviceLevels').html('<div class="col-12 text-danger small">Lỗi kết nối máy chủ tính giá.</div>');
+                }
+            }
+        }
+
+        function renderServiceLevels(services) {
+            let html = '';
+            services.forEach((s, idx) => {
+                html += `
+                <div class="col-4">
+                    <label class="service-option ${idx === 0 ? 'active' : ''}" onclick="selectService(${s.maMucDo}, ${s.giaDuKien})">
+                        <input type="radio" name="MaMucDoChon" value="${s.maMucDo}" ${idx === 0 ? 'checked' : ''}>
+                        <div class="fw-bold small">${s.tenMucDo}</div>
+                        <div class="price small">${s.giaDuKien.toLocaleString()}đ</div>
+                        <div class="text-muted" style="font-size:10px">Dự kiến: ${s.thoiGianDuKien}</div>
+                    </label>
+                </div>`;
+                if(idx === 0) {
+                    selectedServiceId = s.maMucDo;
+                    $('#lblFinalPrice').text(s.giaDuKien.toLocaleString() + 'đ');
+                }
+            });
+            $('#serviceLevels').html(html);
+        }
+
+        function selectService(id, price) {
+            selectedServiceId = id;
+            $('.service-option').removeClass('active');
+            $(`input[value="${id}"]`).parent().addClass('active');
+            $('#lblFinalPrice').text(price.toLocaleString() + 'đ');
+        }
+
+        // --- 3. KHUYẾN MÃI & ĐIỂM ---
+        async function openVoucherModal() {
+            const sdt = $('#SoDienThoai').val();
+            if(!sdt) return Swal.fire('Nhắc nhở', 'Vui lòng nhập SĐT người gửi để kiểm tra voucher', 'info');
+
+            $('#voucherContainer').html('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Đang tìm voucher...</div>');
+            new bootstrap.Modal('#voucherModal').show();
+
+            try {
+                const res = await fetch(`https://localhost:7149/api/KhuyenMai/GetAvailable?sdt=${sdt}`);
+                const vouchers = await res.json();
+
+                let html = '';
+                if(vouchers.length === 0) html = '<p class="text-center py-3">Bạn chưa có mã giảm giá nào.</p>';
+
+                vouchers.forEach(v => {
+                    html += `
+                    <div class="voucher-item d-flex justify-content-between align-items-center" onclick="applyVoucher('${v.maKhuyenMai}')">
+                        <div>
+                            <div class="fw-bold text-primary">${v.maKhuyenMai}</div>
+                            <div class="small text-muted">Giảm ${v.giaTriGiam}${v.kieuGiamGia === 'Phần trăm' ? '%' : 'đ'}</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary">Dùng</button>
+                    </div>`;
+                });
+                $('#voucherContainer').html(html);
+            } catch {
+                $('#voucherContainer').html('<p class="text-danger">Không thể tải danh sách voucher.</p>');
+            }
+        }
+
+        function applyVoucher(code) {
+            $('#MaGiamGia').val(code);
+            bootstrap.Modal.getInstance($('#voucherModal')).hide();
+            Swal.fire('Đã chọn', code, 'success');
+        }
+
+        // --- 4. KIỆN HÀNG ---
+        async function loadDanhMucLoaiHang() {
+            try {
+                const res = await fetch('https://localhost:7264/api/danhmucloaihang/laytatcaloaihang');
+                listLoaiHangGlobal = await res.json();
+                renderLoaiHangSelect($('.select-loai-hang'));
+            } catch {
+                listLoaiHangGlobal = [{maLoaiHang: 1, tenLoaiHang: "Hàng hóa chung"}];
+                renderLoaiHangSelect($('.select-loai-hang'));
+            }
+        }
+
+        function renderLoaiHangSelect(el) {
+            let opts = '<option value="">-- Loại hàng --</option>';
+            listLoaiHangGlobal.forEach(i => opts += `<option value="${i.maLoaiHang}">${i.tenLoaiHang}</option>`);
+            el.html(opts);
+        }
+
+        function addPackage() {
+            const $item = $('.package-item').first().clone();
+            $item.find('input').val('');
+            $item.find('input[name="SoLuongKienHang"]').val(1);
+            $item.find('input[name="TheTich"]').val(0.001);
+            $('#packageList').append($item);
+            updatePackageLabels();
+        }
+
+        function removePackage(btn) {
+            if ($('.package-item').length > 1) {
+                $(btn).closest('.package-item').remove();
+                updatePackageLabels();
+                updateSummary();
+                debounceCalc();
+            }
+        }
+
+        function updatePackageLabels() {
+            $('.package-item').each((i, el) => $(el).find('.item-count').text(`Kiện #${i+1}`));
+        }
+
+        function updateSummary() {
+            let totalW = 0, totalK = 0;
+            $('.package-item').each(function() {
+                let q = parseInt($(this).find('[name="SoLuongKienHang"]').val()) || 0;
+                let w = parseFloat($(this).find('[name="KhoiLuong"]').val()) || 0;
+                totalK += q;
+                totalW += (q * w);
+            });
+            $('#lblTotalKien').text(totalK);
+            $('#lblTotalWeight').text(totalW.toFixed(1));
+        }
+
+        // --- 5. GỬI ĐƠN ---
+        async function submitOrder() {
+            if (!selectedServiceId) return Swal.fire('Lỗi', 'Vui lòng chọn mức dịch vụ', 'warning');
+
+            const btn = $('#btnSubmit');
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Đang tạo đơn...');
+
+            const formData = {
+                SoDienThoai: $('input[name="SoDienThoai"]').val(),
+                TenKhachHang: $('input[name="TenKhachHang"]').val(),
+                DiaChiLay: {
+                    ThanhPho: $('select[name="DiaChiLay.ThanhPho"]').val(),
+                    QuanHuyen: $('select[name="DiaChiLay.QuanHuyen"]').val(),
+                    PhuongXa: $('select[name="DiaChiLay.PhuongXa"]').val(),
+                    SoNhaTenDuong: $('input[name="DiaChiLay.SoNhaTenDuong"]').val()
+                },
+                DiaChiGiao: {
+                    ThanhPho: $('select[name="DiaChiGiao.ThanhPho"]').val(),
+                    QuanHuyen: $('select[name="DiaChiGiao.QuanHuyen"]').val(),
+                    PhuongXa: $('select[name="DiaChiGiao.PhuongXa"]').val(),
+                    SoNhaTenDuong: $('input[name="DiaChiGiao.SoNhaTenDuong"]').val()
+                },
+                TenNguoiNhan: $('input[name="TenNguoiNhan"]').val(),
+                SdtNguoiNhan: $('input[name="SdtNguoiNhan"]').val(),
+                MaGiamGia: $('#MaGiamGia').val(),
+                MaMucDoChon: selectedServiceId,
+                SoDiemDoi: parseInt($('#SoDiemDoi').val()) || 0,
+                DanhSachKienHang: []
+            };
+
+            $('.package-item').each(function() {
+                formData.DanhSachKienHang.push({
+                    MaLoaiHang: parseInt($(this).find('[name="MaLoaiHang"]').val()),
+                    KhoiLuong: parseFloat($(this).find('[name="KhoiLuong"]').val()),
+                    TheTich: parseFloat($(this).find('[name="TheTich"]').val()),
+                    SoLuongKienHang: parseInt($(this).find('[name="SoLuongKienHang"]').val())
+                });
+            });
+
+            try {
+                const response = await fetch('https://localhost:7264/api/quanlydonhang/tao-moi', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                const res = await response.json();
+                if (response.ok) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công!',
+                        html: `Mã đơn hàng: <b>${res.maDonHang}</b><br>Phí thanh toán: <b>${res.tongTien.toLocaleString()}đ</b>`
+                    }).then(() => window.location.href = '/QuanLyDonHang/DanhSach');
+                } else {
+                    throw new Error(res || 'Lỗi từ server');
+                }
+            } catch (err) {
+                Swal.fire('Thất bại', err.message, 'error');
+                btn.prop('disabled', false).html('<i class="fas fa-rocket me-2"></i> ĐẶT ĐƠN NGAY');
+            }
+        }
+    </script>
+</body>
+</html>

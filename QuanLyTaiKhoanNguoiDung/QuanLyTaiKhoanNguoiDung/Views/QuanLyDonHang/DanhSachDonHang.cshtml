@@ -1,0 +1,328 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDonHang
+@model IEnumerable<DonHangModels>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản Lý Đơn Hàng - Logistics</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --bulk-color: #6366f1; /* Màu cho trọn gói */
+            --direct-color: #f43f5e; /* Màu cho giao thẳng */
+            --bg-body: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: #2b2d42;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            margin: 20px auto;
+            max-width: 98%;
+        }
+
+        /* Style cho Table */
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+            .custom-table thead th {
+                color: #718096;
+                text-transform: uppercase;
+                font-size: 0.7rem;
+                font-weight: 700;
+                padding: 12px 20px;
+                border: none;
+            }
+
+            .custom-table tbody tr {
+                background: #fff;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                border-radius: 12px;
+                transition: all 0.2s ease;
+            }
+
+                .custom-table tbody tr:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+                }
+
+            .custom-table tbody td {
+                padding: 15px 20px;
+                vertical-align: middle;
+                border: none;
+            }
+
+        /* Badges */
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .bg-cho-lay {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .bg-dang-giao {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .bg-da-giao {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .service-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-bulk {
+            background: var(--bulk-color);
+            color: white;
+        }
+
+        .badge-retail {
+            background: #94a3b8;
+            color: white;
+        }
+
+        .direct-tag {
+            background: var(--direct-color);
+            color: white;
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 800;
+            animation: blinker 2s linear infinite;
+        }
+
+        
+
+        .price-text {
+            color: #10b981;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .contract-link {
+            color: var(--primary-color);
+            font-size: 0.75rem;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .filter-section {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+    </style>
+</head>
+<body>
+    <main class="container-fluid py-4">
+        <div class="main-card">
+            <div class="page-header d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h4 fw-bold m-0 text-dark">
+                    <i class="fa-solid fa-truck-fast me-2 text-primary"></i>Hệ Thống Điều Hành Đơn Hàng
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="@Url.Action("DanhSachDonHang")" class="btn btn-light btn-sm border rounded-pill px-3">
+                        <i class="fa-solid fa-arrows-rotate me-1 text-muted"></i> Làm mới dữ liệu
+                    </a>
+                </div>
+            </div>
+
+            <form id="filterForm" method="get" asp-action="DanhSachDonHang" class="filter-section shadow-sm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="small fw-bold text-muted mb-1">Tìm kiếm thông minh</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light"><i class="fas fa-search"></i></span>
+                            <input type="text" name="searchTerm" class="form-control auto-submit" placeholder="Mã đơn, tên hàng, hợp đồng..." value="@ViewBag.CurrentSearch" />
+                        </div>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Loại dịch vụ</label>
+                        <select name="maLoaiDv" class="form-select form-select-sm auto-submit">
+                            <option value="">Tất cả dịch vụ</option>
+                            <option value="1" selected="@(ViewBag.CurrentService == 1)">Hàng lẻ (LTL)</option>
+                            <option value="2" selected="@(ViewBag.CurrentService == 2)">Trọn gói (FTL)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Trạng thái</label>
+                        <select name="trangthai" class="form-select form-select-sm auto-submit">
+                            <option value="Tất cả">Mọi trạng thái</option>
+
+                            <option value="Chờ lấy hàng" selected="@(ViewBag.CurrentStatus == "Chờ lấy hàng")">Chờ lấy hàng</option>
+                            <option value="Đang giao" selected="@(ViewBag.CurrentStatus == "Đang giao")">Đang giao</option>
+                            <option value="Thành công" selected="@(ViewBag.CurrentStatus == "Thành công")">Thành công</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="small fw-bold text-muted mb-1">Khoảng thời gian tạo</label>
+                        <div class="d-flex gap-2">
+                            <input type="date" name="batday" class="form-control form-control-sm auto-submit" value="@ViewBag.BatDay" />
+                            <input type="date" name="ketthuc" class="form-control form-control-sm auto-submit" value="@ViewBag.KetThuc" />
+                        </div>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Phương thức</label>
+                        <select name="isDirect" class="form-select form-select-sm auto-submit">
+                            <option value="">Tất cả</option>
+                            <option value="true" selected="@(ViewBag.IsDirect == true)">Giao thẳng (Direct)</option>
+                            <option value="false" selected="@(ViewBag.IsDirect == false)">Qua kho trung chuyển</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th class="text-center" width="50">STT</th>
+                            <th>Thông tin chi tiết đơn hàng</th>
+                            <th class="text-center">Loại dịch vụ</th>
+                            <th class="text-center">Thông tin vận chuyển</th>                            
+                            <th class="text-center">Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            int stt = ((ViewBag.CurrentPage - 1) * 20) + 1;
+                            foreach (var item in Model)
+                            {
+                                <tr onclick="location.href='@Url.Action("ChiTietDonHang", "QuanLyDonHang", new { maDonHang = item.MaDonHang })'"
+                                    style="cursor: pointer;"
+                                    class="align-middle">
+                                    <td class="text-center fw-bold text-muted">@stt</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-light p-3 rounded-3 me-3 border">
+                                                <i class="fas fa-box text-primary fa-lg"></i>
+                                            </div>
+                                            <div>
+                                                <div class="d-flex align-items-center gap-2">
+                                                   
+                                                    @item.TenDonHang
+                                                    @if (item.LaDonGiaoThang == true)
+                                                    {
+                                                        <span class="direct-tag"><i class="fas fa-bolt me-1"></i>DIRECT</span>
+                                                    }
+                                                </div>
+                                                <div class="small text-muted">
+                                                    ID: <span class="fw-medium text-dark">#123456</span>
+                                                    <span class="mx-1">|</span>
+                                                    <a href="#" class="contract-link"><i class="fas fa-file-contract me-1"></i>HĐ-HDGDO1231A</a>
+                                                    @* @if (item.MaHopDongNgoai.HasValue)
+                                                    {
+                                                        <span class="mx-1">|</span>
+                                                        <a href="#" class="contract-link"><i class="fas fa-file-contract me-1"></i>HĐ-HDGDO1231A</a>
+                                                    } *@
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (item.MaLoaiDv == 2)
+                                        {
+                                            <span class="service-badge badge-bulk">Trọn gói</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="service-badge badge-retail">Hàng lẻ</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="small fw-bold text-dark">Lộ trình: @(item.LaDonGiaoThang == true ? "A → B" : "Kho → B")</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">
+                                            <i class="fas fa-clock me-1"></i>@item.ThoiGianTao.ToString("dd/MM/yyyy HH:mm")
+                                        </div>
+                                    </td>
+                                    
+                                    <td class="text-center">
+                                        <span class="status-badge @(item.TrangThaiHienTai == "Chờ lấy hàng" ? "bg-cho-lay" : item.TrangThaiHienTai == "Đang giao" ? "bg-dang-giao" : item.TrangThaiHienTai == "Đã giao" ? "bg-da-giao" : "bg-secondary text-white")">
+                                            @item.TrangThaiHienTai
+                                        </span>
+                                    </td>
+                                </tr>
+                                stt++;
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="6" class="text-center py-5 text-muted">Không tìm thấy đơn hàng phù hợp với bộ lọc.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (ViewBag.TotalPages > 1)
+            {
+                <nav class="mt-4">
+                    <ul class="pagination pagination-sm justify-content-center">
+                        @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                        {
+                            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                <a class="page-link shadow-none" href="@Url.Action("DanhSachDonHang", new { searchTerm = ViewBag.CurrentSearch, trangthai = ViewBag.CurrentStatus, batday = ViewBag.BatDay, ketthuc = ViewBag.KetThuc, maLoaiDv = ViewBag.CurrentService, page = i })">@i</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        </div>
+    </main>
+
+    <script>
+        // Tự động submit form khi đổi giá trị bộ lọc
+        document.querySelectorAll('.auto-submit').forEach(item => {
+            item.addEventListener('change', () => {
+                document.getElementById('filterForm').submit();
+            });
+
+            // Debounce cho ô nhập liệu tìm kiếm
+            if(item.type === 'text') {
+                let timeout = null;
+                item.addEventListener('keyup', () => {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => {
+                        document.getElementById('filterForm').submit();
+                    }, 800);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

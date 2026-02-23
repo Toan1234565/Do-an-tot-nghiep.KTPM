@@ -1,0 +1,433 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDiaChi
+@model QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan.NguoiDungModel
+@{
+    var diaChi = ViewBag.DiaChi as DiaChiModel;
+}
+
+<style>
+    :root {
+
+        --primary-color: #4361ee;
+        --secondary-color: #3f37c9;
+        --success-color: #4cc9f0;
+        --bg-body: #f1f3f9;
+    }
+
+    body {
+        background-color: var(--bg-body);
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    .main-content-container {
+        background-color: #ffffff;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.03);
+        margin-top: 20px;
+    }
+    .product-table-container {
+        padding: 1rem 0;
+        margin: 10px auto;
+        max-width: 95%;
+    }
+
+    .card-profile {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+        transition: transform 0.3s ease;
+        overflow: hidden;
+        background: white;
+    }
+
+    .profile-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        padding: 3rem 2rem;
+        position: relative;
+    }
+
+    .avatar-wrapper img {
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        padding: 3px;
+    }
+
+    .info-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .info-label {
+        color: #94a3b8;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+    }
+
+        .info-label i {
+            width: 20px;
+            color: var(--primary-color);
+        }
+
+    .info-value {
+        color: #1e293b;
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding-left: 20px;
+    }
+
+    .order-status {
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .status-completed {
+        background: #ecfdf5;
+        color: #059669;
+    }
+
+    .status-pending {
+        background: #fffbeb;
+        color: #d97706;
+    }
+
+    .btn-action {
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 10px 20px;
+        transition: all 0.2s;
+    }
+
+    .btn-edit-profile {
+        background: white;
+        color: var(--primary-color);
+        border: 1px solid var(--primary-color);
+    }
+
+        .btn-edit-profile:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+    /* Loading spinner cho nút */
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+        border-width: 0.2em;
+    }
+</style>
+<main class="container-fluid">
+    <div class="main-content-container">
+        <div class="product-table-container">
+            <div class="container py-4">
+                <div class="mb-4">
+                    <a href="/QuanLyNguoiDung/DanhSachNhanVien" class="btn btn-link text-decoration-none p-0 text-secondary">
+                        <i class="fa-solid fa-chevron-left me-2"></i> Quay lại danh sách
+                    </a>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-lg-4">
+                        <div class="card card-profile">
+                            <div class="profile-header text-center">
+                                <div class="avatar-wrapper mb-3">
+                                    <img src="https://ui-avatars.com/api/?name=@Model.HoTenNhanVien&background=random&size=128"
+                                         class="rounded-circle shadow-lg" alt="Avatar">
+                                </div>
+                                <h4 class="fw-bold mb-1">@Model.HoTenNhanVien</h4>
+                                <div class="d-flex justify-content-center gap-2">
+                                    <span class="badge bg-white text-primary px-3 py-2 rounded-pill shadow-sm">@Model.DonViLamViec</span>
+                                    <span class="badge bg-white text-primary px-3 py-2 rounded-pill shadow-sm">@Model.TenChucVu</span>
+                                </div>
+                            </div>
+
+                            <div class="card-body p-4">
+                                <div class="row info-group text-center border-bottom pb-3 mb-4">
+                                    <div class="col-6 border-end">
+                                        <div class="info-label justify-content-center">Mã Nhân Viên</div>
+                                        <div class="text-dark fw-bold">#@Model.MaNguoiDung</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="info-label justify-content-center">Giới tính</div>
+                                        <div class="text-dark fw-bold">@Model.GioiTinh</div>
+                                    </div>
+                                </div>
+
+                                <div class="info-group">
+                                    <div class="info-label"><i class="fa-solid fa-envelope"></i> Email</div>
+                                    <div class="info-value">@Model.Email</div>
+                                </div>
+
+                                <div class="info-group">
+                                    <div class="info-label"><i class="fa-solid fa-phone"></i> Số điện thoại</div>
+                                    <div class="info-value">@Model.SoDienThoai</div>
+                                </div>
+
+                                <div class="info-group">
+                                    <div class="info-label"><i class="fa-solid fa-cake-candles"></i> Ngày sinh</div>
+                                    <div class="info-value">@Model.NgaySinh?.ToString("dd/MM/yyyy")</div>
+                                </div>
+
+                                <div class="info-group">
+                                    <div class="info-label"><i class="fa-solid fa-id-card"></i> Số CCCD</div>
+                                    <div class="info-value">@(string.IsNullOrEmpty(Model.SoCccd) ? "Chưa cập nhật" : Model.SoCccd)</div>
+                                </div>
+
+                                <div class="info-group">
+                                    <div class="info-label"><i class="fa-solid fa-location-dot"></i> Địa chỉ</div>
+                                    <div class="info-value">@diaChi?.Duong, @diaChi?.Phuong, @diaChi?.ThanhPho</div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <button class="btn btn-edit-profile btn-action w-100" id="btnOpenModal" onclick="openEditModal()">
+                                        <i class="fa-solid fa-user-pen me-2"></i> Chỉnh sửa hồ sơ
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-8">
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <div class="card card-profile p-3 d-flex flex-row align-items-center">
+                                    <div class="rounded-3 bg-primary bg-opacity-10 p-3 me-3">
+                                        <i class="fa-solid fa-boxes-stacked text-primary fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="text-muted mb-0 small fw-bold">TỔNG ĐƠN HÀNG</h6>
+                                        <h4 class="mb-0 fw-bold">@(ViewBag.OrdersCount ?? 0)</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card card-profile p-3 d-flex flex-row align-items-center">
+                                    <div class="rounded-3 bg-success bg-opacity-10 p-3 me-3">
+                                        <i class="fa-solid fa-star text-success fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="text-muted mb-0 small fw-bold">HIỆU SUẤT</h6>
+                                        <h4 class="mb-0 fw-bold">Tốt</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card card-profile">
+                            <div class="card-header bg-white py-3 border-bottom">
+                                <h5 class="mb-0 fw-bold"><i class="fa-solid fa-receipt me-2 text-primary"></i>Lịch sử giao dịch</h5>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Mã Đơn</th>
+                                            <th>Ngày Tạo</th>
+                                            <th>Khách Hàng</th>
+                                            <th>Tổng Tiền</th>
+                                            <th>Trạng Thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (ViewBag.Orders != null)
+                                        {
+                                            foreach (var order in ViewBag.Orders)
+                                            {
+                                                <tr>
+                                                    <td class="fw-bold text-primary">#@order.OrderId</td>
+                                                    <td class="text-muted">@order.OrderDate.ToString("dd/MM/yyyy")</td>
+                                                    <td>@order.CustomerName</td>
+                                                    <td class="fw-bold">@order.TotalAmount.ToString("N0") đ</td>
+                                                    <td>
+                                                        <span class="order-status @(order.Status == "Hoàn thành" ? "status-completed" : "status-pending")">
+                                                            @order.Status
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <tr><td colspan="5" class="text-center py-4 text-muted">Không có dữ liệu</td></tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header bg-primary text-white" style="border-radius: 20px 20px 0 0;">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-gear me-2"></i>Cập nhật nhân viên</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="editEmployeeForm">
+                        <input type="hidden" id="editMaNguoiDung" value="@Model.MaNguoiDung">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">HỌ TÊN</label>
+                            <input type="text" class="form-control" id="editHoTen" value="@Model.HoTenNhanVien">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold small text-muted">NGÀY SINH</label>
+                                <input type="date" class="form-control" id="editNgaySinh" value="@Model.NgaySinh?.ToString("yyyy-MM-dd")">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold small text-muted">MÃ BHXH</label>
+                                <input type="text" class="form-control" id="editBHXH" value="@Model.BaoHiemXaHoi">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label small fw-semibold">Chức vụ *</label>
+                                <select class="form-select" id="selectChucVu" name="MaChucVu" required>
+                                    <option value="@Model.MaChucVu" selected>@Model.TenChucVu</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label small fw-semibold">Đơn vị làm việc *</label>
+                                <select class="form-select" id="selectDonViLamViec" name="MaKho" required>
+                                    <option value="@Model.DonViLamViec" selected>@Model.DonViLamViec</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4" id="btnSaveUpdate" onclick="handleUpdateEmployee()">Lưu thay đổi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function openEditModal() {
+            // Tìm phần tử modal trong DOM
+            const modalElement = document.getElementById('editProfileModal');
+            // Khởi tạo instance của Bootstrap Modal
+            const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+            // Hiển thị modal
+            modalInstance.show();
+            loadChucVuData();
+            loadDonViData();          
+        }
+         // --- HÀM LOAD CHỨC VỤ ---
+        async function loadChucVuData() {
+            const selectModal = document.getElementById('selectChucVu');
+            const currentMaCV = "@Model.MaChucVu"; // Lấy mã hiện tại của nhân viên
+
+            try {
+                const response = await fetch('https://localhost:7022/api/quanlynguoidung/danhsachchucvu');
+                const data = await response.json();
+
+                if (selectModal) {
+                    selectModal.innerHTML = ""; // Xóa sạch các option cũ để tránh trùng lặp
+                    data.forEach(item => {
+                        const option = new Option(item.tenChucVu, item.maChucVu);
+                        // Kiểm tra nếu là chức vụ hiện tại thì chọn nó
+                        if (String(item.maChucVu) === String(currentMaCV)) {
+                            option.selected = true;
+                        }
+                        selectModal.add(option);
+                    });
+                }
+            } catch (e) {
+                console.error("Lỗi load chức vụ:", e);
+            }
+        }
+         // --- HÀM LOAD ĐƠN VỊ ---
+        async function loadDonViData() {
+            const selectFilter = document.getElementById('selectFilterDonVi');
+            const selectModal = document.getElementById('selectDonViLamViec');
+            const currentDV = "@ViewBag.CurrentDonVi"; // Nhận giá trị từ Controller
+
+            try {
+                const response = await fetch('https://localhost:7286/api/quanlykhobai/gettenkhobai');
+                const data = await response.json();
+
+                data.forEach(item => {
+                    // 1. Thêm vào bộ lọc (Dropdown lọc)
+                    if (selectFilter) {
+                        const optFilter = new Option(item.tenKhoBai, item.tenKhoBai);
+                        if (item.tenKhoBai === currentDV) {
+                            optFilter.selected = true;
+                        }
+                        selectFilter.add(optFilter);
+                    }
+
+                    // 2. Thêm vào dropdown trong Modal
+                    if (selectModal) {
+                        selectModal.add(new Option(item.tenKhoBai, item.tenKhoBai));
+                    }
+                });
+            } catch (e) { console.error("Lỗi load đơn vị:", e); }
+        }
+        // --- HÀM XỬ LÝ CẬP NHẬT NHÂN VIÊN ---
+         async function handleUpdateEmployee() {
+            const btnSave = document.getElementById('btnSaveUpdate');
+            const maNhanVien = document.getElementById('editMaNguoiDung').value;
+
+            const updateData = {
+                hoTenNhanVien: document.getElementById('editHoTen').value,
+                ngaySinh: document.getElementById('editNgaySinh').value,                
+                baoHiemXaHoi: document.getElementById('editBHXH').value || "",
+                maChucVu: parseInt(document.getElementById('selectChucVu').value),
+                donViLamViec: document.getElementById('selectDonViLamViec').value
+            };
+
+            btnSave.disabled = true;
+            btnSave.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang lưu...';
+
+            try {
+                // THAY ĐỔI: URL format và method PUT
+                const response = await fetch(`https://localhost:7022/api/quanlynguoidung/capnhatnhanvien/${maNhanVien}`, {
+                    method: 'PUT', // Phải là PUT theo [HttpPut]
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+
+                // Đọc text trước để tránh lỗi "Unexpected end of JSON"
+                const text = await response.text();
+                const result = text ? JSON.parse(text) : {};
+
+                if (response.ok) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công',
+                        text: result.message || "Cập nhật thành công!",
+                        timer: 1500
+                    });
+                    location.reload();
+                } else {
+                    Swal.fire("Lỗi", result.message || "Không thể cập nhật", "error");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                Swal.fire("Lỗi kết nối", "Vui lòng kiểm tra lại API", "error");
+            } finally {
+                btnSave.disabled = false;
+                btnSave.innerHTML = 'Lưu thay đổi';
+            }
+        }
+    </script>
+    
+</main>

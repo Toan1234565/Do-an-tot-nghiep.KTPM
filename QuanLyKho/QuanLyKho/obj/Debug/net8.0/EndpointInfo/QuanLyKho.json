@@ -1,0 +1,1453 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "QuanLyKho",
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/quanlyxe/danhsachxe": {
+      "get": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "parameters": [
+          {
+            "name": "seaechTerm",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "maLoaiXe",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "trangthaidangkiem",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlyxe/danhsachloaixe": {
+      "get": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "parameters": [
+          {
+            "name": "searchTerm",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlyxe/themxemoi": {
+      "post": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhuongTienModels"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhuongTienModels"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhuongTienModels"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlyxe/themloaixe": {
+      "post": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoaiXeModels"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoaiXeModels"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoaiXeModels"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlyxe/capnhatxe/{maPhuongTien}": {
+      "put": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "parameters": [
+          {
+            "name": "maPhuongTien",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhuongTienModels"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhuongTienModels"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhuongTienModels"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlyxe/chitietphuongtien/{maPhuongTien}": {
+      "get": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "parameters": [
+          {
+            "name": "maPhuongTien",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlyxe/capnhatdangkiem/{id}": {
+      "put": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "IdDangKiem": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "MaPhuongTien": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "SoSeriGiayPhep": {
+                    "type": "string"
+                  },
+                  "SoTemKiemDinh": {
+                    "type": "string"
+                  },
+                  "NgayKiemDinh": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "NgayHetHan": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "DonViKiemDinh": {
+                    "type": "string"
+                  },
+                  "PhiDuongBoDenNgay": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "GhiChu": {
+                    "type": "string"
+                  },
+                  "NgayTao": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "HinhAnhDangKiem": {
+                    "type": "string"
+                  },
+                  "hinhAnh": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "IdDangKiem": {
+                  "style": "form"
+                },
+                "MaPhuongTien": {
+                  "style": "form"
+                },
+                "SoSeriGiayPhep": {
+                  "style": "form"
+                },
+                "SoTemKiemDinh": {
+                  "style": "form"
+                },
+                "NgayKiemDinh": {
+                  "style": "form"
+                },
+                "NgayHetHan": {
+                  "style": "form"
+                },
+                "DonViKiemDinh": {
+                  "style": "form"
+                },
+                "PhiDuongBoDenNgay": {
+                  "style": "form"
+                },
+                "GhiChu": {
+                  "style": "form"
+                },
+                "NgayTao": {
+                  "style": "form"
+                },
+                "HinhAnhDangKiem": {
+                  "style": "form"
+                },
+                "hinhAnh": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlyxe/xe-sap-den-han-bao-tri": {
+      "get": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "parameters": [
+          {
+            "name": "soNgayCanhBao",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 15
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlyxe/xe-sap-het-han-dang-kiem": {
+      "get": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "parameters": [
+          {
+            "name": "soNgayCanhBao",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 30
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlyxe/xe-sap-het-han-phi-duong-bo": {
+      "get": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "parameters": [
+          {
+            "name": "soNgayCanhBao",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 30
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlyxe/export-bao-cao-xe": {
+      "get": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "parameters": [
+          {
+            "name": "loaiBaoCao",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "soNgayCanhBao",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlydinhmuc/danhsachdinhmuc": {
+      "get": {
+        "tags": [
+          "QuanLyDinhMuc"
+        ],
+        "parameters": [
+          {
+            "name": "maLoaiXe",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlydinhmuc/them-dinh-muc": {
+      "post": {
+        "tags": [
+          "QuanLyDinhMuc"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DinhMucBaoTri"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DinhMucBaoTri"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DinhMucBaoTri"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlydinhmuc/sua-dinh-muc/{id}": {
+      "put": {
+        "tags": [
+          "QuanLyDinhMuc"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DinhMucBaoTri"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DinhMucBaoTri"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DinhMucBaoTri"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlydinhmuc/chi-tiet/{id}": {
+      "get": {
+        "tags": [
+          "QuanLyDinhMuc"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlykhobai/getallkho": {
+      "get": {
+        "tags": [
+          "QuanLyKho"
+        ],
+        "parameters": [
+          {
+            "name": "seach",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "trangthai",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "Tất cả"
+            }
+          },
+          {
+            "name": "loaikho",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "Tất cả"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlykhobai/danhsachtenkho": {
+      "get": {
+        "tags": [
+          "QuanLyKho"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlykhobai/getallloaikho": {
+      "get": {
+        "tags": [
+          "QuanLyKho"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlykhobai/themkhomoi": {
+      "post": {
+        "tags": [
+          "QuanLyKho"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KhoBaiModels"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KhoBaiModels"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/KhoBaiModels"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlykhobai/themloaikhomoi": {
+      "post": {
+        "tags": [
+          "QuanLyKho"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoaiKhoModels"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoaiKhoModels"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoaiKhoModels"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlykhobai/chitietkhobai/{maKho}": {
+      "get": {
+        "tags": [
+          "QuanLyKho"
+        ],
+        "parameters": [
+          {
+            "name": "maKho",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlykhobai/gettenkhobai": {
+      "get": {
+        "tags": [
+          "QuanLyKho"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/WeatherForecast": {
+      "get": {
+        "tags": [
+          "WeatherForecast"
+        ],
+        "operationId": "GetWeatherForecast",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeatherForecast"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeatherForecast"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeatherForecast"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CanhBaoBaoTriModel": {
+        "type": "object",
+        "properties": {
+          "tenHangMuc": {
+            "type": "string",
+            "nullable": true
+          },
+          "lyDo": {
+            "type": "string",
+            "nullable": true
+          },
+          "trangThai": {
+            "type": "string",
+            "nullable": true
+          },
+          "ngayDuKien": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "conLaiKm": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "conLaiNgay": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DangKiem": {
+        "type": "object",
+        "properties": {
+          "idDangKiem": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maPhuongTien": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "soSeriGiayPhep": {
+            "type": "string",
+            "nullable": true
+          },
+          "soTemKiemDinh": {
+            "type": "string",
+            "nullable": true
+          },
+          "ngayKiemDinh": {
+            "type": "string",
+            "format": "date"
+          },
+          "ngayHetHan": {
+            "type": "string",
+            "format": "date"
+          },
+          "donViKiemDinh": {
+            "type": "string",
+            "nullable": true
+          },
+          "phiDuongBoDenNgay": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "ghiChu": {
+            "type": "string",
+            "nullable": true
+          },
+          "ngayTao": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "hinhAnhDangKiem": {
+            "type": "string",
+            "nullable": true
+          },
+          "maPhuongTienNavigation": {
+            "$ref": "#/components/schemas/PhuongTien"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DangKiemModel": {
+        "type": "object",
+        "properties": {
+          "idDangKiem": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maPhuongTien": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "soSeriGiayPhep": {
+            "type": "string",
+            "nullable": true
+          },
+          "soTemKiemDinh": {
+            "type": "string",
+            "nullable": true
+          },
+          "ngayKiemDinh": {
+            "type": "string",
+            "format": "date"
+          },
+          "ngayHetHan": {
+            "type": "string",
+            "format": "date"
+          },
+          "donViKiemDinh": {
+            "type": "string",
+            "nullable": true
+          },
+          "phiDuongBoDenNgay": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "ghiChu": {
+            "type": "string",
+            "nullable": true
+          },
+          "ngayTao": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "hinhAnhDangKiem": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DinhMucBaoTri": {
+        "type": "object",
+        "properties": {
+          "maDinhMuc": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maLoaiXe": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tenHangMuc": {
+            "type": "string",
+            "nullable": true
+          },
+          "dinhMucKm": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "dinhMucThang": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "lichSuBaoTris": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LichSuBaoTri"
+            },
+            "nullable": true
+          },
+          "maLoaiXeNavigation": {
+            "$ref": "#/components/schemas/LoaiXe"
+          }
+        },
+        "additionalProperties": false
+      },
+      "KhoBai": {
+        "type": "object",
+        "properties": {
+          "maKho": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maDiaChi": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maQuanLy": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "dungTichM3": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "tenKhoBai": {
+            "type": "string",
+            "nullable": true
+          },
+          "dienTichM2": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "trangThai": {
+            "type": "string",
+            "nullable": true
+          },
+          "sucChua": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "soDienThoaiKho": {
+            "type": "string",
+            "nullable": true
+          },
+          "maLoaiKho": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "maLoaiKhoNavigation": {
+            "$ref": "#/components/schemas/LoaiKho"
+          },
+          "phuongTiens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhuongTien"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "KhoBaiModels": {
+        "type": "object",
+        "properties": {
+          "maKho": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maDiaChi": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maQuanLy": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "dungTichM3": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "tenKhoBai": {
+            "type": "string",
+            "nullable": true
+          },
+          "dienTichM2": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "trangThai": {
+            "type": "string",
+            "nullable": true
+          },
+          "sucChua": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "soDienThoaiKho": {
+            "type": "string",
+            "nullable": true
+          },
+          "maLoaiKho": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "tenLoaiKho": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LichSuBaoTri": {
+        "type": "object",
+        "properties": {
+          "maBanGhi": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maPhuongTien": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "chiPhi": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "ngay": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "soKmThucTe": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "maDinhMuc": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "maDinhMucNavigation": {
+            "$ref": "#/components/schemas/DinhMucBaoTri"
+          },
+          "maPhuongTienNavigation": {
+            "$ref": "#/components/schemas/PhuongTien"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LichSuBaoTriModels": {
+        "type": "object",
+        "properties": {
+          "maBanGhi": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maPhuongTien": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "chiPhi": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "ngay": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "soKmThucTe": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "maDinhMuc": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "loaiBaoTri": {
+            "type": "string",
+            "nullable": true
+          },
+          "maDinhMucNavigation": {
+            "$ref": "#/components/schemas/DinhMucBaoTri"
+          },
+          "maPhuongTienNavigation": {
+            "$ref": "#/components/schemas/PhuongTien"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoaiKho": {
+        "type": "object",
+        "properties": {
+          "maLoaiKho": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tenLoaiKho": {
+            "type": "string",
+            "nullable": true
+          },
+          "ghiChu": {
+            "type": "string",
+            "nullable": true
+          },
+          "khoBais": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KhoBai"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoaiKhoModels": {
+        "type": "object",
+        "properties": {
+          "maLoaiKho": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tenLoaiKho": {
+            "type": "string",
+            "nullable": true
+          },
+          "ghiChu": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoaiXe": {
+        "type": "object",
+        "properties": {
+          "maLoaiXe": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tenLoai": {
+            "type": "string",
+            "nullable": true
+          },
+          "dinhMucBaoTris": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DinhMucBaoTri"
+            },
+            "nullable": true
+          },
+          "phuongTiens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhuongTien"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoaiXeModels": {
+        "type": "object",
+        "properties": {
+          "maLoaiXe": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tenLoai": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PhuongTien": {
+        "type": "object",
+        "properties": {
+          "maPhuongTien": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bienSo": {
+            "type": "string",
+            "nullable": true
+          },
+          "maLoaiXe": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "taiTrongToiDaKg": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "theTichToiDaM3": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "mucTieuHaoNhienLieu": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "trangThai": {
+            "type": "string",
+            "nullable": true
+          },
+          "maKho": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "soKmHienTai": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "dangKiems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DangKiem"
+            },
+            "nullable": true
+          },
+          "lichSuBaoTris": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LichSuBaoTri"
+            },
+            "nullable": true
+          },
+          "maKhoNavigation": {
+            "$ref": "#/components/schemas/KhoBai"
+          },
+          "maLoaiXeNavigation": {
+            "$ref": "#/components/schemas/LoaiXe"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PhuongTienModels": {
+        "type": "object",
+        "properties": {
+          "maPhuongTien": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bienSo": {
+            "type": "string",
+            "nullable": true
+          },
+          "maLoaiXe": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tenLoaiXe": {
+            "type": "string",
+            "nullable": true
+          },
+          "taiTrongToiDaKg": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "theTichToiDaM3": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "mucTieuHaoNhienLieu": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "trangThai": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenKho": {
+            "type": "string",
+            "nullable": true
+          },
+          "maKho": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ghiChu": {
+            "type": "string",
+            "nullable": true
+          },
+          "soKmHienTai": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "lichSuBaoTris": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LichSuBaoTriModels"
+            },
+            "nullable": true
+          },
+          "dangKiems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DangKiemModel"
+            },
+            "nullable": true
+          },
+          "danhSachCanBaoTri": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CanhBaoBaoTriModel"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WeatherForecast": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "temperatureC": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "temperatureF": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}
