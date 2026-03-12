@@ -1,562 +1,790 @@
-﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDonHang
-@model DonHangCreate
-
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tạo Đơn Hàng Mới - Logistics TTT</title>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logistics System 2026 | Tạo Đơn Hàng</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
-            --primary-color: #4361ee;
-            --secondary-bg: #f8f9fa;
-            --border-color: #e2e8f0;
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
             --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f1f5f9;
+            background-color: var(--bg);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             color: var(--text-main);
         }
 
-        .main-card {
-            background: white;
+        /* Cấu trúc Card hiện đại */
+        .card-custom {
+            border: 1px solid var(--border-color);
             border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-            padding: 2rem;
-            margin: 20px auto;
-            max-width: 1200px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            margin-bottom: 1.5rem;
+            background: #fff;
+            overflow: hidden;
         }
 
-        .section-title {
-            font-size: 0.85rem;
+        .card-header {
+            background: #fff;
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.25rem;
             font-weight: 700;
+            color: var(--text-main);
             text-transform: uppercase;
-            color: var(--primary-color);
-            border-left: 4px solid var(--primary-color);
-            padding: 8px 12px;
-            margin: 1.5rem 0 1rem 0;
-            background: rgba(67, 97, 238, 0.05);
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Lựa chọn dịch vụ (Dạng list đơn giản) */
+        .service-option {
+            cursor: pointer;
+            border: 2px solid var(--border-color);
+            transition: all 0.2s ease;
+            border-radius: 12px;
+            padding: 16px;
+            background: #fff;
+            position: relative;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .service-option {
-            border: 2px solid var(--border-color);
-            border-radius: 10px;
-            padding: 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-            height: 100%;
-        }
-
             .service-option:hover {
-                border-color: var(--primary-color);
+                border-color: var(--primary);
+                background: var(--primary-light);
             }
 
-            .service-option.active {
-                border-color: var(--primary-color);
-                background-color: #eef2ff;
+            .service-option.selected {
+                border-color: var(--primary);
+                background: var(--primary-light);
+                box-shadow: 0 0 0 1px var(--primary);
             }
 
-            .service-option input {
-                display: none;
-            }
-
-            .service-option .price {
-                color: #ef4444;
-                font-weight: 700;
-            }
-
-        .voucher-item {
-            border: 1px dashed var(--primary-color);
-            background: #fdfdfd;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 10px;
-            cursor: pointer;
-        }
-
+        /* Kiện hàng */
         .package-item {
-            background: #fff;
+            background: #ffffff;
+            padding: 1.5rem;
             border-radius: 12px;
-            padding: 15px;
             border: 1px solid var(--border-color);
-            margin-bottom: 12px;
+            margin-bottom: 1rem;
             position: relative;
+            transition: all 0.2s;
         }
 
-        .summary-box {
-            background: #1e293b;
-            color: white;
-            border-radius: 12px;
-            padding: 1.2rem;
-            position: sticky;
-            bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-top: 2rem;
-            z-index: 100;
+            .package-item:hover {
+                border-color: var(--primary);
+                box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.1);
+            }
+
+        /* Input & Form */
+        .form-label {
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
         }
 
-        .btn-create {
-            background: var(--primary-color);
-            border: none;
-            font-weight: 700;
-            padding: 12px;
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 0.625rem 1rem;
+            border: 1.5px solid var(--border-color);
+            background-color: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+            .form-control:focus, .form-select:focus {
+                box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+                border-color: var(--primary);
+                outline: none;
+            }
+
+        /* Badge số lượng / hệ số */
+        .badge-custom {
+            padding: 0.4em 0.8em;
             border-radius: 8px;
-            width: 100%;
-            color: white;
+            font-weight: 600;
         }
+
+        /* Màn hình Loading */
+        #loading {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+
+        /* Thanh Summary dính bên phải */
+        .sticky-summary {
+            top: 1.5rem;
+        }
+
+        /* Hiệu ứng Button chính */
+        .btn-primary {
+            background-color: var(--primary);
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: transform 0.1s, background-color 0.2s;
+        }
+
+            .btn-primary:active {
+                transform: scale(0.98);
+            }
+
+        
     </style>
 </head>
 <body>
-    <main class="container py-4">
-        <div class="main-card">
-            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-                <h1 class="h4 fw-bold m-0"><i class="fa-solid fa-paper-plane me-2 text-primary"></i>TẠO VẬN ĐƠN</h1>
-                <a href="/" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left"></i> Quay lại</a>
+
+    <div id="loading">
+        <div class="spinner-grow text-primary" role="status"></div>
+        <span class="mt-3 fw-bold text-dark">Hệ thống đang xử lý...</span>
+    </div>
+
+    <nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
+        <div class="container">
+            <span class="navbar-brand fw-bold">
+                <i class="bi bi-truck-flatbed me-2"></i>LOGISTICS PRO <span class="badge bg-white text-primary ms-2">v2026</span>
+            </span>
+        </div>
+    </nav>
+
+    <div class="container pb-5">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card card-custom">
+                    <div class="card-header"><i class="bi bi-people-fill me-2"></i>Thông tin vận chuyển</div>
+                    <div class="card-body">
+                        <div class="row g-4">
+                            <div class="col-md-6 border-end-md">
+                                <label class="form-label fw-bold small text-primary">BÊN GỬI</label>
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                                    <input type="tel" class="form-control" id="soDienThoai" placeholder="SĐT người gửi" onchange="checkKhachHang()">
+                                </div>
+                                <input type="text" class="form-control" id="tenKhachHang" placeholder="Họ tên người gửi">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-success">BÊN NHẬN</label>
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                    <input type="text" class="form-control" id="tenNguoiNhan" placeholder="Họ tên người nhận">
+                                </div>
+                                <input type="tel" class="form-control" id="sdtNguoiNhan" placeholder="SĐT người nhận">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card card-custom h-100">
+                            <div class="card-header text-primary"><i class="bi bi-geo-alt-fill me-2"></i>Điểm lấy hàng</div>
+                            <div class="card-body">
+                                <select class="form-select mb-2" id="lay_thanhPho" onchange="fetchDistricts('lay')">
+                                    <option value="">Chọn Tỉnh/Thành phố</option>
+                                </select>
+                                <select class="form-select mb-2" id="lay_quanHuyen" onchange="autoCalculate()">
+                                    <option value="">Chọn Quận/Huyện</option>
+                                </select>
+                                <input type="text" class="form-control" id="lay_duong" placeholder="Số nhà, tên đường...">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card card-custom h-100">
+                            <div class="card-header text-success"><i class="bi bi-geo-fill me-2"></i>Điểm giao hàng</div>
+                            <div class="card-body">
+                                <select class="form-select mb-2" id="giao_thanhPho" onchange="fetchDistricts('giao')">
+                                    <option value="">Chọn Tỉnh/Thành phố</option>
+                                </select>
+                                <select class="form-select mb-2" id="giao_quanHuyen" onchange="autoCalculate()">
+                                    <option value="">Chọn Quận/Huyện</option>
+                                </select>
+                                <input type="text" class="form-control" id="giao_duong" placeholder="Số nhà, tên đường...">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card card-custom mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-box-seam me-2"></i>Chi tiết hàng hóa</span>
+                        <button class="btn btn-sm btn-outline-primary" onclick="addPackage()">
+                            <i class="bi bi-plus-lg"></i> Thêm kiện
+                        </button>
+                    </div>
+                    <div class="card-body bg-light-subtle" id="packageList">
+                    </div>
+                </div>
             </div>
 
-            <form id="createOrderForm">
-                <div class="row">
-                    <div class="col-lg-7">
-                        <div class="section-title">1. Thông tin lấy hàng</div>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">SĐT người gửi</label>
-                                <input type="text" class="form-control" name="SoDienThoai" id="SoDienThoai" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Tên người gửi</label>
-                                <input type="text" class="form-control" name="TenKhachHang" required>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Số nhà, tên đường</label>
-                                <input type="text" class="form-control" name="DiaChiLay.SoNhaTenDuong" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Tỉnh/Thành</label>
-                                <select class="form-select province-select" data-target="lay" name="DiaChiLay.ThanhPho" required></select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Quận/Huyện</label>
-                                <select class="form-select district-select" data-target="lay" name="DiaChiLay.QuanHuyen" required disabled></select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Phường/Xã</label>
-                                <select class="form-select ward-select" data-target="lay" name="DiaChiLay.PhuongXa" required disabled></select>
+            <div class="col-lg-4">
+                <div class="card card-custom sticky-summary sticky-top">
+                    <div class="card-header"><i class="bi bi-receipt me-2"></i>Dịch vụ & Thanh toán</div>
+                    <div class="card-body">
+                        <label class="small fw-bold mb-3 text-secondary">PHƯƠNG THỨC VẬN CHUYỂN</label>
+                        <div id="serviceContainer" class="mb-4 d-flex flex-column gap-2">
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="small fw-bold text-secondary">KHUYẾN MÃI</label>
+                            <div class="input-group">
+                                <input type="text" id="maGiamGia" class="form-control" placeholder="Nhập mã hoặc chọn..." readonly>
+                                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalKhuyenMai" onclick="loadAvailablePromotions()">Chọn mã</button>
                             </div>
                         </div>
 
-                        <div class="section-title">2. Thông tin giao hàng</div>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Tên người nhận</label>
-                                <input type="text" class="form-control" name="TenNguoiNhan" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">SĐT nhận hàng</label>
-                                <input type="text" class="form-control" name="SdtNguoiNhan" required>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Số nhà, tên đường</label>
-                                <input type="text" class="form-control" name="DiaChiGiao.SoNhaTenDuong" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Tỉnh/Thành</label>
-                                <select class="form-select province-select" data-target="giao" name="DiaChiGiao.ThanhPho" required></select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Quận/Huyện</label>
-                                <select class="form-select district-select" data-target="giao" name="DiaChiGiao.QuanHuyen" required disabled></select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Phường/Xã</label>
-                                <select class="form-select ward-select" data-target="giao" name="DiaChiGiao.PhuongXa" required disabled></select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-5">
-                        <div class="section-title">
-                            3. Chi tiết kiện hàng
-                            <button type="button" class="btn btn-sm btn-primary py-0 px-2" onclick="addPackage()"><i class="fas fa-plus"></i> Thêm</button>
-                        </div>
-
-                        <div id="packageList">
-                            <div class="package-item">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span class="badge bg-secondary item-count">Kiện #1</span>
-                                    <button type="button" class="btn-close" onclick="removePackage(this)"></button>
+                        <div class="card mt-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <span>Tạm tính :</span>
+                                    <span id="display_tongTienDuKien">0 đ</span>
                                 </div>
-                                <div class="row g-2">
-                                    <div class="col-12">
-                                        <select class="form-select form-select-sm select-loai-hang" name="MaLoaiHang" required></select>
-                                    </div>
-                                    <div class="col-4">
-                                        <label class="small text-muted">Số lượng</label>
-                                        <input type="number" class="form-control form-control-sm" name="SoLuongKienHang" value="1" min="1">
-                                    </div>
-                                    <div class="col-4">
-                                        <label class="small text-muted">Nặng (kg)</label>
-                                        <input type="number" class="form-control form-control-sm calc-trigger" name="KhoiLuong" step="0.1" required>
-                                    </div>
-                                    <div class="col-4">
-                                        <label class="small text-muted">Khối (m³)</label>
-                                        <input type="number" class="form-control form-control-sm calc-trigger" name="TheTich" step="0.001" value="0.001" required>
-                                    </div>
+                                <div class="d-flex justify-content-between text-danger">
+                                    <span>Giảm giá:</span>
+                                    <span id="display_soTienGiam">0 đ</span>
                                 </div>
-                            </div>
-                        </div>
-
-                        <div class="section-title">4. Mức độ dịch vụ</div>
-                        <div id="serviceLevels" class="row g-2 mb-3">
-                            <div class="col-12 text-center py-3 text-muted border rounded">
-                                <small>Vui lòng nhập đủ địa chỉ & khối lượng để tính giá</small>
-                            </div>
-                        </div>
-
-                        <div class="section-title">5. Ưu đãi</div>
-                        <div class="row g-2">
-                            <div class="col-7">
-                                <div class="input-group">
-                                    <input type="text" class="form-control" name="MaGiamGia" id="MaGiamGia" placeholder="Mã giảm giá">
-                                    <button class="btn btn-outline-primary" type="button" onclick="openVoucherModal()"><i class="fas fa-ticket"></i></button>
+                                <hr>
+                                <div class="d-flex justify-content-between fw-bold h5">
+                                    <span>Tổng thanh toán:</span>
+                                    <span id="display_tongThanhToan" class="text-primary">0 đ</span>
                                 </div>
-                            </div>
-                            <div class="col-5">
-                                <input type="number" class="form-control" name="SoDiemDoi" id="SoDiemDoi" placeholder="Đổi điểm" value="0" min="0">
+                                <div id="promo_note" class="text-end"></div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <div class="summary-box">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <div class="d-flex flex-wrap gap-4">
-                                <div><small class="text-white-50 d-block">Tổng kiện</small><span class="h5 m-0" id="lblTotalKien">1</span></div>
-                                <div><small class="text-white-50 d-block">Khối lượng</small><span class="h5 m-0" id="lblTotalWeight">0</span> kg</div>
-                                <div><small class="text-white-50 d-block">Tổng phí dự kiến</small><span class="h5 m-0 text-warning" id="lblFinalPrice">0đ</span></div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <button type="submit" class="btn btn-create" id="btnSubmit">
-                                <i class="fas fa-rocket me-2"></i> ĐẶT ĐƠN NGAY
-                            </button>
-                        </div>
+                        <button class="btn btn-primary w-100 mt-4 py-3 fw-bold shadow-lg" onclick="submitOrder()">
+                            XÁC NHẬN TẠO ĐƠN
+                        </button>
                     </div>
-                </div>
-            </form>
-        </div>
-    </main>
-
-    <div class="modal fade" id="voucherModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-light">
-                    <h5 class="modal-title fw-bold">Chọn ưu đãi cho bạn</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" id="voucherContainer" style="max-height: 400px; overflow-y: auto;">
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <div class="modal fade" id="modalKhuyenMai" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 20px;">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">Ưu đãi dành cho bạn</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="promotion-list" class="d-flex flex-column gap-2">
+                        <div class="text-center py-3">Đang kiểm tra mã giảm giá...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>  
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <script>
-        let listLoaiHangGlobal = [];
-        let selectedServiceId = null;
-        const apiVN = "https://provinces.open-api.vn/api/";
+        const PORT_7149 = "https://localhost:7149";
+        const PORT_7264 = "https://localhost:7264";
+        const API_PROVINCE = "https://provinces.open-api.vn/api";
 
-        $(document).ready(function() {
-            loadDanhMucLoaiHang();
-            loadProvinces();
+        let state = {
+            maKhachHang: 0,
+            loaiHangs: [],
+            mucDichVus: [],
+            selectedDV: null,
+            tongTienGoc: 0,
+            soTienGiam: 0,
+            maGiamGiaChon: null
+        };
+        async function checkKhachHang() {
+            const sdt = document.getElementById('soDienThoai').value;
 
-            // Lắng nghe thay đổi để tính giá
-            $(document).on('change', '.province-select, .district-select, .ward-select', checkAndCalc);
-            $(document).on('input', '.calc-trigger, input[name="SoLuongKienHang"]', function() {
-                updateSummary();
-                debounceCalc();
-            });
+            // Kiểm tra độ dài cơ bản để tránh gọi API liên tục khi mới gõ vài số
+            // if (sdt.length < 10) {
+            //     state.maKhachHang = 0;
+            //     return;
+            // }
 
-            $('#createOrderForm').on('submit', function(e) {
-                e.preventDefault();
-                submitOrder();
-            });
-        });
+            try {
+                // Sửa link theo định dạng Query String
+                const res = await axios.get(`${PORT_7149}/api/quanlykhachhang/check-phone?soDienThoai=${sdt}`);
 
-        // --- 1. XỬ LÝ ĐỊA CHÍNH ---
-        function loadProvinces() {
-            $.getJSON(`${apiVN}?depth=1`, function (data) {
-                let options = '<option value="">Chọn Tỉnh/Thành</option>';
-                data.forEach(p => options += `<option value="${p.name}" data-code="${p.code}">${p.name}</option>`);
-                $(".province-select").html(options);
-            });
+                const result = res.data;
+
+                if (result.exists && result.data) {
+                    // Nếu tìm thấy khách hàng: Điền thông tin và lưu ID
+                    // Lưu ý: Kiểm tra lại tên thuộc tính trả về là 'tenLienHe' hay 'hoTen' cho khớp với C#
+                    document.getElementById('tenKhachHang').value = result.data.tenLienHe || result.data.tenCongTy;
+                    state.maKhachHang = result.data.maKhachHang;
+
+                    // Thông báo nhỏ để người dùng biết đã nhận diện được khách
+                    console.log("Đã tìm thấy khách hàng cũ.");
+
+                    autoCalculate(); // Tính lại để check voucher theo hạng khách
+                } else {
+                    // Nếu không tìm thấy (Khách mới)
+                    state.maKhachHang = 0;
+                    // document.getElementById('tenKhachHang').value = ""; // Có thể xóa trống hoặc để người dùng tự nhập
+                }
+            } catch (e) {
+                console.error("Lỗi khi kiểm tra khách hàng:", e);
+                state.maKhachHang = 0;
+            }
+        }
+        // Loại bỏ chữ "Tỉnh/Thành phố" để khớp với DB Backend
+        function cleanCityName(name) {
+            if (!name) return "";
+            return name.replace(/^(Thành phố|Tỉnh)\s+/i, "").trim();
         }
 
-        $(".province-select").on("change", function () {
-            const target = $(this).data("target");
-            const code = $(this).find(":selected").data("code");
-            const dSel = $(`.district-select[data-target="${target}"]`);
-            const wSel = $(`.ward-select[data-target="${target}"]`);
-            dSel.html('<option value="">Đang tải...</option>').prop("disabled", true);
-            if (!code) return;
-            $.getJSON(`${apiVN}p/${code}?depth=2`, function (data) {
-                let opts = '<option value="">Chọn Quận/Huyện</option>';
-                data.districts.forEach(d => opts += `<option value="${d.name}" data-code="${d.code}">${d.name}</option>`);
-                dSel.html(opts).prop("disabled", false);
-            });
+        // Khởi tạo dữ liệu khi tải trang
+        window.addEventListener('DOMContentLoaded', async () => {
+            showLoading(true);
+            try {
+                const [p, lh, dv] = await Promise.all([
+                    axios.get(`${API_PROVINCE}/p/`),
+                    axios.get(`${PORT_7264}/api/danhmucloaihang/laytatcaloaihang`),
+                    axios.get(`${PORT_7149}/api/mucdichvu/dsmucdichvu?trangThai=active`),
+                ]);
+
+                // Load tỉnh thành vào select
+                const pOptions = p.data.map(i => `<option value="${i.name}" data-code="${i.code}">${i.name}</option>`).join('');
+                document.getElementById('lay_thanhPho').innerHTML += pOptions;
+                document.getElementById('giao_thanhPho').innerHTML += pOptions;
+
+                state.loaiHangs = lh.data;
+                state.mucDichVus = dv.data;
+
+                addPackage(); // Tạo kiện hàng đầu tiên
+                renderDichVu(); // Hiển thị danh sách dịch vụ (Tiết kiệm, Hỏa tốc...)
+            } catch (e) {
+                console.error("Lỗi khởi tạo:", e);
+                alert("Không thể kết nối đến máy chủ. Vui lòng kiểm tra API.");
+            } finally {
+                showLoading(false);
+            }
         });
 
-        $(".district-select").on("change", function () {
-            const target = $(this).data("target");
-            const code = $(this).find(":selected").data("code");
-            const wSel = $(`.ward-select[data-target="${target}"]`);
-            wSel.html('<option value="">Đang tải...</option>').prop("disabled", true);
-            $.getJSON(`${apiVN}d/${code}?depth=2`, function (data) {
-                let opts = '<option value="">Chọn Phường/Xã</option>';
-                data.wards.forEach(w => opts += `<option value="${w.name}">${w.name}</option>`);
-                wSel.html(opts).prop("disabled", false);
-            });
-        });
+        // Lấy quận huyện khi chọn tỉnh
+        async function fetchDistricts(type) {
+            const pSelect = document.getElementById(`${type}_thanhPho`);
+            const dSelect = document.getElementById(`${type}_quanHuyen`);
+            const selectedOption = pSelect.options[pSelect.selectedIndex];
+            const pCode = selectedOption.getAttribute('data-code');
 
-        // --- 2. LOGIC TÍNH PHÍ (GỌI API SERVER 2) ---
-        let calcTimeout = null;
-        function debounceCalc() {
-            clearTimeout(calcTimeout);
-            calcTimeout = setTimeout(checkAndCalc, 800);
+            dSelect.innerHTML = '<option value="">Chọn Quận/Huyện</option>';
+            if (!pCode) return;
+
+            try {
+                const res = await axios.get(`${API_PROVINCE}/p/${pCode}?depth=2`);
+                dSelect.innerHTML += res.data.districts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+                autoCalculate(); // Tính lại giá khi đổi địa chỉ
+            } catch (e) { console.error(e); }
         }
 
-        async function checkAndCalc() {
-            const provinceGiao = $('select[name="DiaChiGiao.ThanhPho"]').val();
-            const provinceLay = $('select[name="DiaChiLay.ThanhPho"]').val();
-            const totalWeight = parseFloat($('#lblTotalWeight').text());
+        // Tự động tính toán giá gốc (chưa nhân hệ số)
+        async function autoCalculate() {
+            const tpLay = cleanCityName(document.getElementById('lay_thanhPho').value);
+            const tpGiao = cleanCityName(document.getElementById('giao_thanhPho').value);
 
-            if (provinceGiao && provinceLay && totalWeight > 0) {
-                $('#serviceLevels').html('<div class="col-12 text-center py-2"><i class="fas fa-spinner fa-spin"></i> Đang tính giá...</div>');
+            if (!tpLay || !tpGiao) return;
 
-                const requestData = {
-                    ThanhPhoLay: provinceLay,
-                    ThanhPhoGiao: provinceGiao,
-                    DanhSachKienHang: []
+            const kiens = document.querySelectorAll('.package-item');
+            let totalGoc = 0;
+
+            for (let k of kiens) {
+                const payload = {
+                    thanhPhoLay: tpLay,
+                    thanhPhoGiao: tpGiao,
+                    khoiLuongTong: parseFloat(k.querySelector('[name="khoiLuong"]').value) || 0,
+                    theTichTong: parseFloat(k.querySelector('[name="theTich"]').value) || 0,
+                    maLoaiHang: parseInt(k.querySelector('[name="maLoaiHang"]').value) || 0,
+                    maBangGiaVung: 0
                 };
 
-                $('.package-item').each(function() {
-                    requestData.DanhSachKienHang.push({
-                        KhoiLuong: parseFloat($(this).find('[name="KhoiLuong"]').val()) || 0,
-                        TheTich: parseFloat($(this).find('[name="TheTich"]').val()) || 0,
-                        SoLuongKienHang: parseInt($(this).find('[name="SoLuongKienHang"]').val()) || 1,
-                        MaLoaiHang: parseInt($(this).find('[name="MaLoaiHang"]').val()) || 1
-                    });
-                });
-
                 try {
-                    // Lưu ý: URL này nên trỏ về Server 2 API phân tích giá
-                    const response = await fetch('https://localhost:7149/api/mucdichvu/phan-tich-muc-do-phu-hop', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(requestData)
-                    });
-                    const data = await response.json();
-                    renderServiceLevels(data.luaChonDichVu);
-                } catch (e) {
-                    $('#serviceLevels').html('<div class="col-12 text-danger small">Lỗi kết nối máy chủ tính giá.</div>');
-                }
+                    const res = await axios.post(`${PORT_7149}/api/quanlybangiavung/phan-tich-dich-vu-phu-hop`, payload);
+                    if (res.data && res.data.length > 0) {
+                        const qty = parseInt(k.querySelector('[name="soLuongKienHang"]').value) || 1;
+                        const donGiaKien = res.data[0].tongTienDuKien; // Giá của 1 kiện
+
+                        // Lưu đơn giá vào dataset để hàm submitOrder sử dụng
+                        k.dataset.donGia = donGiaKien;
+                        k.dataset.maBangGiaThucTe = res.data[0].maBangGia;
+
+                        totalGoc += (donGiaKien * qty);
+                    }
+                } catch (e) { console.warn("Tuyến đường chưa hỗ trợ"); }
+            }
+
+            state.tongTienGoc = totalGoc;
+
+            if (state.maGiamGiaChon) {
+            reValidateVoucher();
+            } else {
+                updateUI();
             }
         }
 
-        function renderServiceLevels(services) {
-            let html = '';
-            services.forEach((s, idx) => {
-                html += `
-                <div class="col-4">
-                    <label class="service-option ${idx === 0 ? 'active' : ''}" onclick="selectService(${s.maMucDo}, ${s.giaDuKien})">
-                        <input type="radio" name="MaMucDoChon" value="${s.maMucDo}" ${idx === 0 ? 'checked' : ''}>
-                        <div class="fw-bold small">${s.tenMucDo}</div>
-                        <div class="price small">${s.giaDuKien.toLocaleString()}đ</div>
-                        <div class="text-muted" style="font-size:10px">Dự kiến: ${s.thoiGianDuKien}</div>
-                    </label>
-                </div>`;
-                if(idx === 0) {
-                    selectedServiceId = s.maMucDo;
-                    $('#lblFinalPrice').text(s.giaDuKien.toLocaleString() + 'đ');
-                }
-            });
-            $('#serviceLevels').html(html);
-        }
+        // Hiển thị danh sách dịch vụ (Vùng chọn màu xanh)
+        function renderDichVu() {
+            const container = document.getElementById('serviceContainer');
+            if (!state.mucDichVus || state.mucDichVus.length === 0) {
+                container.innerHTML = '<p class="text-muted small">Đang tải dịch vụ...</p>';
+                return;
+            }
 
-        function selectService(id, price) {
-            selectedServiceId = id;
-            $('.service-option').removeClass('active');
-            $(`input[value="${id}"]`).parent().addClass('active');
-            $('#lblFinalPrice').text(price.toLocaleString() + 'đ');
-        }
+            // Lấy ID đã chọn từ state - Sử dụng MaDichVu theo Backend
+            const selectedId = state.selectedDV ? String(state.selectedDV.maDichVu) : null;
 
-        // --- 3. KHUYẾN MÃI & ĐIỂM ---
-        async function openVoucherModal() {
-            const sdt = $('#SoDienThoai').val();
-            if(!sdt) return Swal.fire('Nhắc nhở', 'Vui lòng nhập SĐT người gửi để kiểm tra voucher', 'info');
+            container.innerHTML = state.mucDichVus.map(dv => {
+                // Chuẩn hóa ID và Tên theo đúng API: MaDichVu, TenDichVu
+                const id = String(dv.maDichVu);
+                const name = dv.tenDichVu || "Dịch vụ vận chuyển";
+                const heSo = dv.heSoNhiPhan || 1;
+                const isSelected = (selectedId === id);
 
-            $('#voucherContainer').html('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Đang tìm voucher...</div>');
-            new bootstrap.Modal('#voucherModal').show();
-
-            try {
-                const res = await fetch(`https://localhost:7149/api/KhuyenMai/GetAvailable?sdt=${sdt}`);
-                const vouchers = await res.json();
-
-                let html = '';
-                if(vouchers.length === 0) html = '<p class="text-center py-3">Bạn chưa có mã giảm giá nào.</p>';
-
-                vouchers.forEach(v => {
-                    html += `
-                    <div class="voucher-item d-flex justify-content-between align-items-center" onclick="applyVoucher('${v.maKhuyenMai}')">
-                        <div>
-                            <div class="fw-bold text-primary">${v.maKhuyenMai}</div>
-                            <div class="small text-muted">Giảm ${v.giaTriGiam}${v.kieuGiamGia === 'Phần trăm' ? '%' : 'đ'}</div>
+                return `
+                    <div class="service-option ${isSelected ? 'selected' : ''}"
+                         onclick="selectDV('${id}')"
+                         style="cursor: pointer;">
+                        <div class="d-flex justify-content-between align-items-center w-100">
+                            <div style="pointer-events: none;">
+                                <div class="fw-bold ${isSelected ? 'text-primary' : ''}">${name}</div>
+                                <div class="small text-muted">Hệ số: <span class="badge bg-secondary">x${heSo}</span></div>
+                            </div>
+                            <i class="bi ${isSelected ? 'bi-check-circle-fill text-primary' : 'bi-circle text-muted'} h5 mb-0"></i>
                         </div>
-                        <button type="button" class="btn btn-sm btn-primary">Dùng</button>
                     </div>`;
-                });
-                $('#voucherContainer').html(html);
-            } catch {
-                $('#voucherContainer').html('<p class="text-danger">Không thể tải danh sách voucher.</p>');
+            }).join('');
+        }
+
+        function selectDV(id) {
+            // Tìm dịch vụ dựa trên MaDichVu
+            const selected = state.mucDichVus.find(dv => String(dv.maDichVu) === String(id));
+
+            if (selected) {
+                state.selectedDV = selected;
+                console.log("Đã chọn dịch vụ:", selected);
+
+                renderDichVu(); // Vẽ lại để cập nhật class .selected và dấu tick
+                updateUI();     // Tính toán lại giá tiền thực tế
             }
         }
 
-        function applyVoucher(code) {
-            $('#MaGiamGia').val(code);
-            bootstrap.Modal.getInstance($('#voucherModal')).hide();
-            Swal.fire('Đã chọn', code, 'success');
-        }
+                // --- PHẦN KHUYẾN MÃI HOÀN THIỆN ---
 
-        // --- 4. KIỆN HÀNG ---
-        async function loadDanhMucLoaiHang() {
+        /**
+         * Tải danh sách các mã giảm giá mà khách hàng có thể sử dụng dựa trên tổng tiền hiện tại
+         */
+        async function loadAvailablePromotions() {
+            const container = document.getElementById('promotion-list');
+            if (!container) return;
+
+            // Tính tổng tiền dựa trên dịch vụ đã chọn để gửi lên Backend check điều kiện DonHangToiThieu
+            const heSo = state.selectedDV ? state.selectedDV.heSoNhiPhan : 1;
+            const tongTienHienTai = state.tongTienGoc * heSo;
+
+            if (tongTienHienTai <= 0) {
+                container.innerHTML = `
+                    <div class="alert alert-warning small border-0 shadow-sm">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Vui lòng chọn địa chỉ và hàng hóa để tính giá trước khi xem khuyến mãi.
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = '<div class="text-center p-3"><div class="spinner-border spinner-border-sm text-primary"></div> Đang tìm mã giảm giá...</div>';
+
             try {
-                const res = await fetch('https://localhost:7264/api/danhmucloaihang/laytatcaloaihang');
-                listLoaiHangGlobal = await res.json();
-                renderLoaiHangSelect($('.select-loai-hang'));
-            } catch {
-                listLoaiHangGlobal = [{maLoaiHang: 1, tenLoaiHang: "Hàng hóa chung"}];
-                renderLoaiHangSelect($('.select-loai-hang'));
+                const res = await axios.get(`${PORT_7149}/api/quanlykhuyenmai/khuyen-mai-kha-dung`, {
+                    params: {
+                        tongTienDonHang: Math.round(tongTienHienTai),
+                        maKhachHang: parseInt(state.maKhachHang) || 0
+                    }
+                });
+
+                console.log("Dữ liệu KM từ Backend:", res.data);
+                renderPromotionList(res.data);
+            } catch (e) {
+                console.error("Lỗi tải KM:", e);
+                container.innerHTML = '<div class="alert alert-danger small">Không thể kết nối máy chủ để tải khuyến mãi.</div>';
             }
         }
 
-        function renderLoaiHangSelect(el) {
-            let opts = '<option value="">-- Loại hàng --</option>';
-            listLoaiHangGlobal.forEach(i => opts += `<option value="${i.maLoaiHang}">${i.tenLoaiHang}</option>`);
-            el.html(opts);
-        }
+        /**
+         * Hiển thị danh sách mã lên Giao diện (Modal)
+         */
+        function renderPromotionList(promotions) {
+            const container = document.getElementById('promotion-list');
 
-        function addPackage() {
-            const $item = $('.package-item').first().clone();
-            $item.find('input').val('');
-            $item.find('input[name="SoLuongKienHang"]').val(1);
-            $item.find('input[name="TheTich"]').val(0.001);
-            $('#packageList').append($item);
-            updatePackageLabels();
-        }
-
-        function removePackage(btn) {
-            if ($('.package-item').length > 1) {
-                $(btn).closest('.package-item').remove();
-                updatePackageLabels();
-                updateSummary();
-                debounceCalc();
+            if (!promotions || promotions.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center p-4">
+                        <img src="https://cdn-icons-png.flaticon.com/512/6598/6598519.png" width="60" class="opacity-50 mb-3">
+                        <p class="text-muted small">Rất tiếc, chưa có mã nào phù hợp với đơn hàng này.</p>
+                    </div>`;
+                return;
             }
+
+            container.innerHTML = promotions.map(km => {
+                // Xử lý linh hoạt tên thuộc tính (Backend trả về PascalCase hoặc camelCase)
+                const code = km.codeKhuyenMai || km.code || km.maCode;
+                const ten = km.tenChuongTrinh || "Mã giảm giá";
+                const moTa = km.moTa || "Ưu đãi cho đơn hàng vận chuyển";
+                const isUsed = km.daSuDung === true;
+
+                return `
+                    <div class="promotion-item border rounded p-3 mb-2 shadow-sm ${isUsed ? 'opacity-50 grayscale' : 'hover-shadow'}"
+                         ${!isUsed ? `onclick="selectVoucher('${code}')"` : ''}
+                         style="cursor:${isUsed ? 'not-allowed' : 'pointer'}; position: relative;">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="me-3">
+                                <span class="badge bg-danger mb-1">${code}</span>
+                                <div class="fw-bold text-dark" style="font-size: 0.9rem;">${ten}</div>
+                                <div class="text-muted" style="font-size: 0.75rem; line-height: 1.2;">${moTa}</div>
+                            </div>
+                            <button class="btn btn-sm ${isUsed ? 'btn-secondary' : 'btn-primary'} text-nowrap">
+                                ${isUsed ? 'Đã dùng' : 'Áp dụng'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
-        function updatePackageLabels() {
-            $('.package-item').each((i, el) => $(el).find('.item-count').text(`Kiện #${i+1}`));
+        /**
+         * Chọn mã từ danh sách và đóng Modal
+         */
+         async function selectVoucher(code) {
+            if (!code) return;
+
+            state.maGiamGiaChon = code;
+            document.getElementById('maGiamGia').value = code;
+
+            // 1. Lấy instance của Modal
+            const modalEl = document.getElementById('modalKhuyenMai');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+            if (modalInstance) {
+                // 2. Đóng modal
+                modalInstance.hide();
+
+                // 3. CƯỠNG ÉP XÓA BACKDROP (Khắc phục lỗi màn hình đen)
+                // Đợi modal đóng xong rồi xóa các lớp phủ còn sót lại
+                modalEl.addEventListener('hidden.bs.modal', function () {
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(el => el.remove());
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                }, { once: true });
+            }
+
+            // Sau đó mới thực hiện tính toán tiền
+            await reValidateVoucher();
         }
 
-        function updateSummary() {
-            let totalW = 0, totalK = 0;
-            $('.package-item').each(function() {
-                let q = parseInt($(this).find('[name="SoLuongKienHang"]').val()) || 0;
-                let w = parseFloat($(this).find('[name="KhoiLuong"]').val()) || 0;
-                totalK += q;
-                totalW += (q * w);
-            });
-            $('#lblTotalKien').text(totalK);
-            $('#lblTotalWeight').text(totalW.toFixed(1));
+        /**
+         * Kiểm tra lại tính hợp lệ của mã khi có sự thay đổi về tiền hoặc dịch vụ
+         */
+        async function reValidateVoucher() {
+            if (!state.maGiamGiaChon) {
+                state.soTienGiam = 0;
+                updateUI();
+                return;
+            }
+
+            const heSo = state.selectedDV ? state.selectedDV.heSoNhiPhan : 1;
+            const tongTienHienTai = state.tongTienGoc * heSo;
+
+            try {
+                const res = await axios.post(`${PORT_7149}/api/quanlykhuyenmai/ap-dung`, {
+                    code: state.maGiamGiaChon,
+                    tongTienDonHang: Math.round(tongTienHienTai),
+                    maKhachHang: state.maKhachHang
+                });
+
+                if (res.data.success) {
+                    state.soTienGiam = res.data.data.soTienGiam;
+                    console.log("Áp dụng mã thành công, giảm:", state.soTienGiam);
+                } else {
+                    throw new Error(res.data.message);
+                }
+            } catch (e) {
+                console.warn("Hủy mã KM:", e.response?.data?.message || e.message);
+                state.maGiamGiaChon = null;
+                state.soTienGiam = 0;
+                const inputMa = document.getElementById('maGiamGia');
+                if (inputMa) inputMa.value = "";
+            }
+            updateUI();
         }
 
-        // --- 5. GỬI ĐƠN ---
-        async function submitOrder() {
-            if (!selectedServiceId) return Swal.fire('Lỗi', 'Vui lòng chọn mức dịch vụ', 'warning');
+        /**
+         * Hàm cập nhật UI tổng quát (Phải được gọi sau mỗi lần thay đổi dữ liệu)
+         */
+        async function updateUI() {
+            const heSo = state.selectedDV ? state.selectedDV.heSoNhiPhan : 1;
+            const tongDuKien = state.tongTienGoc * heSo;
 
-            const btn = $('#btnSubmit');
-            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Đang tạo đơn...');
+            // Tổng thực tế không được nhỏ hơn 0
+            const tongThucTe = Math.max(0, tongDuKien - state.soTienGiam);
 
-            const formData = {
-                SoDienThoai: $('input[name="SoDienThoai"]').val(),
-                TenKhachHang: $('input[name="TenKhachHang"]').val(),
-                DiaChiLay: {
-                    ThanhPho: $('select[name="DiaChiLay.ThanhPho"]').val(),
-                    QuanHuyen: $('select[name="DiaChiLay.QuanHuyen"]').val(),
-                    PhuongXa: $('select[name="DiaChiLay.PhuongXa"]').val(),
-                    SoNhaTenDuong: $('input[name="DiaChiLay.SoNhaTenDuong"]').val()
-                },
-                DiaChiGiao: {
-                    ThanhPho: $('select[name="DiaChiGiao.ThanhPho"]').val(),
-                    QuanHuyen: $('select[name="DiaChiGiao.QuanHuyen"]').val(),
-                    PhuongXa: $('select[name="DiaChiGiao.PhuongXa"]').val(),
-                    SoNhaTenDuong: $('input[name="DiaChiGiao.SoNhaTenDuong"]').val()
-                },
-                TenNguoiNhan: $('input[name="TenNguoiNhan"]').val(),
-                SdtNguoiNhan: $('input[name="SdtNguoiNhan"]').val(),
-                MaGiamGia: $('#MaGiamGia').val(),
-                MaMucDoChon: selectedServiceId,
-                SoDiemDoi: parseInt($('#SoDiemDoi').val()) || 0,
-                DanhSachKienHang: []
+            // Render số tiền lên giao diện
+            const elements = {
+                'display_tongTienDuKien': tongDuKien,
+                'display_soTienGiam': state.soTienGiam,
+                'display_tongThanhToan': tongThucTe
             };
 
-            $('.package-item').each(function() {
-                formData.DanhSachKienHang.push({
-                    MaLoaiHang: parseInt($(this).find('[name="MaLoaiHang"]').val()),
-                    KhoiLuong: parseFloat($(this).find('[name="KhoiLuong"]').val()),
-                    TheTich: parseFloat($(this).find('[name="TheTich"]').val()),
-                    SoLuongKienHang: parseInt($(this).find('[name="SoLuongKienHang"]').val())
-                });
-            });
-
-            try {
-                const response = await fetch('https://localhost:7264/api/quanlydonhang/tao-moi', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-
-                const res = await response.json();
-                if (response.ok) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Thành công!',
-                        html: `Mã đơn hàng: <b>${res.maDonHang}</b><br>Phí thanh toán: <b>${res.tongTien.toLocaleString()}đ</b>`
-                    }).then(() => window.location.href = '/QuanLyDonHang/DanhSach');
-                } else {
-                    throw new Error(res || 'Lỗi từ server');
+            for (let [id, val] of Object.entries(elements)) {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.innerText = (id === 'display_soTienGiam' && val > 0 ? "-" : "") + val.toLocaleString() + " đ";
                 }
-            } catch (err) {
-                Swal.fire('Thất bại', err.message, 'error');
-                btn.prop('disabled', false).html('<i class="fas fa-rocket me-2"></i> ĐẶT ĐƠN NGAY');
+            }
+
+            // Hiển thị ghi chú mã đang dùng
+            const promoNote = document.getElementById('promo_note');
+            if (promoNote) {
+                promoNote.innerHTML = state.maGiamGiaChon
+                    ? `<div class="badge bg-success-subtle text-success border border-success-subtle mt-1">
+                        <i class="bi bi-check2-circle"></i> Đã chọn: ${state.maGiamGiaChon}
+                       </div>`
+                    : "";
             }
         }
+
+        function safeSetText(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.innerText = text;
+        }
+
+        // Thêm kiện hàng mới
+        function addPackage() {
+            const container = document.getElementById('packageList');
+            const div = document.createElement('div');
+            div.className = 'package-item position-relative border p-3 mb-3 rounded bg-white shadow-sm';
+            div.innerHTML = `
+                <button class="btn-close position-absolute top-0 end-0 m-2" onclick="this.parentElement.remove(); autoCalculate();"></button>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="small fw-bold text-secondary">Loại hàng</label>
+                        <select class="form-select" name="maLoaiHang" onchange="autoCalculate()">
+                            ${state.loaiHangs.map(i => `<option value="${i.maLoaiHang}">${i.tenLoaiHang}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <label class="small fw-bold text-secondary">Nặng (kg)</label>
+                        <input type="number" class="form-control" name="khoiLuong" value="1" min="0.1" step="0.1" oninput="autoCalculate()">
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <label class="small fw-bold text-secondary">Khối (m3)</label>
+                        <input type="number" class="form-control" name="theTich" value="0.01" min="0.001" step="0.001" oninput="autoCalculate()">
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <label class="small fw-bold text-secondary">Số lượng</label>
+                        <input type="number" class="form-control" name="soLuongKienHang" value="1" min="1" oninput="autoCalculate()">
+                    </div>
+                    <div class="col-md-12">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="small fw-bold text-secondary">Yêu cầu bảo quản</label>
+                                <input type="text" class="form-control form-control-sm" name="yeuCauBaoQuan" placeholder="Ví dụ: Giữ lạnh, tránh ánh nắng...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small fw-bold text-secondary">Ghi chú kiện</label>
+                                <input type="text" class="form-control form-control-sm" name="ghiChu" placeholder="Ghi chú thêm...">
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            container.appendChild(div);
+            autoCalculate();
+        }
+        // Gửi đơn hàng về server
+        async function submitOrder() {
+            // 1. Kiểm tra xem người dùng đã chọn dịch vụ chưa
+            if (!state.selectedDV) {
+                return alert("Vui lòng chọn phương thức vận chuyển!");
+            }
+
+            // 2. Định nghĩa biến maDichVuChon từ state (Khắc phục lỗi ReferenceError)
+            // Cần lấy đúng trường maDichVu (theo API Backend của bạn)
+            const maDichVuChon = state.selectedDV.maDichVu || state.selectedDV.id || 0;
+
+            // 3. Thu thập danh sách kiện hàng
+            const danhSachKienHang = Array.from(document.querySelectorAll('.package-item')).map(k => {
+                const qty = parseInt(k.querySelector('[name="soLuongKienHang"]').value) || 1;
+                const donGia = parseFloat(k.dataset.donGia) || 0;
+
+                return {
+                    khoiLuong: parseFloat(k.querySelector('[name="khoiLuong"]').value) || 0,
+                    theTich: parseFloat(k.querySelector('[name="theTich"]').value) || 0,
+                    tenKienHang: "Kiện hàng #" + (Math.floor(Math.random() * 1000)),
+                    maLoaiHang: parseInt(k.querySelector('[name="maLoaiHang"]').value) || 0,
+                    soLuongKienHang: qty,
+                    maBangGiaVung: parseInt(k.dataset.maBangGiaThucTe) || 0,
+                    yeuCauBaoQuan: k.querySelector('[name="yeuCauBaoQuan"]').value || "Không có",
+                    ghiChu: k.querySelector('[name="ghiChu"]').value || "",
+                    giaCuoc: donGia,
+                    tongTien: donGia * qty
+                };
+            });
+
+            // 4. Tạo Payload gửi đi
+            const payload = {
+                tenDonHang: "Đơn hàng từ " + (document.getElementById('tenKhachHang').value || "Khách lẻ"),
+                soDienThoai: document.getElementById('soDienThoai').value,
+                tenKhachHang: document.getElementById('tenKhachHang').value,
+                tenNguoiNhan: document.getElementById('tenNguoiNhan').value,
+                sdtNguoiNhan: document.getElementById('sdtNguoiNhan').value,
+                maGiamGia: state.maGiamGiaChon,
+                diaChiLay: {
+                    duong: document.getElementById('lay_duong').value,
+                    thanhPho: cleanCityName(document.getElementById('lay_thanhPho').value)
+                },
+                diaChiGiao: {
+                    duong: document.getElementById('giao_duong').value,
+                    thanhPho: cleanCityName(document.getElementById('giao_thanhPho').value)
+                },
+                danhSachKienHang: danhSachKienHang,
+                // Gán biến đã định nghĩa ở bước 2 vào đây
+                maMucDoDv: parseInt(maDichVuChon),
+                maGiamGia: document.getElementById('maGiamGia')?.value || null,
+                tongTienDuKien: state.tongTienGoc * (state.selectedDV?.heSoNhiPhan || 1),
+                tongTienThucTe: Math.max(0, (state.tongTienGoc * (state.selectedDV?.heSoNhiPhan || 1)) - state.soTienGiam)
+            };
+
+            // 5. Gửi API
+            showLoading(true);
+            try {
+                const res = await axios.post(`${PORT_7264}/api/quanlydonhang/tao-moi`, payload);
+                alert(`Thành công! Mã đơn: ${res.data.maDonHang}`);
+                location.reload();
+            } catch (e) {
+                alert("Lỗi: " + (e.response?.data?.message || "Kiểm tra lại dữ liệu"));
+            } finally {
+                showLoading(false);
+            }
+        }
+        function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
     </script>
 </body>
 </html>

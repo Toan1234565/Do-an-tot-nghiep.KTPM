@@ -1,4 +1,5 @@
-﻿@model IEnumerable<QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan.NguoiDungModel>
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien
+@model IEnumerable<DanhSachNguoiDungModel>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -183,8 +184,8 @@
                     </div>
 
                     <div class="col-md-3">
-                        <select name="donvi" id="selectFilterDonVi" class="form-select border rounded-3 shadow-sm">
-                            <option value="Tất cả">-- Tất cả đơn vị --</option>
+                        <select name="maKho" id="selectFilterDonVi" class="form-select border rounded-3 shadow-sm">
+                            <option value="">-- Tất cả kho/đơn vị --</option>
                         </select>
                     </div>
 
@@ -262,7 +263,7 @@
                             {
                                 <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
                                     <a class="page-link shadow-sm border-0 mx-1 rounded"
-                                       href="@Url.Action("DanhSachNhanVien", new { searchTerm = ViewBag.CurrentSearch, maChucVu = ViewBag.CurrentMaChucVu, donvi = ViewBag.CurrentDonVi, page = i })">@i</a>
+                                       href="@Url.Action("DanhSachNhanVien", new { searchTerm = ViewBag.CurrentSearch, maChucVu = ViewBag.CurrentMaChucVu, maKho = ViewBag.CurrentDonVi, page = i })">@i</a>
                                 </li>
                             }
                         </ul>
@@ -308,7 +309,7 @@
                             <div class="row mb-3">
                                 <div class="col-md-12">
                                     <label class="form-label small fw-semibold">Đơn vị làm việc *</label>
-                                    <select class="form-select" id="selectDonViLamViec" name="DonViLamViec" required>
+                                    <select class="form-select" id="selectDonViLamViec" name="MaKho" required>
                                         <option value="">-- Chọn --</option>
                                     </select>
                                 </div>
@@ -375,7 +376,7 @@
             });
 
             // --- 3. XỬ LÝ THÊM NHÂN VIÊN ---
-            const form = document.getElementById('formThemNhanVien');
+        const form = document.getElementById('formThemNhanVien');
             if (form) {
                 form.addEventListener('submit', async function (e) {
                     e.preventDefault();
@@ -388,6 +389,12 @@
 
                     const formData = new FormData(form);
                     const payload = Object.fromEntries(formData.entries());
+
+                    const selectDonVi = document.getElementById('selectDonViLamViec');
+                    const selectedText = selectDonVi.options[selectDonVi.selectedIndex].text;
+
+                    // Gán thêm thuộc tính DonViLamViec vào payload trước khi gửi đi
+                    payload.DonViLamViec = selectedText;
 
                     try {
                         const response = await fetch('https://localhost:7022/api/quanlynguoidung/themnhanvien', {
@@ -463,25 +470,29 @@
         async function loadDonViData() {
             const selectFilter = document.getElementById('selectFilterDonVi');
             const selectModal = document.getElementById('selectDonViLamViec');
-            const currentDV = "@ViewBag.CurrentDonVi"; // Nhận giá trị từ Controller
+            // Lấy giá trị mã kho hiện tại từ ViewBag (đã đổi tên ở Controller)
+            const currentMK = "@ViewBag.CurrentMaKho";
 
             try {
                 const response = await fetch('https://localhost:7286/api/quanlykhobai/gettenkhobai');
                 const data = await response.json();
 
                 data.forEach(item => {
-                    // 1. Thêm vào bộ lọc (Dropdown lọc)
+                    // Lưu ý: item.maKhoBai là giả định dựa trên API của bạn, hãy kiểm tra đúng tên trường ID kho
+                   const valueId = item.maKhoBai || item.maKho || item.id;
+
+                    // 1. Thêm vào bộ lọc
                     if (selectFilter) {
-                        const optFilter = new Option(item.tenKhoBai, item.tenKhoBai);
-                        if (item.tenKhoBai === currentDV) {
+                        const optFilter = new Option(item.tenKhoBai, valueId);
+                        if (String(valueId) === String(currentMK)) {
                             optFilter.selected = true;
                         }
                         selectFilter.add(optFilter);
                     }
 
-                    // 2. Thêm vào dropdown trong Modal
+                    // 2. Thêm vào dropdown trong Modal (để lưu ma_kho khi thêm mới)
                     if (selectModal) {
-                        selectModal.add(new Option(item.tenKhoBai, item.tenKhoBai));
+                        selectModal.add(new Option(item.tenKhoBai, valueId));
                     }
                 });
             } catch (e) { console.error("Lỗi load đơn vị:", e); }

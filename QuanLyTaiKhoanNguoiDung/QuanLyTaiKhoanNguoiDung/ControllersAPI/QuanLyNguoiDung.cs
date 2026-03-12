@@ -6,8 +6,11 @@ using Microsoft.Extensions.Primitives;
 using QuanLyTaiKhoanNguoiDung;
 using QuanLyTaiKhoanNguoiDung.Models;
 using QuanLyTaiKhoanNguoiDung.Models12.HamBam;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien;
 using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
 using System.Security.Claims;
+using static QuanLyTaiKhoanNguoiDung.Models12._1234.EmailService;
 
 namespace TaiKhoan1.ControllersAPI
 {
@@ -35,15 +38,19 @@ namespace TaiKhoan1.ControllersAPI
         }
         // 1. api phía web quản lý 
         [HttpGet("danhsachnguoidung")]
-        public async Task<IActionResult> DanhSachNguoiDung([FromQuery] string? searchTerm, [FromQuery] int? maChucVu, [FromQuery] int page = 1, [FromQuery] string? donvi = "Tất cả")
+        public async Task<IActionResult> DanhSachNguoiDung([FromQuery] string? searchTerm, [FromQuery] int? maKho, [FromQuery] int? maChucVu, [FromQuery] int page = 1)
         {
             // Tạo key dựa trên tham số query
-            string cacheKey = $"ListUser_S:{searchTerm}_C:{maChucVu}_P:{page}_D:{donvi}";
+            
+            string cacheKey = $"ListUser_S:{searchTerm}_K:{maKho}_C:{maChucVu}_P:{page}";
 
             if (!_cache.TryGetValue(cacheKey, out var cachedData))
             {
                 int pageSize = 20;
-                var query = _context.NguoiDungs.AsQueryable();
+                // Lọc tất cả người dùng CÓ mã chức vụ KHÁC 16
+                var query = _context.NguoiDungs
+                    .Where(nd => nd.MaChucVu != 16)
+                    .AsQueryable();
 
                 // Logic lọc dữ liệu...
                 if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -54,16 +61,16 @@ namespace TaiKhoan1.ControllersAPI
                 {
                     query = query.Where(nd => nd.MaChucVu == maChucVu.Value);
                 }
-                if (!string.IsNullOrEmpty(donvi) && donvi != "Tất cả")
+               if(maKho.HasValue)
                 {
-                    query = query.Where(nd => nd.DonViLamViec == donvi);
+                    query = query.Where(nd => nd.MaKho == maKho.Value);
                 }
                 int totalRecords = await query.CountAsync();
                 var danhsach = await query
                     .Include(nd => nd.MaChucVuNavigation)
                     .OrderBy(nd => nd.HoTenNhanVien)
                     .Skip((page - 1) * pageSize).Take(pageSize)
-                    .Select(nd => new NguoiDungModel
+                    .Select(nd => new DanhSachNguoiDungModel
                     {
                         MaNguoiDung = nd.MaNguoiDung,
                         HoTenNhanVien = nd.HoTenNhanVien,
@@ -128,8 +135,16 @@ namespace TaiKhoan1.ControllersAPI
             // 1. Kiểm tra tên đăng nhập đã tồn tại chưa
             if (_context.TaiKhoans.Any(tk => tk.TenDangNhap == model.TenDangNhap))
                 return Conflict(new { message = "Tên đăng nhập đã tồn tại" });
+            if(_context.TaiKhoans.Any(tk => tk.Email == model.Email))
+                return Conflict(new { message = "Email đã tồn tại" });
+            if(_context.TaiKhoans.Any(tk => tk.SoDienThoai == model.SoDienThoai))
+                return Conflict(new { message = "Số điện thoại đã tồn tại" });
 
             using var transaction = await _context.Database.BeginTransactionAsync();
+            if (transaction == null) return StatusCode(500, new { message = "Không thể bắt đầu giao dịch cơ sở dữ liệu." });
+            if(model.TenDangNhap == null) return BadRequest(new { message = "Tên đăng nhập không được để trống." });
+            if(model.MatKhau == null) return BadRequest(new { message = "Mật khẩu không được để trống." });
+            if(model.HoTenNhanVien == null) return BadRequest(new { message = "Họ tên nhân viên không được để trống." });
             try
             {
 
@@ -152,7 +167,7 @@ namespace TaiKhoan1.ControllersAPI
                 {
                     MaNguoiDung = newTaiKhoan.MaNguoiDung,
                     HoTenNhanVien = model.HoTenNhanVien,
-                    DonViLamViec = model.DonViLamViec,
+                   
                     Email = model.Email,
                     SoDienThoai = model.SoDienThoai,
                     MaChucVu = model.MaChucVu,
@@ -160,6 +175,8 @@ namespace TaiKhoan1.ControllersAPI
                     GioiTinh = model.GioiTinh,
                     NoiSinh = model.NoiSinh,
                     TenNganHang = model.TenNganHang,
+                    MaKho = model.MaKho,
+                    DonViLamViec = model.DonViLamViec,
                     SoCccd = SecurityHelper.Encrypt(model.SoCccd),
                     SoTaiKhoan = SecurityHelper.Encrypt(model.SoTaiKhoan),
                     BaoHiemXaHoi = SecurityHelper.Encrypt(model.BaoHiemXaHoi)
@@ -190,6 +207,76 @@ namespace TaiKhoan1.ControllersAPI
                 return StatusCode(500, new { message = "Lỗi hệ thống: " + errorMessage });
             }
         }
+        //[HttpPost("themnhanvien")]
+        //public async Task<IActionResult> ThemNhanVien([FromBody] NguoiDungModel model, [FromServices] IEmailService emailService)
+        //{
+        //    if (_context.TaiKhoans.Any(tk => tk.TenDangNhap == model.TenDangNhap))
+        //        return Conflict(new { message = "Tên đăng nhập đã tồn tại" });
+
+        //    // TẠO MẬT KHẨU RANDOM 8 CHỮ SỐ
+        //    string randomPassword = new Random().Next(10000000, 99999999).ToString();
+
+        //    using var transaction = await _context.Database.BeginTransactionAsync();
+        //    try
+        //    {
+        //        var newTaiKhoan = new TaiKhoan
+        //        {
+        //            TenDangNhap = model.TenDangNhap,
+        //            // Mã hóa mật khẩu ngẫu nhiên để lưu vào DB
+        //            MatKhauHash = SecurityHelper.Encrypt(randomPassword),
+        //            Email = model.Email,
+        //            SoDienThoai = model.SoDienThoai,
+        //            HoatDong = true
+        //        };
+
+        //        _context.TaiKhoans.Add(newTaiKhoan);
+        //        await _context.SaveChangesAsync();
+
+        //        var newNguoiDung = new NguoiDung
+        //        {
+        //            MaNguoiDung = newTaiKhoan.MaNguoiDung,
+        //            HoTenNhanVien = model.HoTenNhanVien,
+        //            Email = model.Email,
+        //            SoDienThoai = model.SoDienThoai,
+        //            MaChucVu = model.MaChucVu,
+        //            NgaySinh = model.NgaySinh,
+        //            GioiTinh = model.GioiTinh,
+        //            NoiSinh = model.NoiSinh,
+        //            TenNganHang = model.TenNganHang,
+        //            MaKho = model.MaKho,
+        //            DonViLamViec = model.DonViLamViec,
+        //            SoCccd = SecurityHelper.Encrypt(model.SoCccd),
+        //            SoTaiKhoan = SecurityHelper.Encrypt(model.SoTaiKhoan),
+        //            BaoHiemXaHoi = SecurityHelper.Encrypt(model.BaoHiemXaHoi)
+        //        };
+
+        //        _context.NguoiDungs.Add(newNguoiDung);
+        //        await _context.SaveChangesAsync();
+        //        await transaction.CommitAsync();
+
+        //        // GỬI EMAIL CHỨA MẬT KHẨU GỐC (Chưa Encrypt)
+        //        try
+        //        {
+        //            await emailService.SendAccountInfoAsync(model.Email, model.HoTenNhanVien, model.TenDangNhap, randomPassword);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            _logger.LogError($"Lỗi gửi mail: {ex.Message}");
+        //            // Không rollback transaction vì data đã lưu xong, chỉ là lỗi thông báo
+        //        }
+
+        //        _resetCacheSignal.Cancel();
+        //        _resetCacheSignal = new CancellationTokenSource();
+
+        //        return Ok(new { message = "Thêm thành công! Mật khẩu đã được gửi tới email nhân viên." });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        await transaction.RollbackAsync();
+        //        var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+        //        return StatusCode(500, new { message = "Lỗi hệ thống: " + errorMessage });
+        //    }
+        //}
         [HttpPut("capnhatnhanvien/{maNhanVien}")]
         public async Task<IActionResult> CapNhatNhanVien(int maNhanVien, [FromBody] NguoiDungUpdateModel model)
         {
@@ -202,6 +289,7 @@ namespace TaiKhoan1.ControllersAPI
                 existingNguoiDung.HoTenNhanVien = model.HoTenNhanVien;
                 existingNguoiDung.NgaySinh = model.NgaySinh;
                 existingNguoiDung.BaoHiemXaHoi = SecurityHelper.Encrypt(model.BaoHiemXaHoi);
+                
                 _context.NguoiDungs.Update(existingNguoiDung);
                 await _context.SaveChangesAsync();
                 // Xóa cache liên quan

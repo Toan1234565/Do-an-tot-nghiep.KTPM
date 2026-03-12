@@ -40,6 +40,10 @@ namespace QuanLyDonHang.Models1
 
         public decimal? TongTienThucTe { get; set; }
 
+        public string? MaVungH3Nhan { get; set; }
+
+        public string? MaVungH3Giao { get; set; }
+
         public virtual ICollection<KienHangModels> KienHangs { get; set; } = new List<KienHangModels>();
     }
 }

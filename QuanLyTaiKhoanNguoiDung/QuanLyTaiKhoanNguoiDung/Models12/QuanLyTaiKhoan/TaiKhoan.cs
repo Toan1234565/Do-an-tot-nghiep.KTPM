@@ -1,4 +1,5 @@
 ﻿using QuanLyTaiKhoanNguoiDung.Models;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien;
 using System.ComponentModel.DataAnnotations;
 
 namespace QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan
@@ -26,6 +27,6 @@ namespace QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan
 
         // Mặc định là True khi tạo, có thể ẩn trong form
         public bool HoatDong { get; set; } = true;
-        public virtual NguoiDung? NguoiDung { get; set; }
+        public virtual NguoiDungModel? NguoiDung { get; set; }
     }
 }

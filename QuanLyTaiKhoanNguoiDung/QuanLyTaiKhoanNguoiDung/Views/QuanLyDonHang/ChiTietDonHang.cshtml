@@ -216,9 +216,8 @@
                                                     </div>
                                                     <div>
                                                         <div class="fw-bold text-dark">@item?.MaLoaiHangNavigation?.TenLoaiHang</div>
-                                                        <div class="fw-bold text-dark">@item.KhoiLuong kg</div>
+                                                        <div class="fw-bold text-dark">@item?.KhoiLuong kg</div>
                                                         <div class="text-muted" style="font-size: 0.7rem;">Trọng lượng thực</div>
-                                                        
                                                     </div>
                                                 </div>
 
@@ -227,8 +226,8 @@
                                                         <i class="bi bi-box-seam text-secondary"></i>
                                                     </div>
                                                     <div>
-                                                        <div class="small fw-medium">@item.TheTich cm³</div>
-                                                        @if (item.TheTich > 0)
+                                                        <div class="small fw-medium">@item?.TheTich cm³</div>
+                                                        @if (item?.TheTich > 0)
                                                         {
                                                             <div class="text-muted" style="font-size: 0.7rem;">
                                                                 Quy đổi: <span class="text-info">@(Math.Round((double)item.TheTich / 6000, 2)) kg</span>
@@ -238,7 +237,7 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                @if (item.DaThuGom == true)
+                                                @if (item?.DaThuGom == true)
                                                 {
                                                     <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>Đã vào kho</span>
                                                 }
@@ -247,31 +246,59 @@
                                                     <span class="text-muted small"><i class="bi bi-clock-history me-1"></i>Chờ lấy hàng</span>
                                                 }
                                             </td>
-                                            <td class="text-end pe-4 fw-bold text-danger">@((item.SoTien ?? 0).ToString("N0")) đ</td>
+                                            <td class="text-end pe-4 fw-bold text-danger">@((item?.SoTien ?? 0).ToString("N0")) đ</td>
                                         </tr>
                                     }
+
                                     <tr class="table-light">
                                         <td colspan="4" class="p-3">
                                             <div class="row g-3">
-                                                <div class="col-md-4">
+                                                <div class="col-md-3">
                                                     <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Loại dịch vụ</div>
                                                     <div class="fw-bold">
                                                         @(Model.MaLoaiDv == 2 ? "Thuê trọn gói (Bulk)" : "Gửi hàng lẻ (LTL)")
                                                     </div>
                                                 </div>
-                                                <div class="col-md-4">
+
+                                                <div class="col-md-3">
+                                                    <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">PHƯƠNG THỨC VẬN CHUYỂN</div>
+                                                    <div class="fw-bold text-success">
+                                                        <i class="bi bi-speedometer2 me-1"></i>
+                                                        @(Model?.MaMucDoDv)
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-3">
                                                     <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Vận hành</div>
-                                                    <div class="fw-bold @(Model.LaDonGiaoThang == true ? "text-danger" : "text-primary")">
-                                                        <i class="bi @(Model.LaDonGiaoThang == true ? "bi-lightning-fill" : "bi-truck") me-1"></i>
-                                                        @(Model.LaDonGiaoThang == true ? "GIAO THẲNG" : "Qua kho trung chuyển")
+                                                    <div class="fw-bold @(Model?.LaDonGiaoThang == true ? "text-danger" : "text-primary")">
+                                                        <i class="bi @(Model?.LaDonGiaoThang == true ? "bi-lightning-fill" : "bi-truck") me-1"></i>
+                                                        @(Model?.LaDonGiaoThang == true ? "GIAO THẲNG" : "Qua kho trung chuyển")
                                                     </div>
                                                 </div>
-                                                <div class="col-md-4">
-                                                    <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Ghi chú đơn hàng</div>
+                                                <div class="col-md-3">
+                                                    <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Ghi chú</div>
                                                     <div class="small italic">
-                                                        @(string.IsNullOrEmpty(Model.GhiChuDacBiet) ? "Không có ghi chú" : Model.GhiChuDacBiet)
+                                                        @(string.IsNullOrEmpty(Model?.GhiChuDacBiet) ? "Không có ghi chú" : Model.GhiChuDacBiet)
                                                     </div>
                                                 </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <td colspan="3" class="text-end fw-bold py-3">Tổng cộng tiền thực tế:</td>
+                                        <td class="text-end pe-4 py-3">
+                                            <div class="d-flex flex-column align-items-end">
+                                                @if (Model?.TongTienDuKien > Model?.TongTienThucTe)
+                                                {
+                                                    <span class="text-muted text-decoration-line-through small">
+                                                        @((Model.TongTienDuKien ?? 0).ToString("N0")) đ
+                                                    </span>
+                                                }
+                                                <span class="fs-4 fw-bolder text-danger">
+                                                    @((Model?.TongTienThucTe ?? 0).ToString("N0")) đ
+                                                </span>
+                                                <div class="text-muted" style="font-size: 0.65rem;">(Đã bao gồm thuế và phí dịch vụ)</div>
                                             </div>
                                         </td>
                                     </tr>

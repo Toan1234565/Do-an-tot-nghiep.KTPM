@@ -1,272 +1,250 @@
 ﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDiaChi
-@model QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan.NguoiDungModel
+@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien
+@model NguoiDungModel
 @{
     var diaChi = ViewBag.DiaChi as DiaChiModel;
 }
 
 <style>
     :root {
-
-        --primary-color: #4361ee;
-        --secondary-color: #3f37c9;
-        --success-color: #4cc9f0;
-        --bg-body: #f1f3f9;
+        --primary: #4361ee;
+        --secondary: #3f37c9;
+        --success: #2ec4b6;
+        --warning: #ff9f1c;
+        --danger: #e71d36;
+        --light-bg: #f8f9fa;
+        --card-shadow: 0 0.75rem 1.5rem rgba(18, 38, 63, 0.03);
     }
 
     body {
-        background-color: var(--bg-body);
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        background-color: #f4f7f6;
+        font-family: 'Inter', -apple-system, sans-serif;
     }
 
-    .main-content-container {
-        background-color: #ffffff;
-        border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.03);
-        margin-top: 20px;
-    }
-    .product-table-container {
-        padding: 1rem 0;
-        margin: 10px auto;
-        max-width: 95%;
-    }
-
-    .card-profile {
+    .card-custom {
         border: none;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-        transition: transform 0.3s ease;
+        border-radius: 12px;
+        box-shadow: var(--card-shadow);
+        background: #fff;
+        margin-bottom: 1.5rem;
         overflow: hidden;
-        background: white;
     }
 
-    .profile-header {
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-        color: white;
-        padding: 3rem 2rem;
-        position: relative;
+    .profile-card-header {
+        background: linear-gradient(to right, var(--primary), var(--secondary));
+        height: 100px;
     }
 
-    .avatar-wrapper img {
-        width: 120px;
-        height: 120px;
+    .profile-avatar-wrapper {
+        margin-top: -50px;
+        padding: 0 1.5rem;
+    }
+
+    .profile-avatar-wrapper img {
+        width: 100px;
+        height: 100px;
+        border: 4px solid #fff;
+        background: #fff;
         object-fit: cover;
-        border: 4px solid rgba(255, 255, 255, 0.3);
-        padding: 3px;
-    }
-
-    .info-group {
-        margin-bottom: 1.25rem;
     }
 
     .info-label {
-        color: #94a3b8;
         font-size: 0.75rem;
-        font-weight: 700;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #94a3b8;
+        font-weight: 700;
         margin-bottom: 4px;
-        display: flex;
-        align-items: center;
     }
-
-        .info-label i {
-            width: 20px;
-            color: var(--primary-color);
-        }
 
     .info-value {
+        font-weight: 600;
         color: #1e293b;
-        font-weight: 600;
-        font-size: 0.95rem;
-        padding-left: 20px;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
 
-    .order-status {
-        padding: 6px 12px;
-        border-radius: 8px;
+    .info-value i {
+        color: var(--primary);
+        width: 18px;
+        text-align: center;
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 50px;
         font-size: 0.75rem;
-        font-weight: 700;
-    }
-
-    .status-completed {
-        background: #ecfdf5;
-        color: #059669;
-    }
-
-    .status-pending {
-        background: #fffbeb;
-        color: #d97706;
-    }
-
-    .btn-action {
-        border-radius: 10px;
         font-weight: 600;
-        padding: 10px 20px;
-        transition: all 0.2s;
     }
 
-    .btn-edit-profile {
-        background: white;
-        color: var(--primary-color);
-        border: 1px solid var(--primary-color);
+    .status-completed { background: #d1fae5; color: #065f46; }
+    .status-pending { background: #fef3c7; color: #92400e; }
+
+    .btn-edit {
+        background: var(--primary);
+        color: white;
+        border-radius: 10px;
+        padding: 10px;
+        font-weight: 600;
+        border: none;
+        transition: 0.3s;
     }
 
-        .btn-edit-profile:hover {
-            background: var(--primary-color);
-            color: white;
-        }
-
-    /* Loading spinner cho nút */
-    .spinner-border-sm {
-        width: 1rem;
-        height: 1rem;
-        border-width: 0.2em;
+    .btn-edit:hover {
+        background: var(--secondary);
+        transform: translateY(-2px);
     }
 </style>
-<main class="container-fluid">
-    <div class="main-content-container">
-        <div class="product-table-container">
-            <div class="container py-4">
-                <div class="mb-4">
-                    <a href="/QuanLyNguoiDung/DanhSachNhanVien" class="btn btn-link text-decoration-none p-0 text-secondary">
-                        <i class="fa-solid fa-chevron-left me-2"></i> Quay lại danh sách
-                    </a>
+
+<main class="container py-4">
+    <div class="mb-4">
+        <a href="/QuanLyNguoiDung/DanhSachNhanVien" class="text-decoration-none text-muted fw-bold small">
+            <i class="fa-solid fa-chevron-left me-2"></i>QUAY LẠI DANH SÁCH NHÂN VIÊN
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card card-custom shadow-sm">
+                <div class="profile-card-header"></div>
+                <div class="profile-avatar-wrapper text-center">
+                    <img src="https://ui-avatars.com/api/?name=@Model.HoTenNhanVien&background=4361ee&color=fff&size=128"
+                         class="rounded-circle shadow-sm mb-3">
+                    <h4 class="fw-bold mb-1">@Model.HoTenNhanVien</h4>
+                    <p class="text-muted small fw-medium">@Model.TenChucVu • @Model.DonViLamViec</p>
                 </div>
 
-                <div class="row g-4">
-                    <div class="col-lg-4">
-                        <div class="card card-profile">
-                            <div class="profile-header text-center">
-                                <div class="avatar-wrapper mb-3">
-                                    <img src="https://ui-avatars.com/api/?name=@Model.HoTenNhanVien&background=random&size=128"
-                                         class="rounded-circle shadow-lg" alt="Avatar">
-                                </div>
-                                <h4 class="fw-bold mb-1">@Model.HoTenNhanVien</h4>
-                                <div class="d-flex justify-content-center gap-2">
-                                    <span class="badge bg-white text-primary px-3 py-2 rounded-pill shadow-sm">@Model.DonViLamViec</span>
-                                    <span class="badge bg-white text-primary px-3 py-2 rounded-pill shadow-sm">@Model.TenChucVu</span>
-                                </div>
-                            </div>
-
-                            <div class="card-body p-4">
-                                <div class="row info-group text-center border-bottom pb-3 mb-4">
-                                    <div class="col-6 border-end">
-                                        <div class="info-label justify-content-center">Mã Nhân Viên</div>
-                                        <div class="text-dark fw-bold">#@Model.MaNguoiDung</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="info-label justify-content-center">Giới tính</div>
-                                        <div class="text-dark fw-bold">@Model.GioiTinh</div>
-                                    </div>
-                                </div>
-
-                                <div class="info-group">
-                                    <div class="info-label"><i class="fa-solid fa-envelope"></i> Email</div>
-                                    <div class="info-value">@Model.Email</div>
-                                </div>
-
-                                <div class="info-group">
-                                    <div class="info-label"><i class="fa-solid fa-phone"></i> Số điện thoại</div>
-                                    <div class="info-value">@Model.SoDienThoai</div>
-                                </div>
-
-                                <div class="info-group">
-                                    <div class="info-label"><i class="fa-solid fa-cake-candles"></i> Ngày sinh</div>
-                                    <div class="info-value">@Model.NgaySinh?.ToString("dd/MM/yyyy")</div>
-                                </div>
-
-                                <div class="info-group">
-                                    <div class="info-label"><i class="fa-solid fa-id-card"></i> Số CCCD</div>
-                                    <div class="info-value">@(string.IsNullOrEmpty(Model.SoCccd) ? "Chưa cập nhật" : Model.SoCccd)</div>
-                                </div>
-
-                                <div class="info-group">
-                                    <div class="info-label"><i class="fa-solid fa-location-dot"></i> Địa chỉ</div>
-                                    <div class="info-value">@diaChi?.Duong, @diaChi?.Phuong, @diaChi?.ThanhPho</div>
-                                </div>
-
-                                <div class="mt-4">
-                                    <button class="btn btn-edit-profile btn-action w-100" id="btnOpenModal" onclick="openEditModal()">
-                                        <i class="fa-solid fa-user-pen me-2"></i> Chỉnh sửa hồ sơ
-                                    </button>
-                                </div>
-                            </div>
+                <div class="card-body px-4">
+                    <div class="row text-center border-top border-bottom py-3 mb-4 bg-light rounded-3">
+                        <div class="col-6 border-end">
+                            <div class="info-label">Mã NV</div>
+                            <div class="fw-bold text-dark">#@Model.MaNguoiDung</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="info-label">Giới tính</div>
+                            <div class="fw-bold text-dark">@Model.GioiTinh</div>
                         </div>
                     </div>
 
-                    <div class="col-lg-8">
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-6">
-                                <div class="card card-profile p-3 d-flex flex-row align-items-center">
-                                    <div class="rounded-3 bg-primary bg-opacity-10 p-3 me-3">
-                                        <i class="fa-solid fa-boxes-stacked text-primary fs-4"></i>
-                                    </div>
-                                    <div>
-                                        <h6 class="text-muted mb-0 small fw-bold">TỔNG ĐƠN HÀNG</h6>
-                                        <h4 class="mb-0 fw-bold">@(ViewBag.OrdersCount ?? 0)</h4>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card card-profile p-3 d-flex flex-row align-items-center">
-                                    <div class="rounded-3 bg-success bg-opacity-10 p-3 me-3">
-                                        <i class="fa-solid fa-star text-success fs-4"></i>
-                                    </div>
-                                    <div>
-                                        <h6 class="text-muted mb-0 small fw-bold">HIỆU SUẤT</h6>
-                                        <h4 class="mb-0 fw-bold">Tốt</h4>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="info-group">
+                        <div class="info-label">Liên hệ</div>
+                        <div class="info-value"><i class="fa-solid fa-envelope"></i> @Model.Email</div>
+                        <div class="info-value"><i class="fa-solid fa-phone"></i> @Model.SoDienThoai</div>
 
-                        <div class="card card-profile">
-                            <div class="card-header bg-white py-3 border-bottom">
-                                <h5 class="mb-0 fw-bold"><i class="fa-solid fa-receipt me-2 text-primary"></i>Lịch sử giao dịch</h5>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Mã Đơn</th>
-                                            <th>Ngày Tạo</th>
-                                            <th>Khách Hàng</th>
-                                            <th>Tổng Tiền</th>
-                                            <th>Trạng Thái</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @if (ViewBag.Orders != null)
-                                        {
-                                            foreach (var order in ViewBag.Orders)
-                                            {
-                                                <tr>
-                                                    <td class="fw-bold text-primary">#@order.OrderId</td>
-                                                    <td class="text-muted">@order.OrderDate.ToString("dd/MM/yyyy")</td>
-                                                    <td>@order.CustomerName</td>
-                                                    <td class="fw-bold">@order.TotalAmount.ToString("N0") đ</td>
-                                                    <td>
-                                                        <span class="order-status @(order.Status == "Hoàn thành" ? "status-completed" : "status-pending")">
-                                                            @order.Status
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <tr><td colspan="5" class="text-center py-4 text-muted">Không có dữ liệu</td></tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="info-label">Ngày sinh</div>
+                        <div class="info-value"><i class="fa-solid fa-calendar"></i> @Model.NgaySinh?.ToString("dd/MM/yyyy")</div>
+
+                        <div class="info-label">Địa chỉ thường trú</div>
+                        <div class="info-value"><i class="fa-solid fa-location-dot"></i> @diaChi?.Duong, @diaChi?.Phuong, @diaChi?.ThanhPho</div>
+                    </div>
+
+                    <button class="btn btn-edit w-100 mt-2" onclick="openEditModal()">
+                        <i class="fa-solid fa-user-pen me-2"></i>Chỉnh sửa hồ sơ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="card card-custom p-4 d-flex flex-row align-items-center mb-0">
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-3 me-3">
+                            <i class="fa-solid fa-box-open text-primary fs-4"></i>
+                        </div>
+                        <div>
+                            <div class="info-label">TỔNG ĐƠN HÀNG</div>
+                            <h3 class="mb-0 fw-bold">@(ViewBag.OrdersCount ?? 0)</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-custom p-4 d-flex flex-row align-items-center mb-0">
+                        <div class="bg-success bg-opacity-10 p-3 rounded-3 me-3">
+                            <i class="fa-solid fa-chart-line text-success fs-4"></i>
+                        </div>
+                        <div>
+                            <div class="info-label">HIỆU SUẤT</div>
+                            <h3 class="mb-0 fw-bold">Tốt</h3>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <div class="card card-custom mb-4">
+                <div class="card-header bg-transparent border-bottom py-3">
+                    <h6 class="mb-0 fw-bold"><i class="fa-solid fa-vault me-2 text-primary"></i>Thông tin định danh & Tài chính</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Số Căn cước công dân</div>
+                            <div class="info-value"><i class="fa-solid fa-address-card"></i> @(Model.SoCccd ?? "Chưa cập nhật")</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Mã số BHXH</div>
+                            <div class="info-value"><i class="fa-solid fa-heart-pulse"></i> @(Model.BaoHiemXaHoi ?? "Chưa tham gia")</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Tên Ngân hàng</div>
+                            <div class="info-value"><i class="fa-solid fa-building-columns"></i> @(ViewBag.TenNganHang ?? "Chưa liên kết")</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Số tài khoản (Lương)</div>
+                            <div class="info-value"><i class="fa-solid fa-credit-card"></i> @(ViewBag.SoTaiKhoan ?? "Chưa cập nhật")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-custom">
+                <div class="card-header bg-transparent border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold"><i class="fa-solid fa-history me-2 text-primary"></i>Lịch sử hoạt động gần đây</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Mã Đơn</th>
+                                <th>Khách Hàng</th>
+                                <th>Tổng Tiền</th>
+                                <th>Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (ViewBag.Orders != null)
+                            {
+                                foreach (var order in ViewBag.Orders)
+                                {
+                                    <tr>
+                                        <td class="ps-4 fw-bold">#@order.OrderId</td>
+                                        <td>
+                                            <div class="d-flex flex-column">
+                                                <span class="fw-semibold">@order.CustomerName</span>
+                                                <small class="text-muted">@order.OrderDate.ToString("dd/MM/yyyy")</small>
+                                            </div>
+                                        </td>
+                                        <td class="fw-bold text-dark">@order.TotalAmount.ToString("N0") đ</td>
+                                        <td>
+                                            <span class="status-badge @(order.Status == "Hoàn thành" ? "status-completed" : "status-pending")">
+                                                @order.Status
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr><td colspan="4" class="text-center py-5 text-muted">Không có dữ liệu giao dịch</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
-
     <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">

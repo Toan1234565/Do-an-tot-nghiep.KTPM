@@ -41,6 +41,7 @@ public partial class TmdtContext : DbContext
     public virtual DbSet<SanBay> SanBays { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseSqlServer("Data Source=TOAN;Initial Catalog=Khach_Hang_Gia_Cuoc_DB;Integrated Security=True;Encrypt=True;Trust Server Certificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -124,6 +125,8 @@ public partial class TmdtContext : DbContext
 
             entity.ToTable("Dia_Chi");
 
+            entity.HasIndex(e => e.MaVungH3, "IX_DiaChi_H3");
+
             entity.Property(e => e.MaDiaChi).HasColumnName("ma_dia_chi");
             entity.Property(e => e.Duong)
                 .HasMaxLength(255)
@@ -132,6 +135,10 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.MaBuuDien)
                 .HasMaxLength(20)
                 .HasColumnName("ma_buu_dien");
+            entity.Property(e => e.MaVungH3)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("ma_vung_h3");
             entity.Property(e => e.Phuong)
                 .HasMaxLength(100)
                 .HasColumnName("phuong");

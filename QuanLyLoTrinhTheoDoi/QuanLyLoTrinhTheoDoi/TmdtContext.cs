@@ -1,4 +1,4 @@
-﻿    using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using QuanLyLoTrinhTheoDoi.Models;
@@ -15,6 +15,10 @@ public partial class TmdtContext : DbContext
         : base(options)
     {
     }
+
+    public virtual DbSet<ChiPhiLoTrinh> ChiPhiLoTrinhs { get; set; }
+
+    public virtual DbSet<ChiTietLoTrinhKienHang> ChiTietLoTrinhKienHangs { get; set; }
 
     public virtual DbSet<DiemDung> DiemDungs { get; set; }
 
@@ -34,6 +38,45 @@ public partial class TmdtContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<ChiPhiLoTrinh>(entity =>
+        {
+            entity.HasKey(e => e.MaChiPhi).HasName("PK__ChiPhiLo__6FA160B0BC6F4CF6");
+
+            entity.ToTable("ChiPhiLoTrinh");
+
+            entity.Property(e => e.MaChiPhi).HasColumnName("ma_chi_phi");
+            entity.Property(e => e.ChungTuKemTheo).HasColumnName("chung_tu_kem_theo");
+            entity.Property(e => e.LoaiChiPhi)
+                .HasMaxLength(100)
+                .HasColumnName("loai_chi_phi");
+            entity.Property(e => e.MaLoTrinh).HasColumnName("ma_lo_trinh");
+            entity.Property(e => e.SoTien)
+                .HasColumnType("decimal(18, 2)")
+                .HasColumnName("so_tien");
+
+            entity.HasOne(d => d.MaLoTrinhNavigation).WithMany(p => p.ChiPhiLoTrinhs)
+                .HasForeignKey(d => d.MaLoTrinh)
+                .HasConstraintName("FK_ChiPhi_LoTrinh");
+        });
+
+        modelBuilder.Entity<ChiTietLoTrinhKienHang>(entity =>
+        {
+            entity.HasKey(e => e.MaChiTietLoTrinh).HasName("PK_ChiTietLoTrinh");
+
+            entity.ToTable("Chi_Tiet_Lo_Trinh_KienHang");
+
+            entity.Property(e => e.MaDonHang).HasColumnName("ma_don_hang");
+            entity.Property(e => e.MaLoTrinh).HasColumnName("ma_lo_trinh");
+            entity.Property(e => e.TrangThaiTrenXe)
+                .HasMaxLength(50)
+                .HasColumnName("trang_thai_tren_xe");
+
+            entity.HasOne(d => d.MaLoTrinhNavigation).WithMany(p => p.ChiTietLoTrinhKienHangs)
+                .HasForeignKey(d => d.MaLoTrinh)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_CT_LoTrinh");
+        });
+
         modelBuilder.Entity<DiemDung>(entity =>
         {
             entity.HasKey(e => e.MaDiemDung).HasName("PK__Diem_Dun__ACAC6AAF24ED52C0");
@@ -67,8 +110,9 @@ public partial class TmdtContext : DbContext
             entity.ToTable("Lo_Trinh");
 
             entity.Property(e => e.MaLoTrinh).HasColumnName("ma_lo_trinh");
-            entity.Property(e => e.MaNguoiDung).HasColumnName("ma_nguoi_dung");
             entity.Property(e => e.MaPhuongTien).HasColumnName("ma_phuong_tien");
+            entity.Property(e => e.MaTaiXeChinh).HasColumnName("ma_tai_xe_chinh");
+            entity.Property(e => e.MaTaiXePhu).HasColumnName("ma_tai_xe_phu");
             entity.Property(e => e.ThoiGianBatDauKeHoach)
                 .HasColumnType("datetime")
                 .HasColumnName("thoi_gian_bat_dau_ke_hoach");

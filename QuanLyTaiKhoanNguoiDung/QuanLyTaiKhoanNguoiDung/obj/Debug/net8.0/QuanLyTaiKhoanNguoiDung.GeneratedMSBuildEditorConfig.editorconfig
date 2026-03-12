@@ -44,6 +44,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTXVjRG9EaWNoVnVcRGFuaFNhY2hNdWNEaWNoVnUuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
+[D:/Đồ án tốt nghiệp/QuanLyTaiKhoanNguoiDung/QuanLyTaiKhoanNguoiDung/Views/QuanLyDieuPhoi/QuanLyDieuPhoiLoTrinh.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUXVhbkx5RGlldVBob2lcUXVhbkx5RGlldVBob2lMb1RyaW5oLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
 [D:/Đồ án tốt nghiệp/QuanLyTaiKhoanNguoiDung/QuanLyTaiKhoanNguoiDung/Views/QuanLyDonHang/ChiTietDonHang.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUXVhbkx5RG9uSGFuZ1xDaGlUaWV0RG9uSGFuZy5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
@@ -122,6 +126,14 @@ build_metadata.AdditionalFiles.CssScope =
 
 [D:/Đồ án tốt nghiệp/QuanLyTaiKhoanNguoiDung/QuanLyTaiKhoanNguoiDung/Views/QuanLySuCo/DanhSachSuCo.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUXVhbkx5U3VDb1xEYW5oU2FjaFN1Q28uY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Đồ án tốt nghiệp/QuanLyTaiKhoanNguoiDung/QuanLyTaiKhoanNguoiDung/Views/QuanLytaiXe/ChiTietTaiXe.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUXVhbkx5dGFpWGVcQ2hpVGlldFRhaVhlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Đồ án tốt nghiệp/QuanLyTaiKhoanNguoiDung/QuanLyTaiKhoanNguoiDung/Views/QuanLytaiXe/DanhSachTaiXe.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUXVhbkx5dGFpWGVcRGFuaFNhY2hUYWlYZS5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [D:/Đồ án tốt nghiệp/QuanLyTaiKhoanNguoiDung/QuanLyTaiKhoanNguoiDung/Views/QuanLyVung/GetDanhSachBangGiaVung.cshtml]

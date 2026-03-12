@@ -27,6 +27,38 @@
   },
   {
     "ContainingType": "QuanLyDonHang.ControllersAPI.DonHang",
+    "Method": "CapNhatTrangThaiNhieuDonHang",
+    "RelativePath": "api/quanlydonhang/cap-nhat-trang-thai-nhieu",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "QuanLyDonHang.Models1.UpdateMultiStatusRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyDonHang.ControllersAPI.DonHang",
+    "Method": "TuDongGomNhomDonHang",
+    "RelativePath": "api/quanlydonhang/cho-dieu-phoi",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "QuanLyDonHang.Models1.QuanLyDieuPhoiGomHang.ClusterRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyDonHang.ControllersAPI.DonHang",
     "Method": "getdanhsach",
     "RelativePath": "api/quanlydonhang/danhsachdonhang",
     "HttpMethod": "GET",

@@ -158,6 +158,48 @@ namespace QuanLyKhachHang.ControllersAPI
             }
         }
 
+        [HttpGet("check-phone")]
+        public async Task<IActionResult> CheckSoDienThoai([FromQuery] string soDienThoai)
+        {
+            // 1. Kiểm tra định dạng số điện thoại (Sử dụng Regex đơn giản)
+            if (string.IsNullOrWhiteSpace(soDienThoai) || !Regex.IsMatch(soDienThoai, @"^[0-9]{10,11}$"))
+            {
+                return BadRequest(new { exists = false, message = "Số điện thoại không đúng định dạng." });
+            }
+
+            try
+            {
+                // 2. Chỉ Select những trường thật sự cần thiết để tối ưu Performance
+                var khachHang = await _context.KhachHangs
+                    .AsNoTracking()
+                    .Where(kh => kh.SoDienThoai == soDienThoai)
+                    .Select(kh => new
+                    {
+                        kh.MaKhachHang,
+                        kh.TenLienHe,
+                        kh.TenCongTy
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (khachHang != null)
+                {
+                    return Ok(new
+                    {
+                        exists = true,
+                        message = "Số điện thoại đã tồn tại.",
+                        data = khachHang
+                    });
+                }
+
+                return Ok(new { exists = false, message = "Số điện thoại chưa có trong hệ thống." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi check số điện thoại: {Phone}", soDienThoai);
+                return StatusCode(500, new { message = "Lỗi hệ thống khi kiểm tra dữ liệu." });
+            }
+        }
+
         [HttpPost("check_so_dien_thoai")]
         public async Task<IActionResult> GetOrCreateByPhone([FromBody] KhachHangModels request)
         {

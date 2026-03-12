@@ -70,6 +70,22 @@
   },
   {
     "ContainingType": "QuanLyKhachHang.ControllersAPI.QuanLyMucDoDichVu",
+    "Method": "GetById",
+    "RelativePath": "api/mucdichvu/get-by-id/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyKhachHang.ControllersAPI.QuanLyMucDoDichVu",
     "Method": "XemLichSu",
     "RelativePath": "api/mucdichvu/lichsu/{maDichVu}",
     "HttpMethod": "GET",
@@ -79,6 +95,22 @@
       {
         "Name": "maDichVu",
         "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyKhachHang.ControllersAPI.QuanLyMucDoDichVu",
+    "Method": "PhanTichNoiThanh",
+    "RelativePath": "api/mucdichvu/phantich-noithanh",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "QuanLyKhachHang.Models1.QuanLyMucDoDichVu.YeuCauPhanTich",
         "IsRequired": true
       }
     ],
@@ -111,6 +143,22 @@
       {
         "Name": "model",
         "Type": "QuanLyKhachHang.Models1.QuanLyMucDoDichVu.MucDoDichVuModels",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyKhachHang.ControllersAPI.QuanLyMucDoDichVu",
+    "Method": "TinhGiaNhanh",
+    "RelativePath": "api/mucdichvu/tinh-gia-nhanh",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "QuanLyKhachHang.ControllersAPI.QuanLyMucDoDichVu\u002BYeuCauTinhGiaNhanh",
         "IsRequired": true
       }
     ],
@@ -302,6 +350,38 @@
   },
   {
     "ContainingType": "QuanLyKhachHang.ControllersAPI.QuanLyDiaChi",
+    "Method": "GetToaDoSach",
+    "RelativePath": "api/quanlydiachi/lay-toa-do-danh-sach",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ids",
+        "Type": "System.Collections.Generic.List\u00601[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyKhachHang.ControllersAPI.QuanLyDiaChi",
+    "Method": "GetCoordinates",
+    "RelativePath": "api/quanlydiachi/lay-toa-do/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyKhachHang.ControllersAPI.QuanLyDiaChi",
     "Method": "ThemDiachi",
     "RelativePath": "api/quanlydiachi/themdiachi",
     "HttpMethod": "POST",
@@ -451,6 +531,11 @@
       },
       {
         "Name": "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.Phuong",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.MaVungH3",
         "Type": "System.String",
         "IsRequired": false
       },
@@ -674,6 +759,11 @@
         "IsRequired": false
       },
       {
+        "Name": "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.MaVungH3",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
         "Name": "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.KhachHangs",
         "Type": "System.Collections.Generic.ICollection\u00601[[QuanLyKhachHang.Models.KhachHang, QuanLyKhachHang, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
         "IsRequired": false
@@ -703,6 +793,22 @@
         "Name": "request",
         "Type": "QuanLyKhachHang.Models1.QuanLyKhachHang.KhachHangModels",
         "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyKhachHang.ControllersAPI.KhachHangAPI",
+    "Method": "CheckSoDienThoai",
+    "RelativePath": "api/quanlykhachhang/check-phone",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "soDienThoai",
+        "Type": "System.String",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []
@@ -885,6 +991,22 @@
       {
         "Name": "model",
         "Type": "QuanLyKhachHang.Models1.QuanLyKhuyenMai.KhuyenMaiModels",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyKhachHang.ControllersAPI.QuanLyKhuyenMaiController",
+    "Method": "ValidateVoucher",
+    "RelativePath": "api/quanlykhuyenmai/validate-voucher/{code}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "code",
+        "Type": "System.String",
         "IsRequired": true
       }
     ],

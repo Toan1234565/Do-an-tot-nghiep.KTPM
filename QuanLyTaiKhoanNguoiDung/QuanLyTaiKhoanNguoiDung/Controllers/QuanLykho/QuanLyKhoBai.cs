@@ -2,8 +2,8 @@
 using Newtonsoft.Json;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDiaChi;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhoBai;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien;
-using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLykho
 {

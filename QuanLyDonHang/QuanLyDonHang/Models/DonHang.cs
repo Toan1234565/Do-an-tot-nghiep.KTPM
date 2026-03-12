@@ -39,5 +39,13 @@ public partial class DonHang
 
     public decimal? TongTienThucTe { get; set; }
 
+    public DateTime? ThoiGianGiaoDuKien { get; set; }
+
+    public int? MaKhuyenMai { get; set; }
+
+    public string? MaVungH3Nhan { get; set; }
+
+    public string? MaVungH3Giao { get; set; }
+
     public virtual ICollection<KienHang> KienHangs { get; set; } = new List<KienHang>();
 }

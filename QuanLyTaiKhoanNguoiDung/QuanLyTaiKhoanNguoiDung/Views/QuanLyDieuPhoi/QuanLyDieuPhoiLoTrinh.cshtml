@@ -1,0 +1,133 @@
+﻿@using System.Text.Json
+@model IEnumerable<dynamic>
+
+@{
+    ViewData["Title"] = "Điều phối & Theo dõi Lộ trình";
+}
+
+<div class="container-fluid mt-3">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-route"></i> Lộ trình vận hành</h6>
+                    <span class="badge bg-primary">@Model?.Count() xe</span>
+                </div>
+                <div class="list-group list-group-flush" style="max-height: 75vh; overflow-y: auto;" id="routeList">
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var item in Model)
+                        {
+                            var status = item.GetProperty("trangThai").GetString();
+                            var maLT = item.GetProperty("maLoTrinh").ToString();
+
+                            <button class="list-group-item list-group-item-action border-start border-4 @(status == "Đang di chuyển" ? "border-success" : "border-warning")"
+                                    onclick="focusRoute('@maLT')">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <strong class="text-primary">#LT-@maLT</strong>
+                                    <small class="text-muted">Xe: @item.GetProperty("maPhuongTien")</small>
+                                </div>
+                                <div class="small mt-1">
+                                    <span>Trạng thái: <strong>@status</strong></span><br />
+                                    <i class="far fa-clock"></i> @item.GetProperty("thoiGianBatDauKeHoach")
+                                </div>
+                            </button>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center p-4">Chưa có lộ trình nào được khởi tạo</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div id="map" style="height: 550px; border-radius: 8px; z-index: 1;"></div>
+                <div class="card-body bg-light border-top">
+                    <div id="routeDetail" class="row">
+                        <div class="col-12 text-center text-muted">
+                            <p><i class="fas fa-mouse-pointer"></i> Chọn một lộ trình để xem chi tiết điểm dừng</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    // 1. Khởi tạo bản đồ
+    var map = L.map('map').setView([21.0285, 105.8542], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    var vehicleMarkers = {};
+
+   
+    // 3. Hàm lấy chi tiết lộ trình
+    function focusRoute(maLoTrinh) {
+        fetch(`https://localhost:7097/api/dieuphoilotrinh/chi-tiet/${maLoTrinh}`)
+            .then(res => res.json())
+            .then(data => {
+                renderDetails(data.diemDungs);
+            })
+            .catch(err => console.error("Lỗi lấy chi tiết:", err));
+    }
+
+    function renderDetails(diemDungs) {
+        let html = '<h6 class="col-12 mb-3 fw-bold">Thông tin điểm dừng:</h6>';
+        diemDungs.sort((a, b) => a.thuTuDung - b.thuTuDung).forEach(d => {
+            html += `
+                <div class="col-md-6 mb-2">
+                    <div class="p-2 border rounded bg-white shadow-sm">
+                        <span class="badge bg-primary me-2">${d.thuTuDung}</span>
+                        <strong>${d.loaiDung}</strong> <br/>
+                        <small class="text-muted">Mã ĐC: ${d.maDiaChi}</small> |
+                        <small class="text-muted">Dự kiến: ${new Date(d.etaKeHoach).toLocaleTimeString()}</small>
+                    </div>
+                </div>`;
+        });
+        document.getElementById('routeDetail').innerHTML = html;
+    }
+
+    // 4. Cập nhật Marker xe trên bản đồ
+    function updateMarker(id, lat, lng, bienSo) {
+        if (vehicleMarkers[id]) {
+            vehicleMarkers[id].setLatLng([lat, lng]);
+        } else {
+            // Tạo marker mới nếu chưa có
+            vehicleMarkers[id] = L.marker([lat, lng])
+                .addTo(map)
+                .bindPopup(`<b>Xe: ${bienSo}</b><br>Đang trực tuyến`)
+                .openPopup();
+        }
+    }
+
+    // 5. Polling Real-time (5 giây/lần)
+    function trackVehicles() {
+        activeDrivers.forEach(driver => {
+            fetch(`https://localhost:7097/api/dieuphoilotrinh/vi-tri-xe/${driver.id}`)
+                .then(res => {
+                    if(!res.ok) return null;
+                    return res.json();
+                })
+                .then(pos => {
+                    if(pos && pos.viDo && pos.kinhDo) {
+                        updateMarker(driver.id, pos.viDo, pos.kinhDo, driver.bienSo);
+                    }
+                })
+                .catch(e => console.log("Chưa có tọa độ cho xe " + driver.bienSo));
+        });
+    }
+
+    // Chạy ngay lần đầu và lặp lại sau mỗi 5s
+    trackVehicles();
+    setInterval(trackVehicles, 5000);
+
+</script>

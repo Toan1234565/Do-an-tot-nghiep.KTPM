@@ -162,7 +162,12 @@ public class QuanLyBangGiaVung : ControllerBase
 
             bg.TrongLuongToiThieuKg == model.TrongLuongToiThieuKg &&
             bg.TrongLuongToiDaKg == model.TrongLuongToiDaKg &&
-            bg.MaLoaiHang == model.MaLoaiHang
+            bg.MaLoaiHang == model.MaLoaiHang &&
+            bg.DonGiaKm == model.DonGiaKm &&
+            bg.KmToiThieu == model.KmToiThieu &&
+            bg.DonGiaCoBan == model.DonGiaCoBan &&
+            bg.PhuPhiMoiKg == model.PhuPhiMoiKg &&
+            bg.PhiDungDiem == model.PhiDungDiem
         );
 
         if (isExist)
@@ -371,65 +376,63 @@ public class QuanLyBangGiaVung : ControllerBase
     {
         try
         {
-            // 1. Tính trọng lượng quy đổi (Hệ số 6000)
-            // Lưu ý: Request truyền vào là của TỪNG KIỆN hoặc TỔNG tùy theo logic gọi từ API tạo đơn
+            // 1. Tính trọng lượng quy đổi để dùng cho phần tính phụ phí (nếu có)
             double trongLuongTheTich = (request.TheTichTong ?? 0) / 6000.0;
             decimal trongLuongDeTinh = (decimal)Math.Max((double)(request.KhoiLuongTong ?? 0), trongLuongTheTich);
 
-            // 2. Query bảng giá - Lọc theo tuyến đường và trạng thái
+            // 2. Query bảng giá - Chỉ lọc theo tuyến đường, trạng thái và loại hàng
             var query = _context.BangGiaVungs
                 .AsNoTracking()
                 .Where(bg => bg.IsActive == true &&
                              bg.KhuVucLay == request.ThanhPhoLay &&
                              bg.KhuVucGiao == request.ThanhPhoGiao);
 
-            // Lọc theo loại hàng cụ thể của kiện hàng
+            // Lọc theo loại hàng cụ thể
             if (request.MaLoaiHang > 0)
             {
                 query = query.Where(bg => bg.MaLoaiHang == request.MaLoaiHang);
             }
-
-            // Lọc theo dải trọng lượng mà kiện hàng rơi vào
-            var danhSachBangGia = await query
-                .Where(bg => trongLuongDeTinh >= (bg.TrongLuongToiThieuKg ?? 0) &&
-                             (bg.TrongLuongToiDaKg == null || trongLuongDeTinh <= bg.TrongLuongToiDaKg))
-                .ToListAsync();
+            if (request.MaBangGiaVung > 0)
+            {
+                query = query.Where(bg => bg.MaBangGia == request.MaBangGiaVung);
+            }
+            // Lấy tất cả bảng giá thỏa mãn tuyến đường và loại hàng (Bỏ lọc dải trọng lượng)
+            var danhSachBangGia = await query.ToListAsync();
 
             if (!danhSachBangGia.Any())
-                return NotFound(new { message = "Không tìm thấy dịch vụ hoặc loại hàng phù hợp cho tuyến đường này." });
+                return NotFound(new { message = "Không tìm thấy bảng giá phù hợp cho tuyến đường và loại hàng này." });
 
-            // 3. Tính toán chi tiết chi phí dự kiến
+            // 3. Tính toán chi phí dựa trên các bảng giá tìm được
             var ketQua = danhSachBangGia.Select(bg =>
             {
                 decimal tongTien = 0;
                 decimal phuPhiKg = 0;
                 string chiTietGia = "";
 
-                if (bg.LoaiTinhGia == 2) // VẬN TẢI CHUYẾN (Theo Km - Thường thuê nguyên xe)
+                if (bg.LoaiTinhGia == 2) // VẬN TẢI CHUYẾN
                 {
                     decimal kmThucTe = (decimal)(request.SoKm ?? 0);
                     decimal kmTinhPhi = Math.Max(kmThucTe, (decimal)(bg.KmToiThieu ?? 0));
 
-                    
-
                     tongTien = (kmTinhPhi * (bg.DonGiaKm ?? 0)) + (bg.PhiDungDiem ?? 0);
-
-                    chiTietGia = $"{kmTinhPhi}km x {bg.DonGiaKm:N0}đ + Phí dừng {bg.PhiDungDiem:N0}đ + Phụ phí kg {phuPhiKg:N0}đ";
+                    chiTietGia = $"{kmTinhPhi}km x {bg.DonGiaKm:N0}đ + Phí dừng {bg.PhiDungDiem:N0}đ";
                 }
-                else // BƯU KIỆN (Giao lẻ theo vùng)
+                // Thay đoạn tính BƯU KIỆN bằng đoạn này:
+                else // BƯU KIỆN
                 {
-                    // Đối với bưu kiện, thường có Giá cơ bản cho mốc ToiThieu, và cộng thêm cho mỗi kg vượt mốc
                     decimal giaCoBan = bg.DonGiaCoBan ?? 0;
 
-                    // Tính phụ phí cho mỗi kg nếu khối lượng thực tế lớn hơn mốc tối thiểu
-                    decimal khoiLuongVuot = Math.Max(0, trongLuongDeTinh - (decimal)(bg.TrongLuongToiThieuKg ?? 0));
-                    phuPhiKg = khoiLuongVuot * (bg.PhuPhiMoiKg ?? 0);
+                    // Giả sử DonGiaCoBan áp dụng cho khối lượng từ 0 đến TrongLuongToiDaKg
+                    // Nếu hàng nặng hơn mốc ToiDa, mới tính phụ phí
+                    decimal mocTinhPhuPhi = (decimal)(bg.TrongLuongToiDaKg ?? 0);
+                    decimal khoiLuongVuot = Math.Max(0, trongLuongDeTinh - mocTinhPhuPhi);
 
+                    phuPhiKg = khoiLuongVuot * (bg.PhuPhiMoiKg ?? 0);
                     tongTien = giaCoBan + phuPhiKg;
 
                     chiTietGia = phuPhiKg > 0
-                        ? $"Giá gốc {giaCoBan:N0}đ + Phụ phí vượt {khoiLuongVuot}kg x {bg.PhuPhiMoiKg:N0}đ"
-                        : $"Giá trọn gói dải {bg.TrongLuongToiThieuKg}kg: {giaCoBan:N0}đ";
+                        ? $"Giá gốc {giaCoBan:N0}đ (cho {mocTinhPhuPhi}kg) + Phụ phí vượt {khoiLuongVuot:N2}kg x {bg.PhuPhiMoiKg:N0}đ"
+                        : $"Giá trọn gói: {giaCoBan:N0}đ";
                 }
 
                 return new
@@ -448,8 +451,9 @@ public class QuanLyBangGiaVung : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi phân tích giá. Request: {@Request}", request);
+            _logger.LogError(ex, "Lỗi phân tích giá.");
             return StatusCode(500, "Lỗi hệ thống khi tính toán giá cước.");
         }
     }
 }
+

@@ -21,8 +21,6 @@ public partial class BangGiaVung
 
     public int? MaBangCu { get; set; }
 
-    public bool? IsActive { get; set; }
-
     public DateTime? NgayCapNhat { get; set; }
 
     public string? LyDoThayDoi { get; set; }
@@ -39,4 +37,6 @@ public partial class BangGiaVung
     public int? KmToiThieu { get; set; }
 
     public int? MaLoaiHang { get; set; }
+
+    public bool? IsActive { get; set; }
 }

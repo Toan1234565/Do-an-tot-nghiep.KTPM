@@ -5,6 +5,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
 using QuanLyDonHang.Models;
 using QuanLyDonHang.Models1;
+using QuanLyDonHang.Models1.QuanLyDieuPhoiGomHang;
 using System.Net.Http;
 using System.Text.Json;
 
@@ -22,6 +23,7 @@ namespace QuanLyDonHang.ControllersAPI
         string apiDiaChi = "https://localhost:7149/api/quanlydiachi";
         string apiKhachHang = "https://localhost:7149/api/quanlykhachhang";
         string apiVung = "https://localhost:7149/api/quanlybangiavung";
+        string BaseUrl = "https://localhost:7149/api";
         private static CancellationTokenSource _resetCacheSignal = new CancellationTokenSource();
         public DonHang(TmdtContext context, ILogger<DonHang> logger, IMemoryCache cache, IHttpClientFactory httpClientFactory, HttpClient httpClient)
         {
@@ -182,7 +184,7 @@ namespace QuanLyDonHang.ControllersAPI
                             TheTich = kh.TheTich,
                             DaThuGom = kh.DaThuGom,
                             SoTien = kh.SoTien,
-                            DaThanhToan = kh.DaThanhToan,
+
                             MaKhoHienTai = kh.MaKhoHienTai,
                             MaLoaiHangNavigation = new DanhMucLoaiHangModels
                             {
@@ -297,177 +299,326 @@ namespace QuanLyDonHang.ControllersAPI
         [HttpPost("tao-moi")]
         public async Task<IActionResult> TaoDonHang([FromBody] DonHangCreate request)
         {
-            // Kiểm tra đầu vào cơ bản
             if (request == null || request.DanhSachKienHang == null || !request.DanhSachKienHang.Any())
-                return BadRequest("Thông tin đơn hàng hoặc danh sách kiện hàng không được để trống.");
+                return BadRequest(new { message = "Dữ liệu đơn hàng không hợp lệ." });
 
+            string baseServiceUrl = "https://localhost:7149/api";
+            var client = _httpClientFactory.CreateClient();
             using var transaction = await _context.Database.BeginTransactionAsync();
+
             try
             {
-                // --- BƯỚC 1: XÁC THỰC KHÁCH HÀNG & LẤY TỌA ĐỘ (SERVER 2) ---
-                var resKh = await _httpClient.PostAsJsonAsync("https://localhost:7149/api/quanlykhachhang/check_so_dien_thoai", new
+                // --- BƯỚC 1: ĐỒNG BỘ KHÁCH HÀNG & ĐỊA CHỈ ---
+                var resKh = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlykhachhang/check_so_dien_thoai", new
                 {
                     SoDienThoai = request.SoDienThoai,
                     TenLienHe = request.TenKhachHang,
                     DiaChi = request.DiaChiLay
                 });
 
-                if (!resKh.IsSuccessStatusCode) return StatusCode((int)resKh.StatusCode, "Lỗi xác thực khách hàng.");
+                if (!resKh.IsSuccessStatusCode) return BadRequest("Lỗi xác thực thông tin khách hàng.");
+                var khData = await resKh.Content.ReadFromJsonAsync<JsonElement>();
+                int maKhachHang = khData.GetProperty("maKhachHang").GetInt32();
 
-                var dataKh = await resKh.Content.ReadFromJsonAsync<JsonElement>();
-                int maKhachHang = dataKh.GetProperty("maKhachHang").GetInt32();
-
-                // Cập nhật tọa độ nếu Server 2 trả về
-                if (dataKh.TryGetProperty("toaDo", out JsonElement toaDo) && request.DiaChiLay != null)
+                // Check địa chỉ lấy và giao
+                var resDcLay = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlydiachi/check_dia_chi", request.DiaChiLay);
+                if (resDcLay.StatusCode == System.Net.HttpStatusCode.BadRequest)
                 {
-                    request.DiaChiLay.ViDo = toaDo.GetProperty("lat").GetDouble();
-                    request.DiaChiLay.KinhDo = toaDo.GetProperty("lon").GetDouble();
+                    var errorMsg = await resDcLay.Content.ReadFromJsonAsync<JsonElement>();
+                    return BadRequest(new { message = $"Địa chỉ LẤY hàng không hợp lệ: {errorMsg.GetProperty("message").GetString()}" });
                 }
 
-                // --- BƯỚC 2: XỬ LÝ MÃ ID ĐỊA CHỈ (SERVER 2) ---
-                var resDcLay = await _httpClient.PostAsJsonAsync("https://localhost:7149/api/quanlydiachi/check_dia_chi", request.DiaChiLay);
-                int maDcLay = await resDcLay.Content.ReadFromJsonAsync<int>();
+                var resDcGiao = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlydiachi/check_dia_chi", request.DiaChiGiao);
+                if (resDcGiao.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    var errorMsg = await resDcGiao.Content.ReadFromJsonAsync<JsonElement>();
+                    return BadRequest(new { message = $"Địa chỉ GIAO hàng không hợp lệ: {errorMsg.GetProperty("message").GetString()}" });
+                }
+                
+                var resH3Nhan = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlydiachi/check_dia_chi", request.H3Nhan);
+                var resH3Giao = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlydiachi/check_dia_chi", request.H3Giao);
+                if (!resDcLay.IsSuccessStatusCode || !resDcGiao.IsSuccessStatusCode)
+                    return BadRequest("Lỗi xác thực địa chỉ lấy/giao hàng.");
 
-                var resDcGiao = await _httpClient.PostAsJsonAsync("https://localhost:7149/api/quanlydiachi/check_dia_chi", request.DiaChiGiao);
+                int maDcLay = await resDcLay.Content.ReadFromJsonAsync<int>();
                 int maDcGiao = await resDcGiao.Content.ReadFromJsonAsync<int>();
 
-                // --- BƯỚC 3: PHÂN TÍCH GIÁ CƯỚC (SERVER 2) ---
-                var yeuCauPhanTich = new
+                var dataNhan = await resH3Nhan.Content.ReadFromJsonAsync<JsonElement>();
+                var dataGiao = await resH3Giao.Content.ReadFromJsonAsync<JsonElement>();
+                string maH3Nhan = "";
+                string maH3Giao = "";
+                if (dataNhan.TryGetProperty("maVungH3", out var pH3Nhan)) maH3Nhan = pH3Nhan.GetString() ?? "";
+                if (dataGiao.TryGetProperty("maVungH3", out var pH3Giao)) maH3Giao = pH3Giao.GetString() ?? "";
+
+
+
+
+                // --- BƯỚC 1.5: TÌM KHO GẦN NHẤT (Thực hiện trước để lưu vào DB) ---
+                int? maKhoGanNhat = null;
+                try
                 {
-                    ThanhPhoLay = request.DiaChiLay?.ThanhPho,
-                    ThanhPhoGiao = request.DiaChiGiao?.ThanhPho,
-                    ViDoLay = request.DiaChiLay?.ViDo ?? 0,
-                    KinhDoLay = request.DiaChiLay?.KinhDo ?? 0,
-                    ViDoGiao = request.DiaChiGiao?.ViDo ?? 0,
-                    KinhDoGiao = request.DiaChiGiao?.KinhDo ?? 0,
-                    DanhSachKienHang = request.DanhSachKienHang.Select(k => new {
-                        k.KhoiLuong,
-                        k.TheTich,
-                        MaLoaiHang = k.MaLoaiHang ?? 1,
-                        SoLuongKienHang = k.SoLuongKienHang
-                    }).ToList()
-                };
+                    // Gọi Service Kho Bãi (Đảm bảo port 7286 đang chạy)
+                    var resKho = await client.GetAsync($"https://localhost:7286/api/quanlykhobai/tim-kho-gan-nhat/{maDcLay}");
+                    if (resKho.IsSuccessStatusCode)
+                    {
+                        var khoJson = await resKho.Content.ReadFromJsonAsync<JsonElement>();
+                        if (khoJson.TryGetProperty("maKho", out var maKhoProp))
+                        {
+                            maKhoGanNhat = maKhoProp.GetInt32();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning($"Lỗi tìm kho tự động: {ex.Message}. Sẽ xử lý điều phối sau.");
+                }
 
-                var resPhanTich = await _httpClient.PostAsJsonAsync("https://localhost:7149/api/mucdichvu/phan-tich-muc-do-phu-hop", yeuCauPhanTich);
-                if (!resPhanTich.IsSuccessStatusCode) return BadRequest("Không thể tính toán giá cước.");
+                // --- BƯỚC 2: TÍNH TOÁN GIÁ CƠ BẢN TỪNG KIỆN ---
+                decimal tongTienGocCacKien = 0;
+                var danhSachGiaGoc = new List<decimal>();
 
-                var dataGia = await resPhanTich.Content.ReadFromJsonAsync<JsonElement>();
-                var luaChonDichVu = dataGia.GetProperty("luaChonDichVu").EnumerateArray();
+                foreach (var kien in request.DanhSachKienHang)
+                {
+                    var payloadGia = new
+                    {
+                        ThanhPhoLay = request.DiaChiLay.ThanhPho,
+                        ThanhPhoGiao = request.DiaChiGiao.ThanhPho,
+                        KhoiLuongTong = kien.KhoiLuong,
+                        TheTichTong = kien.TheTich,
+                        MaLoaiHang = kien.MaLoaiHang,
+                        MaBangGiaVung = kien.MaBangGiaVung
+                    };
 
-                // Tìm đúng MaMucDo khách chọn hoặc lấy mặc định cái đầu tiên
-                var dvDuocChon = luaChonDichVu.FirstOrDefault(x => x.GetProperty("maMucDo").GetInt32() == request.MaMucDoChon);
-                if (dvDuocChon.ValueKind == JsonValueKind.Undefined) dvDuocChon = luaChonDichVu.First();
+                    var resGiaVung = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlybangiavung/phan-tich-dich-vu-phu-hop", payloadGia);
 
-                decimal tongTienGocDonHang = dvDuocChon.GetProperty("giaDuKien").GetDecimal();
-                int maDichVuFinal = dvDuocChon.GetProperty("maMucDo").GetInt32();
+                    if (resGiaVung.IsSuccessStatusCode)
+                    {
+                        var options = await resGiaVung.Content.ReadFromJsonAsync<List<JsonElement>>();
+                        if (options != null && options.Count > 0)
+                        {
+                            decimal giaDonVi = options[0].GetProperty("tongTienDuKien").GetDecimal();
+                            int soLuong = (kien.SoLuongKienHang ?? 0) > 0 ? kien.SoLuongKienHang.Value : 1;
+                            decimal tongGiaKien = giaDonVi * soLuong;
 
-                // --- BƯỚC 4: XỬ LÝ KHUYẾN MÃI & ĐIỂM THƯỞNG (GỌI SERVER 2) ---
-                decimal soTienGiamKM = 0;
-                decimal soTienGiamDiem = 0;
+                            danhSachGiaGoc.Add(tongGiaKien);
+                            tongTienGocCacKien += tongGiaKien;
+                        }
+                        else return BadRequest(new { message = $"Không tìm thấy bảng giá cho loại hàng {kien.MaLoaiHang}." });
+                    }
+                    else return BadRequest(new { message = "Lỗi khi kết nối API tính giá." });
+                }
 
-                // 4.1. Check Voucher
+                // --- BƯỚC 3: HỆ SỐ DỊCH VỤ & GIẢM GIÁ ---
+                decimal heSoDichVu = 1.0m;
+                var resMucDo = await client.GetAsync($"{baseServiceUrl}/mucdichvu/get-by-id/{request.MaMucDoDv}");
+                if (resMucDo.IsSuccessStatusCode)
+                {
+                    var mucDoData = await resMucDo.Content.ReadFromJsonAsync<JsonElement>();
+                    heSoDichVu = mucDoData.GetProperty("heSoNhiPhan").GetDecimal();
+                }
+
+                decimal tongTienDuKien = tongTienGocCacKien * heSoDichVu;
+                decimal soTienGiam = 0;
+                int? maKhuyenMai = null;
+
                 if (!string.IsNullOrEmpty(request.MaGiamGia))
                 {
-                    var resKM = await _httpClient.GetAsync($"https://localhost:7149/api/KhuyenMai/GetByCode?code={request.MaGiamGia}");
+                    var resKM = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlykhuyenmai/ap-dung", new
+                    {
+                        Code = request.MaGiamGia,
+                        TongTienDonHang = tongTienDuKien,
+                        MaKhachHang = maKhachHang
+                    });
                     if (resKM.IsSuccessStatusCode)
                     {
-                        var kmData = await resKM.Content.ReadFromJsonAsync<JsonElement>();
-                        DateTime now = DateTime.Now;
-
-                        // Đọc an toàn các trường từ JSON
-                        DateTime ngayBatDau = kmData.GetProperty("ngayBatDau").GetDateTime();
-                        DateTime ngayKetThuc = kmData.GetProperty("ngayKetThuc").GetDateTime();
-                        decimal donHangToiThieu = kmData.TryGetProperty("donHangToiThieu", out JsonElement dhtt) ? dhtt.GetDecimal() : 0;
-                        int soLuongDaDung = kmData.GetProperty("soLuongDaDung").GetInt32();
-                        int? soLuongToiDa = kmData.TryGetProperty("soLuongToiDa", out JsonElement sltd) && sltd.ValueKind != JsonValueKind.Null ? sltd.GetInt32() : null;
-
-                        if (now >= ngayBatDau && now <= ngayKetThuc && tongTienGocDonHang >= donHangToiThieu && (soLuongToiDa == null || soLuongDaDung < soLuongToiDa))
-                        {
-                            string kieuGiam = kmData.GetProperty("kieuGiamGia").GetString();
-                            decimal giaTriGiam = kmData.GetProperty("giaTriGiam").GetDecimal();
-                            soTienGiamKM = (kieuGiam == "Phần trăm") ? (tongTienGocDonHang * giaTriGiam / 100) : giaTriGiam;
-                        }
+                        var kmResponse = await resKM.Content.ReadFromJsonAsync<JsonElement>();
+                        var kmData = kmResponse.GetProperty("data");
+                        soTienGiam = kmData.GetProperty("soTienGiam").GetDecimal();
+                        maKhuyenMai = kmData.GetProperty("maKhuyenMai").GetInt32();
                     }
                 }
 
-                // 4.2. Check Điểm thưởng
-                if (request.SoDiemDoi > 0)
-                {
-                    var resDiem = await _httpClient.GetAsync($"https://localhost:7149/api/quanlykhachhang/CheckDiem?maKhachHang={maKhachHang}");
-                    if (resDiem.IsSuccessStatusCode)
-                    {
-                        var dataDiem = await resDiem.Content.ReadFromJsonAsync<JsonElement>();
-                        if (dataDiem.GetProperty("diemHienCo").GetInt32() >= request.SoDiemDoi)
-                        {
-                            soTienGiamDiem = request.SoDiemDoi * 1000; // Quy đổi 1đ = 1000 VNĐ
-                        }
-                    }
-                }
+                decimal tongTienThucTe = Math.Max(0, tongTienDuKien - soTienGiam);
 
-                // --- BƯỚC 5: TỔNG HỢP CHI PHÍ ---
-                decimal tongPhaiTra = Math.Max(0, tongTienGocDonHang - (soTienGiamKM + soTienGiamDiem));
-
-                // --- BƯỚC 6: LƯU ĐƠN HÀNG (SERVER 1) ---
+                // --- BƯỚC 4: LƯU ĐƠN HÀNG ---
                 var newDonHang = new QuanLyDonHang.Models.DonHang
                 {
+                    TenDonHang = request.TenDonHang ?? $"Đơn {DateTime.Now:HHmm}",
                     MaKhachHang = maKhachHang,
-                    ThoiGianTao = DateTime.Now,
                     MaDiaChiNhanHang = maDcLay,
                     MaDiaChiGiao = maDcGiao,
+
+                    MaMucDoDv = request.MaMucDoDv,
+                    TongTienDuKien = tongTienDuKien,
+                    TongTienThucTe = tongTienThucTe,
+                    ThoiGianTao = DateTime.Now,
                     TrangThaiHienTai = "Chờ lấy hàng",
-                    MaLoaiDv = maDichVuFinal,
-                    TenDonHang = $"Đơn hàng {request.SoDienThoai}",
+                    GhiChuDacBiet = $"Giảm giá: {soTienGiam:N0}. Kho phụ trách: {maKhoGanNhat}",
                     TenNguoiNhan = request.TenNguoiNhan,
                     SdtNguoiNhan = request.SdtNguoiNhan,
-                    TongTienDuKien = tongTienGocDonHang,
-                    TongTienThucTe = tongPhaiTra,
-                    MaMucDoDv = maDichVuFinal,
-                    GhiChuDacBiet = $"Gốc: {tongTienGocDonHang:N0} - KM: {soTienGiamKM:N0} - Điểm: {soTienGiamDiem:N0}"
-                    //GhiChu = $"Gốc: {tongTienGocDonHang:N0} - KM: {soTienGiamKM:N0} - Điểm: {soTienGiamDiem:N0}"
+                    MaKhuyenMai = maKhuyenMai,
+                    MaVungH3Giao = maH3Giao,
+                    MaVungH3Nhan = maH3Nhan
                 };
+
                 _context.DonHangs.Add(newDonHang);
                 await _context.SaveChangesAsync();
 
-                // --- BƯỚC 7: LƯU KIỆN HÀNG (SERVER 1) ---
-                foreach (var kienReq in request.DanhSachKienHang)
+                // --- BƯỚC 5: LƯU KIỆN HÀNG ---
+                for (int i = 0; i < request.DanhSachKienHang.Count; i++)
                 {
+                    var kienReq = request.DanhSachKienHang[i];
                     _context.KienHangs.Add(new KienHang
                     {
                         MaDonHang = newDonHang.MaDonHang,
                         KhoiLuong = kienReq.KhoiLuong,
                         TheTich = kienReq.TheTich,
                         SoLuongKienHang = kienReq.SoLuongKienHang,
+                        YeuCauBaoQuan = kienReq.YeuCauBaoQuan,
                         MaLoaiHang = kienReq.MaLoaiHang,
-                        SoTien = Math.Round(tongPhaiTra / request.DanhSachKienHang.Count, 2),
-                        MaVach = "SPX" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper()
+                        MaBangGiaVung = kienReq.MaBangGiaVung,
+                        MaVach = "BILL" + Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper(),
+                        SoTien = danhSachGiaGoc[i],
+                        DaThuGom = false
                     });
                 }
+
                 await _context.SaveChangesAsync();
-
-                // --- BƯỚC 8: ĐỒNG BỘ HẬU MÃI (SERVER 2) ---
-                // Gọi API duy nhất để trừ voucher, trừ điểm đã dùng và cộng điểm mới
-                await _httpClient.PostAsJsonAsync("https://localhost:7149/api/cauhinhtichdiem/xu-ly-hau-mai", new
-                {
-                    MaKhachHang = maKhachHang,
-                    MaDonHang = newDonHang.MaDonHang,
-                    MaGiamGia = request.MaGiamGia,
-                    SoDiemDaDoi = request.SoDiemDoi,
-                    SoTienThanhToan = tongPhaiTra
-                });
-
                 await transaction.CommitAsync();
-                return Ok(new
+                var responseData = new
                 {
                     Success = true,
                     MaDonHang = newDonHang.MaDonHang,
-                    TongTien = tongPhaiTra,
-                    GiamGia = soTienGiamKM + soTienGiamDiem
+                    MaKho = maKhoGanNhat,
+                    TongTien = tongTienThucTe
+                };
+
+                // --- LUỒNG HỎA TỐC (Mức độ 3) ---
+                if (request.MaMucDoDv?.ToString() == "3")
+                {
+                    try
+                    {
+                        var rabbitMQ = new RabbitMQProducer(); // Tốt nhất nên dùng DI (Dependency Injection)
+                        var message = new
+                        {
+                            MaDonHang = newDonHang.MaDonHang,
+                            MaKhoVao = maKhoGanNhat,
+                            MaDiaChiLay = maDcLay,
+                            TongKhoiLuong = request.DanhSachKienHang.Sum(k => k.KhoiLuong),
+                            TongTheTich = request.DanhSachKienHang.Sum(k => k.TheTich),
+                            ThoiGian = DateTime.Now
+                        };
+                        await rabbitMQ.SendOrderMessageAsync(message);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Chỉ log lỗi RabbitMQ, không làm fail cả request vì DB đã lưu thành công
+                        _logger.LogError($"Lỗi gửi tin nhắn RabbitMQ cho đơn {newDonHang.MaDonHang}: {ex.Message}");
+                    }
+                }
+
+                return Ok(responseData);
+            }
+
+
+            catch (Exception ex)
+            {
+
+                _logger.LogError($"[Fatal Error] TaoDonHang: {ex.Message}");
+                return StatusCode(500, new { message = "Lỗi hệ thống", detail = ex.Message });
+            }
+        }
+
+        [HttpPost("cho-dieu-phoi")]
+        public async Task<IActionResult> TuDongGomNhomDonHang([FromBody] ClusterRequest request)
+        {
+            try
+            {
+                // 1. Eager Loading + AsNoTracking: Tối ưu bộ nhớ và tốc độ DB
+                var donHangs = await _context.DonHangs
+                    .Include(dh => dh.KienHangs)
+                    .Where(dh => dh.TrangThaiHienTai == "Chờ lấy hàng"
+                              && dh.MaDiaChiNhanHang != null 
+                              
+                              && dh.MaMucDoDv != 3)
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                if (!donHangs.Any())
+                    return NotFound(new { message = "Không có đơn hàng cần thu gom." });
+
+                // 2. Tính toán trực tiếp trên RAM bằng SelectMany
+                var clusters = donHangs
+                    .GroupBy(dh => dh.MaDiaChiNhanHang)
+                    .Select(group => {
+                        var allKienHangs = group.SelectMany(dh => dh.KienHangs).ToList();
+
+                        return new ClusterResult
+                        {
+                            MaDiaChiCum = group.Key ?? 0,
+                            SoLuongDonHang = group.Count(),
+                            DanhSachMaDonHang = group.Select(dh => dh.MaDonHang).ToList(),
+                            TongKhoiLuong = allKienHangs.Sum(kh => kh.KhoiLuong ?? 0),
+                            TongTheTich = allKienHangs.Sum(kh => kh.TheTich ?? 0)
+                        };
+                    })
+                    .OrderByDescending(c => c.SoLuongDonHang)
+                    .ToList();
+
+                // 3. Xử lý Cache (Nên dùng Redis để tối ưu hơn CancellationToken)
+                _resetCacheSignal.Cancel();
+                _resetCacheSignal = new CancellationTokenSource();
+
+                return Ok(new { TotalClusters = clusters.Count, Clusters = clusters });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi gom nhóm.");
+                return StatusCode(500, "Internal Server Error");
+            }
+        }
+        [HttpPut("cap-nhat-trang-thai-nhieu")]
+        public async Task<IActionResult> CapNhatTrangThaiNhieuDonHang([FromBody] UpdateMultiStatusRequest request)
+        {
+            if (request == null || request.DanhSachMaDonHang == null || !request.DanhSachMaDonHang.Any())
+            {
+                return BadRequest("Danh sách mã đơn hàng không được để trống.");
+            }
+
+            try
+            {
+                // Truy vấn các đơn hàng có trong danh sách
+                var donHangs = await _context.DonHangs
+                    .Where(dh => request.DanhSachMaDonHang.Contains(dh.MaDonHang))
+                    .ToListAsync();
+
+                if (!donHangs.Any())
+                {
+                    return NotFound("Không tìm thấy đơn hàng nào trong danh sách cung cấp.");
+                }
+
+                // Cập nhật trạng thái
+                foreach (var dh in donHangs)
+                {
+                    dh.TrangThaiHienTai = request.TrangThaiMoi;
+                }
+
+                await _context.SaveChangesAsync();
+
+                // Xóa cache để dữ liệu danh sách đơn hàng được cập nhật mới nhất
+                _resetCacheSignal.Cancel();
+                _resetCacheSignal = new CancellationTokenSource();
+
+                return Ok(new
+                {
+                    Message = $"Đã cập nhật trạng thái '{request.TrangThaiMoi}' cho {donHangs.Count} đơn hàng.",
+                    UpdatedIds = donHangs.Select(dh => dh.MaDonHang)
                 });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return StatusCode(500, $"Lỗi hệ thống: {ex.Message}");
+                _logger.LogError(ex, "Lỗi khi cập nhật trạng thái hàng loạt.");
+                return StatusCode(500, "Lỗi hệ thống khi cập nhật trạng thái.");
             }
         }
     }

@@ -196,6 +196,68 @@
         }
       }
     },
+    "/api/quanlydonhang/cho-dieu-phoi": {
+      "post": {
+        "tags": [
+          "DonHang"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClusterRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClusterRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClusterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlydonhang/cap-nhat-trang-thai-nhieu": {
+      "put": {
+        "tags": [
+          "DonHang"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMultiStatusRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMultiStatusRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMultiStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/thongke_dichvu/thongke-mucdichvu": {
       "get": {
         "tags": [
@@ -260,6 +322,22 @@
   },
   "components": {
     "schemas": {
+      "ClusterRequest": {
+        "type": "object",
+        "properties": {
+          "maKhoTrungTam": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "banKinhToiDaKm": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "DiaChiModels": {
         "type": "object",
         "properties": {
@@ -284,6 +362,10 @@
             "type": "number",
             "format": "double",
             "nullable": true
+          },
+          "maVungH3": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -291,6 +373,10 @@
       "DonHangCreate": {
         "type": "object",
         "properties": {
+          "tenDonHang": {
+            "type": "string",
+            "nullable": true
+          },
           "soDienThoai": {
             "type": "string",
             "nullable": true
@@ -303,6 +389,12 @@
             "$ref": "#/components/schemas/DiaChiModels"
           },
           "diaChiGiao": {
+            "$ref": "#/components/schemas/DiaChiModels"
+          },
+          "h3Giao": {
+            "$ref": "#/components/schemas/DiaChiModels"
+          },
+          "h3Nhan": {
             "$ref": "#/components/schemas/DiaChiModels"
           },
           "danhSachKienHang": {
@@ -333,10 +425,6 @@
             "type": "integer",
             "format": "int32"
           },
-          "ghiChu": {
-            "type": "string",
-            "nullable": true
-          },
           "maMucDoDv": {
             "type": "integer",
             "format": "int32",
@@ -355,6 +443,26 @@
           "maGiamGia": {
             "type": "string",
             "nullable": true
+          },
+          "maLoaiHang": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maBangGiaVung": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "soLuongKienHang": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "yeuCauBaoQuan": {
+            "type": "string",
+            "nullable": true
+          },
+          "maKhuyenMai": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -382,6 +490,33 @@
           "soLuongKienHang": {
             "type": "integer",
             "format": "int32",
+            "nullable": true
+          },
+          "maBangGiaVung": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "yeuCauBaoQuan": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateMultiStatusRequest": {
+        "type": "object",
+        "properties": {
+          "danhSachMaDonHang": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "trangThaiMoi": {
+            "type": "string",
             "nullable": true
           }
         },

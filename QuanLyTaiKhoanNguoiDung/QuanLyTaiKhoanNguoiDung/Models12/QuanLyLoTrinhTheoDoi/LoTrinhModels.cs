@@ -6,7 +6,9 @@ namespace QuanLyLoTrinhTheoDoi.Models12
     {
         public int MaLoTrinh { get; set; }
 
-        public int? MaNguoiDung { get; set; }
+        public int? MaTaiXeChinh { get; set; }
+
+        public int? MaTaiXePhu { get; set; }
 
         public int? MaPhuongTien { get; set; }
 

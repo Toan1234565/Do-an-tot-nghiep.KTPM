@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyLoTrinhTheoDoi;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien;
-using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
 using System.Collections.Generic;
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi
@@ -168,7 +168,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi
                     }
                     ViewBag.PhuongTien = await GetPhuongTienSafe(maPT);
 
-                    int maTaiXe = suCo.MaLoTrinhNavigation.MaNguoiDung ??0;
+                    int maTaiXe = suCo.MaLoTrinhNavigation.MaTaiXeChinh ??0;
                     if(maTaiXe > 0)
                     {
                         ViewBag.TaiXe = await GetNguoiDungSafe(maTaiXe);

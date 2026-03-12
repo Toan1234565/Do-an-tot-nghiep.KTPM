@@ -1014,5 +1014,59 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, $"Lỗi hệ thống: {ex.Message}");
             }
         }
+
+
+        [HttpGet("xe-san-sang-dieu-phoi")]
+        public async Task<IActionResult> GetXeSanSang([FromQuery] double khoiLuongHang, [FromQuery] int maKho)
+        {
+            // 1. Tạo Cache Key dựa trên mã kho và khối lượng hàng (làm tròn để tăng hiệu quả cache)
+            // Ví dụ: Đơn hàng 1.2 tấn và 1.3 tấn có thể dùng chung kết quả lọc nếu ta làm tròn lên 0.5
+            string cacheKey = $"dispatch_vehicles_k{maKho}_w{Math.Ceiling(khoiLuongHang)}";
+
+            try
+            {
+                // 2. Thử lấy dữ liệu từ Cache
+                if (!_cacheKey.TryGetValue(cacheKey, out var cachedXe))
+                {
+                    _logger.LogInformation("Cache miss cho điều phối tại kho {MaKho}", maKho);
+
+                    // 3. Truy vấn Database nếu không có cache
+                    var query = _context.PhuongTiens
+                        .AsNoTracking()
+                        .Where(x => x.TrangThai == "Không hoạt động"
+                                 && x.MaKho == maKho
+                                 && x.TaiTrongToiDaKg >= khoiLuongHang);
+
+                    var xePhuHop = await query
+                        .Select(x => new
+                        {
+                            x.MaPhuongTien,
+                            x.BienSo,
+                            x.TaiTrongToiDaKg,
+                            x.TheTichToiDaM3, // Thêm thể tích để điều phối chính xác hơn
+                            TenLoaiXe = x.MaLoaiXeNavigation != null ? x.MaLoaiXeNavigation.TenLoai : "N/A",
+                            TenKho = x.MaKhoNavigation != null ? x.MaKhoNavigation.TenKhoBai : "N/A"
+                        })
+                        .ToListAsync();
+
+                    // 4. Thiết lập Options cho Cache
+                    var cacheOptions = new MemoryCacheEntryOptions()
+                        // Thời gian cache ngắn (2 phút) vì xe di chuyển liên tục
+                        .SetAbsoluteExpiration(TimeSpan.FromMinutes(2))
+                        // Xóa cache ngay lập tức nếu có lệnh reset (khi thêm xe/đổi trạng thái xe)
+                        .AddExpirationToken(new CancellationChangeToken(_resetCacheToken.Token));
+
+                    _cacheKey.Set(cacheKey, xePhuHop, cacheOptions);
+                    cachedXe = xePhuHop;
+                }
+
+                return Ok(cachedXe);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy danh sách xe điều phối tại kho {MaKho}", maKho);
+                return StatusCode(500, "Lỗi hệ thống khi điều phối lộ trình");
+            }
+        }
     }
 }

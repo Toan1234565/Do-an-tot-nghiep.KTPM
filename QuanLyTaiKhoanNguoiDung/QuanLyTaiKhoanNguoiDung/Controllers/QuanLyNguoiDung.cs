@@ -3,7 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using QuanLyTaiKhoanNguoiDung.Models;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDiaChi;
-using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien;
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers
 {
@@ -18,7 +19,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
         }
         string apiBaseUrl = "https://localhost:7022/api/quanlynguoidung";
         string apiDiaChi = "https://localhost:7149/api/quanlydiachi";
-        public async Task<IActionResult> DanhSachNhanVien(string? searchTerm, int? maChucVu, int page = 1, string? donvi= "Tất cả")
+        public async Task<IActionResult> DanhSachNhanVien(string? searchTerm, int? maChucVu,int? maKho, int page = 1)
         {
 
             var chucVus = await _context.ChucVus
@@ -30,14 +31,14 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
             ViewBag.DanhSachChucVu = chucVus;
             ViewBag.CurrentSearch = searchTerm;
             ViewBag.CurrentMaChucVu = maChucVu; // Kiểu int?
-            ViewBag.CurrentDonVi = donvi;
+            ViewBag.CurrentMaKho = maKho;
             var client = _httpClientFactory.CreateClient("BypassSSL");
 
            
             int pageIndex = page < 1 ? 1 : page;
 
-            
-            string apiUrl = $"{apiBaseUrl}/danhsachnguoidung?searchTerm={searchTerm}&maChucVu={maChucVu}&page={pageIndex}&donvi={donvi}";
+
+            string apiUrl = $"{apiBaseUrl}/danhsachnguoidung?searchTerm={searchTerm}&maChucVu={maChucVu}&maKho={maKho}&page={pageIndex}";
 
             try
             {
@@ -48,7 +49,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
                     var jsonResult = Newtonsoft.Json.Linq.JObject.Parse(content);
 
             
-                    var dsNhanVien = jsonResult["data"]?.ToObject<List<NguoiDungModel>>() ?? new List<NguoiDungModel>();
+                    var dsNhanVien = jsonResult["data"]?.ToObject<List<DanhSachNguoiDungModel>>() ?? new List<DanhSachNguoiDungModel>();
 
                     ViewBag.TotalPages = (int)(jsonResult["totalPages"] ?? 0);
                     ViewBag.CurrentPage = (int)(jsonResult["currentPage"] ?? 1);
@@ -61,7 +62,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
             {
                 ViewBag.Error = ex.Message;
             }
-            return View(new List<NguoiDungModel>());
+            return View(new List<DanhSachNguoiDungModel>());
         }
         public async Task<IActionResult> ChiTietNhanVien(int maNhanVien)
         {

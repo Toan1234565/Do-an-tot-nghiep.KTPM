@@ -380,7 +380,6 @@ namespace QuanLyKhachHang.ControllersAPI
                     SanBayNhan = destInfo.Iata,
                     MaChuyenBay = flight.FlightNo ?? "N/A",
                     GioKhoiHanh = flight.DepartureTime,
-
                     ThoiGiaThoiGianDuongBo_t1_t2 = Math.Round(t1 + t2, 2),
                     ThoiGianThuTuc_t3_t5 = t3 + t5,
                     ThoiGianBay_t4 = t4,
@@ -397,5 +396,138 @@ namespace QuanLyKhachHang.ControllersAPI
             }
         }
 
+        [HttpGet("get-by-id/{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var dv = await _context.MucDoDichVus
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.MaDichVu == id);
+
+            if (dv == null) return NotFound(new { message = "Mức độ dịch vụ không tồn tại." });
+
+            return Ok(new
+            {
+                dv.MaDichVu,
+                dv.TenDichVu,
+                dv.HeSoNhiPhan,
+                dv.ThoiGianCamKet,
+                dv.LaCaoCap
+            });
+        }
+        [HttpPost("tinh-gia-nhanh")]
+        public async Task<IActionResult> TinhGiaNhanh([FromBody] YeuCauTinhGiaNhanh request)
+        {
+            try
+            {
+                // 1. Tính tổng giá gốc của các kiện hàng từ bảng giá vùng
+                decimal tongGiaGoc = 0;
+                foreach (var kien in request.DanhSachKien)
+                {
+                    tongGiaGoc += await TinhGiaLogicNoiBo(
+                        request.ThanhPhoLay,
+                        request.ThanhPhoGiao,
+                        kien.KhoiLuong,
+                        kien.TheTich,
+                        0, // Giả định km mặc định hoặc lấy từ Google Maps API
+                        kien.MaLoaiHang
+                    );
+                }
+
+                if (tongGiaGoc == 0) return BadRequest("Không tìm thấy bảng giá vùng phù hợp.");
+
+                // 2. Lấy danh sách các mức độ dịch vụ đang hoạt động
+                var listMucDo = await _context.MucDoDichVus
+                    .Where(m => m.TrangThai == true)
+                    .ToListAsync();
+
+                // 3. Phân tích thời gian bay (nếu có tọa độ sân bay)
+                // Lưu ý: Ở đây bạn có thể gọi nội bộ hàm PhanTichVanchuyen hoặc mock thời gian
+
+                var ketQuaDichVu = listMucDo.Select(m => new {
+                    MaMucDo = m.MaDichVu,
+                    TenDichVu = m.TenDichVu,
+                    GiaDuKien = Math.Round(tongGiaGoc * (decimal)m.HeSoNhiPhan, 0),
+                    ThoiGianDuKien = m.ThoiGianCamKet, // Hoặc cộng thêm thời gian bay t4, t6 nếu là Hỏa Tốc
+                    LaCaoCap = m.LaCaoCap
+                }).OrderBy(x => x.GiaDuKien);
+
+                return Ok(ketQuaDichVu);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi tính toán: {ex.Message}");
+            }
+        }
+        [HttpPost("phantich-noithanh")]
+        public async Task<IActionResult> PhanTichNoiThanh([FromBody] YeuCauPhanTich request)
+        {
+            if (request == null) return BadRequest("Dữ liệu không được trống.");
+
+            try
+            {
+                // 1. Tính khoảng cách thực tế giữa điểm gửi và điểm nhận
+                double distanceKm = TinhKhoangCach.CalculateDistance(
+                    request.LatGui, request.LonGui,
+                    request.LatNhan, request.LonNhan
+                );
+
+                // 2. Định nghĩa các tham số vận hành nội thành
+                // Vận tốc trung bình trong thành phố (thường từ 20-30km/h do tắc đường/đèn đỏ)
+                double vanTocNoiThanh = 25.0;
+
+                // Thời gian lấy hàng và đóng gói (giờ)
+                double tLayHang = 0.5;
+
+                // Thời gian di chuyển thực tế
+                double tDiChuyen = distanceKm / vanTocNoiThanh;
+
+                // Thời gian xử lý trung chuyển/phân loại tại bưu cục nội thành
+                double tXuLyKho = 1.0;
+
+                // Hệ số rủi ro (giờ cao điểm, thời tiết)
+                double ruiRoNoiThanh = 0.5;
+
+                // 3. Tính tổng thời gian
+                double tongThoiGian = tLayHang + tDiChuyen + tXuLyKho + ruiRoNoiThanh;
+
+                // 4. Trả về kết quả
+                var result = new
+                {
+                    LoaiVanChuyen = "Nội thành",
+                    KhoangCachKm = Math.Round(distanceKm, 2),
+                    ChiTietThoiGian = new
+                    {
+                        ThoiGianLayHang = tLayHang,
+                        ThoiGianDiChuyen = Math.Round(tDiChuyen, 2),
+                        ThoiGianXuLyTaiKho = tXuLyKho,
+                        ThoiGianDuPhong = ruiRoNoiThanh
+                    },
+                    TongThoiGianDuKienGio = Math.Round(tongThoiGian, 2),
+                    DonVi = "Giờ",
+                    ThoiDiemHoanThanhDuKien = DateTime.Now.AddHours(tongThoiGian)
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi phân tích vận chuyển nội thành.");
+                return StatusCode(500, $"Lỗi: {ex.Message}");
+            }
+        }
+        // Model hỗ trợ cho API trên
+        public class YeuCauTinhGiaNhanh
+        {
+            public string? ThanhPhoLay { get; set; }
+            public string? ThanhPhoGiao { get; set; }
+            public List<KienHangSorce>? DanhSachKien { get; set; }
+        }
+
+        public class KienHangSorce
+        {
+            public double KhoiLuong { get; set; }
+            public double TheTich { get; set; }
+            public int MaLoaiHang { get; set; }
+        }
     }
 }  

@@ -199,7 +199,8 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                         MaLoTrinhNavigation = new LoTrinhModels
                         {
                             MaLoTrinh = data.MaLoTrinhNavigation.MaLoTrinh,
-                            MaNguoiDung = data.MaLoTrinhNavigation.MaNguoiDung,
+                            MaTaiXeChinh = data.MaLoTrinhNavigation.MaTaiXeChinh,
+                            MaTaiXePhu = data.MaLoTrinhNavigation.MaTaiXePhu,
                             MaPhuongTien = data.MaLoTrinhNavigation.MaPhuongTien,
                             ThoiGianBatDauKeHoach = data.MaLoTrinhNavigation.ThoiGianBatDauKeHoach,
                             ThoiGianBatDauThucTe = data.MaLoTrinhNavigation.ThoiGianBatDauThucTe,

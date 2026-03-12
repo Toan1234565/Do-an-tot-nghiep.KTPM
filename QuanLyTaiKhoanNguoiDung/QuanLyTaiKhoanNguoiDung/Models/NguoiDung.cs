@@ -33,7 +33,13 @@ public partial class NguoiDung
 
     public int? MaDiaChi { get; set; }
 
+    public int? MaKho { get; set; }
+
+    public virtual ICollection<LichSuViPham> LichSuViPhams { get; set; } = new List<LichSuViPham>();
+
     public virtual ChucVu? MaChucVuNavigation { get; set; }
 
     public virtual TaiKhoan MaNguoiDungNavigation { get; set; } = null!;
+
+    public virtual TaiXe? TaiXe { get; set; }
 }

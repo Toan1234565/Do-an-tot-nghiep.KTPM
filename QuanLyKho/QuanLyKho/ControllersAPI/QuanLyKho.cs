@@ -7,6 +7,7 @@ using Microsoft.Extensions.Primitives;
 using QuanLyKho.Models;
 using QuanLyKho.Models1.QuanLyKho;
 using QuanLyKho.Models1.QuanLyXe;
+using System.Net.Http;
 
 namespace QuanLyKho.ControllersAPI
 {
@@ -18,11 +19,13 @@ namespace QuanLyKho.ControllersAPI
         public readonly ILogger<QuanLyKho> _logger;
         public readonly IMemoryCache _cache;
         private static CancellationTokenSource _resetCacheToken = new CancellationTokenSource();
-        public QuanLyKho(TmdtContext context, ILogger<QuanLyKho> logger, IMemoryCache cache)
+        private readonly IHttpClientFactory _httpClientFactory;
+        public QuanLyKho(TmdtContext context, ILogger<QuanLyKho> logger, IMemoryCache cache, IHttpClientFactory httpClientFactory)
         {
             _context = context;
             _logger = logger;
             _cache = cache;
+            _httpClientFactory = httpClientFactory;
         }
         [HttpGet("getallkho")]
         public async Task<IActionResult> GetAllKhoBai([FromQuery] string? seach, [FromQuery] int page, [FromQuery] string? trangthai = "Tất cả", [FromQuery] string? loaikho = "Tất cả")
@@ -324,7 +327,8 @@ namespace QuanLyKho.ControllersAPI
                     .AsNoTracking()
                     .Select(k => new
                     {
-                        k.TenKhoBai
+                        k.TenKhoBai,
+                        k.MaKho 
                     })
                     .ToListAsync();
                 if (tenKhoBaiList.Count == 0)
@@ -345,6 +349,93 @@ namespace QuanLyKho.ControllersAPI
                 _logger.LogError(ex, "Lỗi hệ thống khi lấy danh sách tên kho bãi");
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
             }
+        }
+
+
+        [HttpGet("tim-kho-gan-nhat/{maDiaChiLayHang}")]
+        public async Task<IActionResult> TimKhoGanNhat(int maDiaChiLayHang)
+        {
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+
+                // BƯỚC 1: Lấy tọa độ khách hàng
+                // BƯỚC 1: Lấy tọa độ của Khách hàng
+                var urlKhach = $"https://localhost:7149/api/quanlydiachi/lay-toa-do/{maDiaChiLayHang}";
+                var resKhach = await client.GetAsync(urlKhach);
+
+                if (!resKhach.IsSuccessStatusCode)
+                {
+                    _logger.LogError($"Lỗi gọi API tọa độ khách: {resKhach.StatusCode} tại URL: {urlKhach}");
+                    // Thay vì trả về BadRequest, bạn có thể gán kho mặc định (ví dụ MaKho = 1) để đơn hàng vẫn được tạo
+                    return BadRequest($"Không lấy được tọa độ khách (Mã địa chỉ: {maDiaChiLayHang}). Vui lòng kiểm tra Server Khách hàng.");
+                }
+
+                var toaDoKhach = await resKhach.Content.ReadFromJsonAsync<ToaDoDto>();
+
+                // Kiểm tra nếu tọa độ trả về bị rỗng
+                if (toaDoKhach == null || toaDoKhach.ViDo == 0 || toaDoKhach.KinhDo == 0)
+                {
+                    return BadRequest("Tọa độ khách hàng trong cơ sở dữ liệu đang bị trống hoặc bằng 0.");
+                }
+                if (!resKhach.IsSuccessStatusCode) return BadRequest("Không lấy được tọa độ khách.");
+               
+
+                // BƯỚC 2: Lấy các kho đang hoạt động
+                var khoBais = await _context.KhoBais
+                    .Where(k => k.TrangThai == "Hoạt động")
+                    .Select(k => new { k.MaKho, k.MaDiaChi, k.TenKhoBai })
+                    .ToListAsync();
+
+                if (!khoBais.Any()) return NotFound("Không có kho nào đang hoạt động.");
+
+                var maDiaChiKhos = khoBais.Select(k => k.MaDiaChi).Distinct().ToList();
+
+                // BƯỚC 3: Lấy tọa độ các kho (Đã sửa URL từ hhttps thành https)
+                var resKhos = await client.PostAsJsonAsync("https://localhost:7149/api/quanlydiachi/lay-toa-do-danh-sach", maDiaChiKhos);
+                if (!resKhos.IsSuccessStatusCode) return BadRequest("Không lấy được tọa độ các kho.");
+
+                var danhSachToaDoKho = await resKhos.Content.ReadFromJsonAsync<List<ToaDoResponseDto>>();
+
+                // BƯỚC 4: Tính toán và tìm kho gần nhất
+                var ketQua = khoBais.Select(k => {
+                    var toaDo = danhSachToaDoKho.FirstOrDefault(t => t.MaDiaChi == k.MaDiaChi);
+                    return new
+                    {
+                        k.MaKho,
+                        k.TenKhoBai,
+                        KhoangCach = (toaDo != null && toaDo.ViDo.HasValue && toaDo.KinhDo.HasValue)
+                            ? TinhKhoangCach(toaDoKhach.ViDo, toaDoKhach.KinhDo, (double)toaDo.ViDo.Value, (double)toaDo.KinhDo.Value)
+                            : double.MaxValue
+                    };
+                })
+                .OrderBy(k => k.KhoangCach)
+                .FirstOrDefault(k => k.KhoangCach < double.MaxValue); // Đảm bảo không lấy kho lỗi tọa độ
+
+                if (ketQua == null) return NotFound("Không tìm thấy kho nào có tọa độ hợp lệ.");
+
+                return Ok(new
+                {
+                    maKho = ketQua.MaKho,
+                    tenKho = ketQua.TenKhoBai,
+                    distance = Math.Round(ketQua.KhoangCach, 2) + " km"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi tìm kho gần nhất");
+                return StatusCode(500, "Lỗi hệ thống: " + ex.Message);
+            }
+        }
+        private double TinhKhoangCach(double lat1, double lon1, double lat2, double lon2)
+        {
+            var R = 6371; // km
+            var dLat = (lat2 - lat1) * Math.PI / 180;
+            var dLon = (lon2 - lon1) * Math.PI / 180;
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
         }
     }
 }

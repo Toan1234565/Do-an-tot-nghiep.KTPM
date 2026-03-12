@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
-
+using QuanLyTaiKhoanNguoiDung.Models12._1234;
+using OfficeOpenXml;
 namespace QuanLyTaiKhoanNguoiDung
 {
     public class Program
@@ -50,6 +51,12 @@ namespace QuanLyTaiKhoanNguoiDung
             builder.Services.AddControllersWithViews();
             builder.Services.AddControllers();
             builder.Services.AddMemoryCache();
+            builder.Services.AddScoped<IEmailService, EmailService>();
+            // Giữ nguyên dòng đăng ký Worker cũ
+            builder.Services.AddHostedService<LicenseExpiryWorker>();
+            // Thêm dòng này ở đây
+            OfficeOpenXml.ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+            builder.Services.AddControllers();
 
             var app = builder.Build(); // --- XÂY DỰNG APP TẠI ĐÂY ---
 

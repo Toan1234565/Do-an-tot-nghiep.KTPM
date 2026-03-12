@@ -14,5 +14,7 @@
         public double? ViDo { get; set; }
 
         public double? KinhDo { get; set; }
+
+        public string? MaVungH3 { get; set; }
     }
 }

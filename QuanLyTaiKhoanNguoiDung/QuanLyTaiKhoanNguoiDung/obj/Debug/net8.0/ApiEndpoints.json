@@ -1,5 +1,21 @@
 [
   {
+    "ContainingType": "QuanLyTaiKhoanNguoiDung.ControllersAPI.QuanLyLichSuViPham",
+    "Method": "GetLichSuViPham",
+    "RelativePath": "api/quanlyllichsuvipham/LichSuViPham/{maNguoiDung}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "maNguoiDung",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "TaiKhoan1.ControllersAPI.QuanLyNguoiDung",
     "Method": "CapNhatNhanVien",
     "RelativePath": "api/quanlynguoidung/capnhatnhanvien/{maNhanVien}",
@@ -14,7 +30,7 @@
       },
       {
         "Name": "model",
-        "Type": "QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan.NguoiDungUpdateModel",
+        "Type": "QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien.NguoiDungUpdateModel",
         "IsRequired": true
       }
     ],
@@ -30,7 +46,7 @@
     "Parameters": [
       {
         "Name": "model",
-        "Type": "QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan.NguoiDungModel",
+        "Type": "QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien.NguoiDungModel",
         "IsRequired": true
       }
     ],
@@ -92,6 +108,11 @@
         "IsRequired": false
       },
       {
+        "Name": "maKho",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
         "Name": "maChucVu",
         "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
         "IsRequired": false
@@ -99,11 +120,6 @@
       {
         "Name": "page",
         "Type": "System.Int32",
-        "IsRequired": false
-      },
-      {
-        "Name": "donvi",
-        "Type": "System.String",
         "IsRequired": false
       }
     ],
@@ -176,7 +192,7 @@
     "Parameters": [
       {
         "Name": "model",
-        "Type": "QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan.NguoiDungModel",
+        "Type": "QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien.NguoiDungModel",
         "IsRequired": true
       }
     ],
@@ -262,6 +278,164 @@
         "Name": "model",
         "Type": "QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan.TaiKhoanCreate",
         "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyTaiKhoanNguoiDung.ControllersAPI.QuanLyHoSoTaiXe",
+    "Method": "GetCanhBaoHetHan",
+    "RelativePath": "api/quanlytaixe/canh-bao-het-han",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "days",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyTaiKhoanNguoiDung.ControllersAPI.QuanLyHoSoTaiXe",
+    "Method": "UpdateTrangThaiTaiXe",
+    "RelativePath": "api/quanlytaixe/cap-nhat-trang-thai",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyTaiXe.UpdateTaiXeModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyTaiKhoanNguoiDung.ControllersAPI.QuanLyHoSoTaiXe",
+    "Method": "UpdateHoSoTaiXe",
+    "RelativePath": "api/quanlytaixe/capnhattaixe",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyTaiXe.UpdateTaiXeModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyTaiKhoanNguoiDung.ControllersAPI.QuanLyHoSoTaiXe",
+    "Method": "GetChiTietTaiXe",
+    "RelativePath": "api/quanlytaixe/chitiet/{maNguoiDung}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "maNguoiDung",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyTaiKhoanNguoiDung.ControllersAPI.QuanLyHoSoTaiXe",
+    "Method": "GetDanhSachTaiXe",
+    "RelativePath": "api/quanlytaixe/danhsachtaixe",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "search",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "loaiBang",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "maKho",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "sortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "isDescending",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "page",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyTaiKhoanNguoiDung.ControllersAPI.QuanLyHoSoTaiXe",
+    "Method": "GuiThongBaoCapLai",
+    "RelativePath": "api/quanlytaixe/GuiThongBaoCapLai",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyTaiKhoanNguoiDung.ControllersAPI.QuanLyHoSoTaiXe",
+    "Method": "GetLichTrinhTaiXe",
+    "RelativePath": "api/quanlytaixe/lich-trinh-tai-xe",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "maKho",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "loaiXeYeuCau",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyTaiKhoanNguoiDung.ControllersAPI.QuanLyHoSoTaiXe",
+    "Method": "XuatBaoCaoHetHan",
+    "RelativePath": "api/quanlytaixe/xuat-bao-cao-het-han",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "days",
+        "Type": "System.Int32",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []

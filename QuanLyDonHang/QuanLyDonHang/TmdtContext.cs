@@ -20,11 +20,15 @@ public partial class TmdtContext : DbContext
 
     public virtual DbSet<CapNhatTrangThai> CapNhatTrangThais { get; set; }
 
+    public virtual DbSet<ChiTietLenhXuat> ChiTietLenhXuats { get; set; }
+
     public virtual DbSet<DanhMucLoaiHang> DanhMucLoaiHangs { get; set; }
 
     public virtual DbSet<DonHang> DonHangs { get; set; }
 
     public virtual DbSet<KienHang> KienHangs { get; set; }
+
+    public virtual DbSet<LenhXuatKho> LenhXuatKhos { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -81,6 +85,28 @@ public partial class TmdtContext : DbContext
                 .HasConstraintName("FK_CapNhat_KienHang");
         });
 
+        modelBuilder.Entity<ChiTietLenhXuat>(entity =>
+        {
+            entity.HasKey(e => e.MaChiTietLenhXuat).HasName("PK__ChiTietL__E5EADC0D8F8DFE42");
+
+            entity.ToTable("ChiTietLenhXuat");
+
+            entity.Property(e => e.MaChiTietLenhXuat).HasColumnName("ma_chi_tiet_lenh_xuat");
+            entity.Property(e => e.MaKienHang).HasColumnName("ma_kien_hang");
+            entity.Property(e => e.MaLenhXuat).HasColumnName("ma_lenh_xuat");
+            entity.Property(e => e.TrangThaiKiemDem)
+                .HasDefaultValue(false)
+                .HasColumnName("trang_thai_kiem_dem");
+            entity.Property(e => e.ViTriKhuVuc)
+                .HasMaxLength(100)
+                .HasColumnName("vi_tri_khu_vuc");
+
+            entity.HasOne(d => d.MaLenhXuatNavigation).WithMany(p => p.ChiTietLenhXuats)
+                .HasForeignKey(d => d.MaLenhXuat)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ChiTietXuat_LenhXuat");
+        });
+
         modelBuilder.Entity<DanhMucLoaiHang>(entity =>
         {
             entity.HasKey(e => e.MaLoaiHang).HasName("PK__Danh_Muc__B553D6004C4393C5");
@@ -111,11 +137,20 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.MaDiaChiNhanHang).HasColumnName("ma_dia_chi_nhan_hang");
             entity.Property(e => e.MaHopDongNgoai).HasColumnName("ma_hop_dong_ngoai");
             entity.Property(e => e.MaKhachHang).HasColumnName("ma_khach_hang");
+            entity.Property(e => e.MaKhuyenMai).HasColumnName("ma_khuyen_mai");
             entity.Property(e => e.MaLoaiDv)
                 .HasDefaultValue(1)
                 .HasColumnName("ma_loai_dv");
             entity.Property(e => e.MaMucDoDv).HasColumnName("ma_muc_do_dv");
             entity.Property(e => e.MaVung).HasColumnName("ma_vung");
+            entity.Property(e => e.MaVungH3Giao)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("MaVungH3_Giao");
+            entity.Property(e => e.MaVungH3Nhan)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("MaVungH3_Nhan");
             entity.Property(e => e.SdtNguoiNhan)
                 .HasMaxLength(20)
                 .HasColumnName("sdt_nguoi_nhan");
@@ -125,6 +160,7 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.TenNguoiNhan)
                 .HasMaxLength(100)
                 .HasColumnName("ten_nguoi_nhan");
+            entity.Property(e => e.ThoiGianGiaoDuKien).HasColumnType("datetime");
             entity.Property(e => e.ThoiGianTao)
                 .HasColumnType("datetime")
                 .HasColumnName("thoi_gian_tao");
@@ -148,7 +184,6 @@ public partial class TmdtContext : DbContext
             entity.HasIndex(e => e.MaVach, "UQ__Kien_Han__DE70626347024EA8").IsUnique();
 
             entity.Property(e => e.MaKienHang).HasColumnName("ma_kien_hang");
-            entity.Property(e => e.DaThanhToan).HasColumnName("da_thanh_toan");
             entity.Property(e => e.DaThuGom).HasColumnName("da_thu_gom");
             entity.Property(e => e.KhoiLuong).HasColumnName("khoi_luong");
             entity.Property(e => e.MaBangGiaVung).HasColumnName("ma_bang_gia_vung");
@@ -175,6 +210,28 @@ public partial class TmdtContext : DbContext
             entity.HasOne(d => d.MaLoaiHangNavigation).WithMany(p => p.KienHangs)
                 .HasForeignKey(d => d.MaLoaiHang)
                 .HasConstraintName("FK_KienHang_LoaiHang");
+        });
+
+        modelBuilder.Entity<LenhXuatKho>(entity =>
+        {
+            entity.HasKey(e => e.MaLenhXuat).HasName("PK__Lenh_Xua__5938EBC7DD8A0EE6");
+
+            entity.ToTable("Lenh_Xuat_Kho");
+
+            entity.Property(e => e.MaLenhXuat).HasColumnName("ma_lenh_xuat");
+            entity.Property(e => e.GhiChu).HasColumnName("ghi_chu");
+            entity.Property(e => e.MaKho).HasColumnName("ma_kho");
+            entity.Property(e => e.MaNguoiSoan).HasColumnName("ma_nguoi_soan");
+            entity.Property(e => e.NgayTao)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime")
+                .HasColumnName("ngay_tao");
+            entity.Property(e => e.ThoiGianSoanDon)
+                .HasColumnType("datetime")
+                .HasColumnName("thoi_gian_soan_don");
+            entity.Property(e => e.TrangThai)
+                .HasMaxLength(50)
+                .HasColumnName("trang_thai");
         });
 
         OnModelCreatingPartial(modelBuilder);

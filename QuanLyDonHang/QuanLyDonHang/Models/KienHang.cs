@@ -19,8 +19,6 @@ public partial class KienHang
 
     public decimal? SoTien { get; set; }
 
-    public bool DaThanhToan { get; set; }
-
     public int? MaKhoHienTai { get; set; }
 
     public string? YeuCauBaoQuan { get; set; }

@@ -54,6 +54,14 @@
               "target": "Package",
               "version": "[4.0.3, )"
             },
+            "EPPlus": {
+              "target": "Package",
+              "version": "[7.7.0, )"
+            },
+            "MailKit": {
+              "target": "Package",
+              "version": "[4.15.1, )"
+            },
             "Microsoft.EntityFrameworkCore": {
               "target": "Package",
               "version": "[9.0.9, )"
@@ -71,6 +79,10 @@
             "Newtonsoft.Json": {
               "target": "Package",
               "version": "[13.0.4, )"
+            },
+            "OfficeOpenXml.Core.ExcelPackage": {
+              "target": "Package",
+              "version": "[1.0.0, )"
             }
           },
           "imports": [

@@ -1,4 +1,5 @@
-﻿using QuanLyDonHang.Models;
+﻿using Microsoft.Identity.Client;
+using QuanLyDonHang.Models;
 
 namespace QuanLyDonHang.Models1
 {
@@ -19,11 +20,13 @@ namespace QuanLyDonHang.Models1
 
         public decimal? SoTien { get; set; }
 
-        public bool DaThanhToan { get; set; }
+        public int SoLuongKienHang { get; set; }
 
         public int? MaKhoHienTai { get; set; }
 
         public int? MaLoaiHang { get; set; } 
+
+        public int? MaBangGiaVung { get; set; }
 
         public virtual BangChungGiaoHang? BangChungGiaoHang { get; set; }
 

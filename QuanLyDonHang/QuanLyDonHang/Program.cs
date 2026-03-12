@@ -34,7 +34,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
+builder.Services.AddScoped<RabbitMQProducer>();
 var app = builder.Build();
 
 // THỨ TỰ MIDDLEWARE (QUAN TRỌNG)

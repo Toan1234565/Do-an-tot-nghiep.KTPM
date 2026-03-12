@@ -88,6 +88,74 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "QuanLyLoTrinhTheoDoi.ConTrollersAPI.QuanLyDieuPhoiLoTrinh",
+    "Method": "PostNhatKy",
+    "RelativePath": "api/dieuphoilotrinh/cap-nhat-toa-do",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "log",
+        "Type": "QuanLyLoTrinhTheoDoi.Models.NhatKyTheoDoi",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyLoTrinhTheoDoi.ConTrollersAPI.QuanLyDieuPhoiLoTrinh",
+    "Method": "DenDiemDung",
+    "RelativePath": "api/dieuphoilotrinh/den-diem-dung/{maDiemDung}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "maDiemDung",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyLoTrinhTheoDoi.ConTrollersAPI.QuanLyDieuPhoiLoTrinh",
+    "Method": "GetLoTrinhTaiXe",
+    "RelativePath": "api/dieuphoilotrinh/tai-xe/{maTaiXe}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "maTaiXe",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyLoTrinhTheoDoi.ConTrollersAPI.QuanLyDieuPhoiLoTrinh",
+    "Method": "GetAllLoTrinh",
+    "RelativePath": "api/dieuphoilotrinh/tat-ca-lo-trinh",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyLoTrinhTheoDoi.ConTrollersAPI.QuanLyDieuPhoiLoTrinh",
+    "Method": "TuDongGomNhomDonHang",
+    "RelativePath": "api/dieuphoilotrinh/tu-dong-gom-nhom",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "QuanLyLoTrinhTheoDoi.Controllers.WeatherForecastController",
     "Method": "Get",
     "RelativePath": "WeatherForecast",

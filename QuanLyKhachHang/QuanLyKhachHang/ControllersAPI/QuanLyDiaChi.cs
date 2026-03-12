@@ -5,6 +5,9 @@ using Microsoft.Extensions.Caching.Memory;
 using QuanLyKhachHang.Models;
 using QuanLyKhachHang.Models1.QuanLyDiaChi;
 using QuanLyKhachHang.Models1.QuanLyKhachHang;
+using H3;
+using H3.Extensions;
+using H3.Model;
 
 namespace QuanLyKhachHang.ControllersAPI
 {
@@ -151,6 +154,13 @@ namespace QuanLyKhachHang.ControllersAPI
                 }
                 var (lat, lon) = await GetCoordinatesAsync(request.Duong, request.Phuong, request.ThanhPho);
 
+                string h3Hex = string.Empty;
+                if (lat.HasValue && lon.HasValue)
+                {
+                    // Độ phân giải 7 (khoảng 1.2km) phù hợp cho vận tải đô thị
+                    var h3IndexObj = H3Index.FromLatLng(new LatLng(lat.Value, lon.Value), 7);
+                    h3Hex = h3IndexObj.ToString();
+                }
 
                 // 2. Nếu chưa có thì tạo mới
                 var newDc = new DiaChi
@@ -159,13 +169,20 @@ namespace QuanLyKhachHang.ControllersAPI
                     Phuong = request.Phuong,
                     Duong = request.Duong,
                     KinhDo =lon,
-                    ViDo = lat
-                };
+                    ViDo = lat,
+                    MaVungH3 = h3Hex
 
+                };
+                if (lat == null || lon == null)
+                {
+                    
+                    return BadRequest(new { message = "Không tìm thấy kinh độ/vĩ độ trên bản đồ." });
+                }
+               
                 _context.DiaChis.Add(newDc);
                 await _context.SaveChangesAsync();
 
-                return Ok(newDc.MaDiaChi); // Trả về ID vừa tạo
+                return Ok(new { maDiaChi = newDc.MaDiaChi, maVungH3 = newDc.MaVungH3 });
             }
             catch (Exception ex)
             {
@@ -222,6 +239,38 @@ namespace QuanLyKhachHang.ControllersAPI
             [System.Text.Json.Serialization.JsonPropertyName("lon")]
             public string? lon { get; set; }
         }
+        [HttpGet("lay-toa-do/{id}")]
+        public async Task<IActionResult> GetCoordinates(int id)
+        {
+            var diaChi = await _context.DiaChis
+                .Select(d => new {
+                    d.MaDiaChi,
+                    d.ViDo,
+                    d.KinhDo,
+                    d.ThanhPho
+                })
+                .FirstOrDefaultAsync(d => d.MaDiaChi == id);
+
+            if (diaChi == null) return NotFound(new { message = "Không tìm thấy địa chỉ" });
+
+            return Ok(diaChi);
+        }
+        [HttpPost("lay-toa-do-danh-sach")]
+        public async Task<IActionResult> GetToaDoSach([FromBody] List<int> ids)
+        {
+            var listToaDo = await _context.DiaChis
+                .Where(d => ids.Contains(d.MaDiaChi))
+                .Select(d => new {
+                    d.MaDiaChi,
+                    ViDo = d.ViDo,
+                    KinhDo = d.KinhDo
+                })
+                .ToListAsync();
+
+            return Ok(listToaDo);
+        }
+
+
 
     }
 }

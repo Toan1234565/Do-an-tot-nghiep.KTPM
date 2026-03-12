@@ -1,0 +1,542 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyTaiXe
+@model QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyTaiXe.HoSoTaiXeViewModel
+@{
+    // Không dùng ViewBag nữa, lấy trực tiếp từ Model
+    var viPham = Model.DanhSachViPham;
+    var chitiet = Model.ChiTiet;
+}
+<style>
+    :root {
+        --primary: #4361ee;
+        --secondary: #3f37c9;
+        --success: #2ec4b6;
+        --warning: #ff9f1c;
+        --danger: #e71d36;
+        --light-bg: #f8f9fa;
+        --card-shadow: 0 0.75rem 1.5rem rgba(18, 38, 63, 0.05);
+    }
+
+    body {
+        background-color: #f4f7f6;
+        font-family: 'Inter', -apple-system, sans-serif;
+    }
+
+    /* Card Custom */
+    .card-custom {
+        border: none;
+        border-radius: 12px;
+        box-shadow: var(--card-shadow);
+        background: #fff;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Header Profile */
+    .profile-card-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        height: 100px;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .profile-avatar-wrapper {
+        margin-top: -50px;
+        padding: 0 1.5rem;
+    }
+
+        .profile-avatar-wrapper img {
+            width: 100px;
+            height: 100px;
+            border: 4px solid #fff;
+            background: #fff;
+            object-fit: cover;
+        }
+
+    /* Info Labels & Values */
+    .info-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #94a3b8;
+        font-weight: 800;
+        margin-bottom: 4px;
+    }
+
+    .info-value {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .info-value i {
+            color: var(--primary);
+            width: 20px;
+            text-align: center;
+        }
+
+    /* Badge Status */
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .status-ready {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-busy {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    /* Tabs Custom */
+    .nav-tabs-custom {
+        border-bottom: 2px solid #f1f5f9;
+        gap: 20px;
+    }
+
+        .nav-tabs-custom .nav-link {
+            border: none;
+            color: #64748b;
+            font-weight: 600;
+            padding: 12px 5px;
+            position: relative;
+        }
+
+            .nav-tabs-custom .nav-link.active {
+                color: var(--primary);
+                background: none;
+            }
+
+                .nav-tabs-custom .nav-link.active::after {
+                    content: "";
+                    position: absolute;
+                    bottom: -2px;
+                    left: 0;
+                    width: 100%;
+                    height: 2px;
+                    background: var(--primary);
+                }
+
+    /* License Box */
+    .license-box {
+        background: #f8fafc;
+        border: 2px dashed #e2e8f0;
+        border-radius: 12px;
+        padding: 12px;
+        text-align: center;
+    }
+
+    .license-img {
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        border-radius: 8px;
+        transition: transform 0.2s;
+    }
+
+        .license-img:hover {
+            transform: scale(1.02);
+            cursor: zoom-in;
+        }
+
+    /* Stat Icon */
+    .stat-icon {
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+    }
+</style>
+
+<main class="container py-4">
+    <div class="mb-4">
+        <a href="/QuanLytaiXe/DanhSachTaiXe" class="text-decoration-none text-muted fw-bold small">
+            <i class="fa-solid fa-arrow-left-long me-2"></i>QUAY LẠI DANH SÁCH TÀI XẾ
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card card-custom sticky-top" style="top: 20px;">
+                <div class="profile-card-header"></div>
+                <div class="profile-avatar-wrapper text-center">
+                    <img src="https://ui-avatars.com/api/?name=chitiet?.HoTenTaiXe&background=4361ee&color=fff&size=128"
+                         class="rounded-circle shadow-sm mb-3" alt="Avatar">
+                    <h4 class="fw-bold mb-1 text-dark">@chitiet?.HoTenTaiXe</h4>
+                    <div class="d-flex justify-content-center gap-2 mb-3">
+                        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill small">Hạng @chitiet?.LoaiBangLai</span>
+                        <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill small">⭐ @chitiet?.DiemUyTin Điểm</span>
+                    </div>
+                </div>
+
+                <div class="card-body px-4">
+                    <div class="row text-center border-top border-bottom py-3 mb-4 bg-light rounded-3">
+                        <div class="col-6 border-end">
+                            <div class="info-label">Kinh nghiệm</div>
+                            <div class="fw-bold text-dark">@chitiet?.KinhNghiemNam Năm</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="info-label">Trạng thái</div>
+                            <span class="status-badge @(chitiet?.TrangThaiHoatDong == "Sẵn sàng" ? "status-ready" : "status-busy")">
+                                @chitiet?.TrangThaiHoatDong
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="info-group">
+                        <div class="info-label">Liên hệ cơ bản</div>
+                        <div class="info-value"><i class="fa-solid fa-phone"></i> @chitiet?.SoDienThoai</div>
+                        <div class="info-value"><i class="fa-solid fa-envelope"></i> @chitiet?.Email</div>
+
+                        <div class="info-label">Giấy phép lái xe</div>
+                        <div class="info-value"><i class="fa-solid fa-id-card-pin"></i> @chitiet?.SoBangLai</div>
+                        <div class="info-value text-danger"><i class="fa-solid fa-calendar-xmark"></i> Hết hạn: @chitiet?.NgayHetHanBang.ToString("dd/MM/yyyy")</div>
+
+                        <div class="info-label">Đơn vị quản lý</div>
+                        <div class="info-value"><i class="fa-solid fa-building"></i> @chitiet?.DonViLamViec</div>
+                    </div>
+
+                    <button class="btn btn-primary w-100 mt-2 py-2 fw-bold" onclick="openEditModal()">
+                        <i class="fa-solid fa-user-pen me-2"></i>CẬP NHẬT HỒ SƠ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card card-custom h-100">
+                <div class="card-body p-4">
+                    <ul class="nav nav-tabs nav-tabs-custom mb-4" id="driverTab" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button">Thông tin hồ sơ</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="violation-tab" data-bs-toggle="tab" data-bs-target="#violation" type="button">Lịch sử vi phạm</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="driverTabContent">
+                        <div class="tab-pane fade show active" id="info" role="tabpanel">
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-4">
+                                    <div class="border rounded-3 p-3 d-flex align-items-center bg-light">
+                                        <div class="stat-icon bg-primary bg-opacity-10 me-3">
+                                            <i class="fa-solid fa-truck-fast text-primary"></i>
+                                        </div>
+                                        <div>
+                                            <div class="info-label mb-0">Tổng chuyến</div>
+                                            <h4 class="mb-0 fw-bold">128</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="border rounded-3 p-3 d-flex align-items-center bg-light">
+                                        <div class="stat-icon bg-success bg-opacity-10 me-3">
+                                            <i class="fa-solid fa-shield-check text-success"></i>
+                                        </div>
+                                        <div>
+                                            <div class="info-label mb-0">Bảo hiểm</div>
+                                            <h4 class="mb-0 fw-bold text-success" style="font-size: 1.1rem">HIỆU LỰC</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="border rounded-3 p-3 d-flex align-items-center bg-light">
+                                        <div class="stat-icon bg-warning bg-opacity-10 me-3">
+                                            <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+                                        </div>
+                                        <div>
+                                            <div class="info-label mb-0">Vi phạm</div>
+                                            <h4 class="mb-0 fw-bold">@(viPham?.Count ?? 0)</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h6 class="fw-bold mb-3"><i class="fa-solid fa-image me-2 text-primary"></i>Hình ảnh bằng lái xe</h6>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <div class="license-box">
+                                        <p class="small fw-bold text-muted mb-2 text-uppercase">Mặt trước</p>
+                                        <img src="@(string.IsNullOrEmpty(chitiet?.AnhBangLaiTruoc) ? "/images/no-image.png" : chitiet?.AnhBangLaiTruoc)"
+                                             class="license-img shadow-sm border" alt="Mặt trước">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="license-box">
+                                        <p class="small fw-bold text-muted mb-2 text-uppercase">Mặt sau</p>
+                                        <img src="@(string.IsNullOrEmpty(chitiet?.AnhBangLaiSau) ? "/images/no-image.png" : chitiet?.AnhBangLaiSau)"
+                                             class="license-img shadow-sm border" alt="Mặt sau">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h6 class="fw-bold mb-3"><i class="fa-solid fa-lock me-2 text-primary"></i>Định danh & Tài chính</h6>
+                            <div class="row g-4 border rounded-3 p-3 m-0 bg-light bg-opacity-50">
+                                <div class="col-md-6">
+                                    <div class="info-label">Số CCCD</div>
+                                    <div class="info-value mb-0"><i class="fa-solid fa-address-card"></i> @chitiet?.SoCccd</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="info-label">Mã số BHXH</div>
+                                    <div class="info-value mb-0"><i class="fa-solid fa-heart-pulse"></i> @chitiet?.BaoHiemXaHoi</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="info-label">Ngân hàng hưởng thụ</div>
+                                    <div class="info-value mb-0"><i class="fa-solid fa-building-columns"></i> @chitiet?.TenNganHang</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="info-label">Số tài khoản</div>
+                                    <div class="info-value mb-0"><i class="fa-solid fa-credit-card"></i> @chitiet?.SoTaiKhoan</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="violation" role="tabpanel">
+                            <div class="table-responsive border rounded-3">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="ps-4 py-3 text-muted small fw-bold">NGÀY VI PHẠM</th>
+                                            <th class="py-3 text-muted small fw-bold">LOẠI LỖI</th>
+                                            <th class="py-3 text-muted small fw-bold">HÌNH THỨC XỬ LÝ</th>
+                                            <th class="py-3 text-muted small fw-bold text-center">TRẠNG THÁI</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (viPham != null && viPham.Any())
+                                        {
+                                            foreach (var item in viPham)
+                                            {
+                                                <tr>
+                                                    <td class="ps-4 fw-semibold">@item.NgayViPham?.ToString("dd/MM/yyyy")</td>
+                                                    <td>
+                                                        <div class="fw-bold text-danger">@item?.LoaiViPham</div>
+                                                        <div class="small text-muted">@item?.MoTaChiTiet</div>
+                                                    </td>
+                                                    <td>@item?.HinhThucXuLy @(item?.MucPhat > 0 ? $"- {item.MucPhat:N0} VNĐ" : "")</td>
+                                                    
+                                                    <td class="text-center">
+                                                        @item?.TrangThaiXuLy
+                                                       
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <tr>
+                                                <td colspan="4" class="text-center py-5">
+                                                    <img src="https://cdn-icons-png.flaticon.com/512/4436/4436481.png" width="60" class="mb-3 opacity-50">
+                                                    <p class="text-muted">Tài xế hiện chưa có lịch sử vi phạm nào.</p>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="editDriverModal" tabindex="-1" aria-labelledby="editDriverModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold" id="editDriverModalLabel">
+                        <i class="fa-solid fa-user-pen me-2 text-primary"></i>Cập nhật thông tin tài xế
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="editDriverForm">
+                        <input type="hidden" id="editMaNguoiDung" value="@chitiet?.MaNguoiDung" />
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted">SỐ ĐIỆN THOẠI</label>
+                                <input type="text" class="form-control" id="editSDT" value="@chitiet?.SoDienThoai" placeholder="Nhập số điện thoại">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted">MÃ BHXH</label>
+                                <input type="text" class="form-control" id="editBHXH" value="@chitiet?.BaoHiemXaHoi" placeholder="Nhập mã BHXH">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted">CHỨC VỤ *</label>
+                                <select class="form-select" id="selectChucVu" required>
+                                    <option value="@chitiet?.MaChucVu" selected>@chitiet?.TenChucVu</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted">ĐƠN VỊ LÀM VIỆC *</label>
+                                <select class="form-select" id="selectDonViLamViec" required>
+                                    <option value="@chitiet?.DonViLamViec" selected>@chitiet?.DonViLamViec</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted">SỐ BẰNG LÁI</label>
+                                <input type="text" class="form-control" id="editSoBangLai" value="@chitiet?.SoBangLai">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted">LOẠI BẰNG LÁI</label>
+                                <select class="form-select" id="editLoaiBangLai">
+                                    <option value="B2" selected="@(chitiet?.LoaiBangLai == "B2")">Hạng B2</option>
+                                    <option value="C" selected="@(chitiet?.LoaiBangLai == "C")">Hạng C</option>
+                                    <option value="D" selected="@(chitiet?.LoaiBangLai == "D")">Hạng D</option>
+                                    <option value="E" selected="@(chitiet?.LoaiBangLai == "E")">Hạng E</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-muted">KINH NGHIỆM (NĂM)</label>
+                                <input type="number" class="form-control" id="editKinhNghiem" value="@chitiet?.KinhNghiemNam">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-muted">ĐIỂM UY TÍN</label>
+                                <input type="number" step="0.1" class="form-control" id="editDiemUyTin" value="@chitiet?.DiemUyTin">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-muted">TRẠNG THÁI</label>
+                                <select class="form-select" id="editTrangThai">
+                                    <option value="Sẵn sàng" selected="@(chitiet?.TrangThaiHoatDong == "Sẵn sàng")">Sẵn sàng</option>
+                                    <option value="Đang bận" selected="@(chitiet?.TrangThaiHoatDong == "Đang bận")">Đang bận</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold text-muted">NGÀY GIA HẠN BẰNG</label>
+                                <input type="date" class="form-control" id="editNgayCapBang" value="@chitiet?.NgayCapBang?.ToString("yyyy-MM-dd")">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold text-muted">NGÀY HẾT HẠN BẰNG</label>
+                                <input type="date" class="form-control" id="editNgayHetHan" value="@chitiet?.NgayHetHanBang.ToString("yyyy-MM-dd")">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light border-top-0">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Hủy bỏ</button>
+                    <button type="button" class="btn btn-primary px-4" onclick="saveDriverProfile()">
+                        <i class="fa-solid fa-floppy-disk me-2"></i>Lưu thay đổi
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        const API_USER = 'https://localhost:7022/api/quanlynguoidung';
+        const API_DRIVER = 'https://localhost:7022/api/quanlytaixe';
+        const API_KHO = 'https://localhost:7286/api/quanlykhobai';
+
+        // 1. Mở Modal
+        function openEditModal() {
+            const modal = new bootstrap.Modal(document.getElementById('editDriverModal'));
+            modal.show();
+
+            // Load data chỉ khi mở modal để tối ưu hiệu năng
+            loadChucVuData();
+            loadDonViData();
+        }
+
+        // 2. Load Chức Vụ
+        async function loadChucVuData() {
+            const select = document.getElementById('selectChucVu');
+            const currentMaCV = "@chitiet?.MaChucVu";
+
+            try {
+                const response = await fetch(`${API_USER}/danhsachchucvu`);
+                const data = await response.json();
+
+                if (data) {
+                    select.innerHTML = '<option value="">-- Chọn chức vụ --</option>';
+                    data.forEach(item => {
+                        const option = new Option(item.tenChucVu, item.maChucVu);
+                        if (String(item.maChucVu) === String(currentMaCV)) option.selected = true;
+                        select.add(option);
+                    });
+                }
+            } catch (e) { console.error("Lỗi load chức vụ:", e); }
+        }
+
+        // 3. Load Đơn Vị
+        async function loadDonViData() {
+            const selectModal = document.getElementById('selectDonViLamViec');
+            const currentDV = "@chitiet?.DonViLamViec";
+
+            try {
+                const response = await fetch(`${API_KHO}/gettenkhobai`);
+                const data = await response.json();
+
+                if (data) {
+                    selectModal.innerHTML = '<option value="">-- Chọn đơn vị --</option>';
+                    data.forEach(item => {
+                        const option = new Option(item.tenKhoBai, item.tenKhoBai);
+                        if (item.tenKhoBai === currentDV) option.selected = true;
+                        selectModal.add(option);
+                    });
+                }
+            } catch (e) { console.error("Lỗi load đơn vị:", e); }
+        }
+
+        // 4. Lưu dữ liệu
+        async function saveDriverProfile() {
+            const updateData = {
+                maNguoiDung: parseInt(document.getElementById('editMaNguoiDung').value),
+                soDienThoai: document.getElementById('editSDT').value,
+                baoHiemXaHoi: document.getElementById('editBHXH').value,
+                maChucVu: parseInt(document.getElementById('selectChucVu').value),
+                donViLamViec: document.getElementById('selectDonViLamViec').value,
+                soBangLai: document.getElementById('editSoBangLai').value,
+                loaiBangLai: document.getElementById('editLoaiBangLai').value,
+                kinhNghiemNam: parseInt(document.getElementById('editKinhNghiem').value) || 0,
+                trangThaiHoatDong: document.getElementById('editTrangThai').value,
+                ngayHetHanBang: document.getElementById('editNgayHetHan').value,
+                ngayCapBang: document.getElementById('editNgayCapBang').value,
+                diemUyTin: parseFloat(document.getElementById('editDiemUyTin').value) || 0
+            };
+
+            // Validate cơ bản
+            if(!updateData.maChucVu || !updateData.donViLamViec) {
+                Swal.fire('Chú ý', 'Vui lòng chọn đầy đủ Chức vụ và Đơn vị!', 'warning');
+                return;
+            }
+
+            try {
+                Swal.fire({ title: 'Đang xử lý...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+                const response = await fetch(`${API_DRIVER}/capnhattaixe`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (response.ok) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công!',
+                        text: 'Thông tin tài xế đã được cập nhật.',
+                        timer: 1500
+                    }).then(() => location.reload());
+                } else {
+                    const error = await response.text();
+                    Swal.fire('Thất bại', error || 'Có lỗi xảy ra khi lưu.', 'error');
+                }
+            } catch (error) {
+                Swal.fire('Lỗi kết nối', 'Không thể kết nối tới máy chủ API.', 'error');
+            }
+        }
+    </script>
+
+</main>

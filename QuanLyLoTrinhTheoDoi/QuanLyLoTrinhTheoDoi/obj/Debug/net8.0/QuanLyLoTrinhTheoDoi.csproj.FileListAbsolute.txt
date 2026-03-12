@@ -25,13 +25,19 @@ D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.EntityFrameworkCore.SqlServer.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Caching.Abstractions.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Caching.Memory.dll
+D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Configuration.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Configuration.Abstractions.dll
+D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Configuration.Binder.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.DependencyInjection.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.DependencyModel.dll
+D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Diagnostics.dll
+D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Diagnostics.Abstractions.dll
+D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Http.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Logging.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Logging.Abstractions.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Options.dll
+D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Options.ConfigurationExtensions.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Extensions.Primitives.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Identity.Client.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Identity.Client.Extensions.Msal.dll
@@ -45,6 +51,7 @@ D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.SqlServer.Server.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Microsoft.Win32.SystemEvents.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Mono.TextTemplating.dll
+D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\RabbitMQ.Client.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Swashbuckle.AspNetCore.Swagger.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerGen.dll
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerUI.dll
@@ -154,6 +161,7 @@ D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\obj\Debug\
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\obj\Debug\net8.0\QuanLyLoTrinhTheoDoi.csproj.CoreCompileInputs.cache
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\obj\Debug\net8.0\QuanLyLoTrinhTheoDoi.MvcApplicationPartsAssemblyInfo.cs
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\obj\Debug\net8.0\QuanLyLoTrinhTheoDoi.MvcApplicationPartsAssemblyInfo.cache
+D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\obj\Debug\net8.0\QuanLyLoTrinhTheoDoi.sourcelink.json
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\obj\Debug\net8.0\rjimswa.dswa.cache.json
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
 D:\Đồ án tốt nghiệp\QuanLyLoTrinhTheoDoi\QuanLyLoTrinhTheoDoi\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json

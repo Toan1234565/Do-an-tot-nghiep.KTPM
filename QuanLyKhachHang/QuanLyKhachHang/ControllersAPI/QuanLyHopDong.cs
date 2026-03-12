@@ -83,7 +83,7 @@ namespace QuanLyKhachHang.ControllersAPI
                         .OrderByDescending(h => h.NgayKy)
                         .Skip((page - 1) * pageSize)
                         .Take(pageSize)
-                        .Select(h => new HopDongVanChuyenModels
+                        .Select(h => new ChiTietHopDongModes
                         {
                             MaHopDong = h.MaHopDong,
                             TenHopDong = h.TenHopDong,
@@ -250,55 +250,93 @@ namespace QuanLyKhachHang.ControllersAPI
         [HttpPut("cap-nhat/{id}")]
         public async Task<IActionResult> CapNhat(int id, [FromForm] HopDongVanChuyen model, IFormFile? file)
         {
-            // 1. Kiểm tra ID truyền vào và ID trong model (nếu model có chứa ID)
-            // Lưu ý: Nếu model gửi từ form không có MaHopDong, bạn có thể bỏ qua check này 
-            // và dùng trực tiếp 'id' từ route.
+            // 1. Kiểm tra ID nhất quán
             if (model.MaHopDong != 0 && id != model.MaHopDong)
             {
-                return BadRequest(new { success = false, message = "ID không khớp." });
+                return BadRequest(new { success = false, message = "ID hợp đồng không khớp giữa Route và Body." });
             }
 
             try
             {
-                // 2. Tìm hợp đồng gốc trong Database
-                var existingContract = await _context.HopDongVanChuyens.FindAsync(id);
+                // 2. Kiểm tra sự tồn tại (Chỉ lấy MaHopDong, tránh tải cột FileHopDong nặng nề)
+                var contractExists = await _context.HopDongVanChuyens
+                    .AnyAsync(x => x.MaHopDong == id);
 
-                if (existingContract == null)
+                if (!contractExists)
                 {
-                    return NotFound(new { success = false, message = "Không tìm thấy hợp đồng." });
+                    return NotFound(new { success = false, message = $"Không tìm thấy hợp đồng mã số {id}." });
                 }
-                existingContract.NgayHetHan = model.NgayHetHan;
-                if (existingContract.NgayHetHan.HasValue && existingContract.NgayHetHan < DateTime.Now)
-                {
-                    existingContract.TrangThai = "Hết hiệu lực";
-                }
-                // 3. Cập nhật các thông tin cơ bản
-                // KHÔNG gán: existingContract.MaKhachHang = model.MaKhachHang; 
-                // Việc bỏ qua dòng trên sẽ đảm bảo khách hàng không bị thay đổi.
 
+                // 3. Sử dụng kỹ thuật Attach để cập nhật (Tối ưu hiệu suất)
+                // Thay vì FindAsync (tải hết data), ta tạo một object đại diện cho bản ghi hiện tại
+                var existingContract = new HopDongVanChuyen { MaHopDong = id };
+                _context.HopDongVanChuyens.Attach(existingContract);
+
+                // 4. Áp dụng logic thay đổi các trường dữ liệu
                 existingContract.TenHopDong = model.TenHopDong;
                 existingContract.LoaiHangHoa = model.LoaiHangHoa;
-                existingContract.TrangThai = model.TrangThai;
                 existingContract.NgayKy = model.NgayKy;
                 existingContract.NgayHetHan = model.NgayHetHan;
 
-                // 4. Xử lý File (chỉ cập nhật nếu có file mới được upload)
-                if (file != null && file.Length > 0)
+                // Logic tự động chuyển trạng thái nếu hết hạn
+                if (model.NgayHetHan.HasValue && model.NgayHetHan < DateTime.Now)
                 {
-                    using var ms = new MemoryStream();
-                    await file.CopyToAsync(ms);
-                    existingContract.FileHopDong = ms.ToArray();
-                    existingContract.TenFileGoc = file.FileName;
+                    existingContract.TrangThai = "Hết hiệu lực";
+                }
+                else
+                {
+                    existingContract.TrangThai = model.TrangThai;
                 }
 
-                // 5. Lưu thay đổi
+                // Đánh dấu các trường này là "Modified" để EF sinh câu lệnh Update chính xác
+                var entry = _context.Entry(existingContract);
+                entry.Property(x => x.TenHopDong).IsModified = true;
+                entry.Property(x => x.LoaiHangHoa).IsModified = true;
+                entry.Property(x => x.NgayKy).IsModified = true;
+                entry.Property(x => x.NgayHetHan).IsModified = true;
+                entry.Property(x => x.TrangThai).IsModified = true;
+
+                // 5. Xử lý File (Chỉ cập nhật nếu người dùng upload file mới)
+                if (file != null && file.Length > 0)
+                {
+                    // Kiểm tra dung lượng (ví dụ giới hạn 10MB)
+                    if (file.Length > 10 * 1024 * 1024)
+                        return BadRequest(new { success = false, message = "File hợp đồng không được vượt quá 10MB." });
+
+                    using var ms = new MemoryStream();
+                    await file.CopyToAsync(ms);
+
+                    existingContract.FileHopDong = ms.ToArray();
+                    existingContract.TenFileGoc = file.FileName;
+
+                    entry.Property(x => x.FileHopDong).IsModified = true;
+                    entry.Property(x => x.TenFileGoc).IsModified = true;
+                }
+
+                // 6. Thực thi cập nhật xuống Database
                 await _context.SaveChangesAsync();
+
+                // 7. Xóa Cache (Nếu có) để người dùng thấy dữ liệu mới ngay lập tức
                 ClearContractCache();
-                return Ok(new { success = true, message = "Cập nhật thông tin hợp đồng thành công!" });
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Cập nhật thông tin hợp đồng thành công!",
+                    data = new
+                    {
+                        id = existingContract.MaHopDong,
+                        trangThai = existingContract.TrangThai
+                    }
+                });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Conflict(new { success = false, message = "Dữ liệu đã bị thay đổi bởi một tiến trình khác. Vui lòng tải lại trang." });
             }
             catch (Exception ex)
             {
-                // Log lỗi tại đây nếu cần
+                _logger.LogError(ex, "Lỗi khi cập nhật hợp đồng ID: {Id}", id);
                 return StatusCode(500, new { success = false, message = "Lỗi hệ thống: " + ex.Message });
             }
         }

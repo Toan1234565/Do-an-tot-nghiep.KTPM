@@ -481,6 +481,36 @@
         }
       }
     },
+    "/api/quanlyxe/xe-san-sang-dieu-phoi": {
+      "get": {
+        "tags": [
+          "QuanLyDanhXe"
+        ],
+        "parameters": [
+          {
+            "name": "khoiLuongHang",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "maKho",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/quanlydinhmuc/danhsachdinhmuc": {
       "get": {
         "tags": [
@@ -766,6 +796,29 @@
       "get": {
         "tags": [
           "QuanLyKho"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlykhobai/tim-kho-gan-nhat/{maDiaChiLayHang}": {
+      "get": {
+        "tags": [
+          "QuanLyKho"
+        ],
+        "parameters": [
+          {
+            "name": "maDiaChiLayHang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
         ],
         "responses": {
           "200": {

@@ -120,6 +120,27 @@
         }
       }
     },
+    "/api/quanlykhachhang/check-phone": {
+      "get": {
+        "tags": [
+          "KhachHangAPI"
+        ],
+        "parameters": [
+          {
+            "name": "soDienThoai",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/quanlykhachhang/check_so_dien_thoai": {
       "post": {
         "tags": [
@@ -458,6 +479,72 @@
         }
       }
     },
+    "/api/quanlydiachi/lay-toa-do/{id}": {
+      "get": {
+        "tags": [
+          "QuanLyDiaChi"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/quanlydiachi/lay-toa-do-danh-sach": {
+      "post": {
+        "tags": [
+          "QuanLyDiaChi"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/quanlyhopdong/danhsachhopdong": {
       "get": {
         "tags": [
@@ -640,6 +727,9 @@
                   "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.Phuong": {
                     "type": "string"
                   },
+                  "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.MaVungH3": {
+                    "type": "string"
+                  },
                   "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.KhachHangs": {
                     "type": "array",
                     "items": {
@@ -732,6 +822,9 @@
                   "style": "form"
                 },
                 "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.Phuong": {
+                  "style": "form"
+                },
+                "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.MaVungH3": {
                   "style": "form"
                 },
                 "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.KhachHangs": {
@@ -870,6 +963,9 @@
                   "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.Phuong": {
                     "type": "string"
                   },
+                  "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.MaVungH3": {
+                    "type": "string"
+                  },
                   "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.KhachHangs": {
                     "type": "array",
                     "items": {
@@ -962,6 +1058,9 @@
                   "style": "form"
                 },
                 "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.Phuong": {
+                  "style": "form"
+                },
+                "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.MaVungH3": {
                   "style": "form"
                 },
                 "MaKhachHangNavigation.MaDiaChiMacDinhNavigation.KhachHangs": {
@@ -1280,6 +1379,28 @@
         }
       }
     },
+    "/api/quanlykhuyenmai/validate-voucher/{code}": {
+      "get": {
+        "tags": [
+          "QuanLyKhuyenMai"
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/mucdichvu/dsmucdichvu": {
       "get": {
         "tags": [
@@ -1447,6 +1568,91 @@
         }
       }
     },
+    "/api/mucdichvu/get-by-id/{id}": {
+      "get": {
+        "tags": [
+          "QuanLyMucDoDichVu"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/mucdichvu/tinh-gia-nhanh": {
+      "post": {
+        "tags": [
+          "QuanLyMucDoDichVu"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/YeuCauTinhGiaNhanh"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/YeuCauTinhGiaNhanh"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/YeuCauTinhGiaNhanh"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/mucdichvu/phantich-noithanh": {
+      "post": {
+        "tags": [
+          "QuanLyMucDoDichVu"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/YeuCauPhanTich"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/YeuCauPhanTich"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/YeuCauPhanTich"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/WeatherForecast": {
       "get": {
         "tags": [
@@ -1547,10 +1753,6 @@
             "format": "int32",
             "nullable": true
           },
-          "isActive": {
-            "type": "boolean",
-            "nullable": true
-          },
           "ngayCapNhat": {
             "type": "string",
             "format": "date-time",
@@ -1583,6 +1785,10 @@
           "maLoaiHang": {
             "type": "integer",
             "format": "int32",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean",
             "nullable": true
           }
         },
@@ -1706,6 +1912,10 @@
             "type": "string",
             "nullable": true
           },
+          "maVungH3": {
+            "type": "string",
+            "nullable": true
+          },
           "khachHangs": {
             "type": "array",
             "items": {
@@ -1754,6 +1964,10 @@
           "kinhDo": {
             "type": "number",
             "format": "double",
+            "nullable": true
+          },
+          "maVungH3": {
+            "type": "string",
             "nullable": true
           }
         },
@@ -2135,6 +2349,24 @@
         },
         "additionalProperties": false
       },
+      "KienHangSorce": {
+        "type": "object",
+        "properties": {
+          "khoiLuong": {
+            "type": "number",
+            "format": "double"
+          },
+          "theTich": {
+            "type": "number",
+            "format": "double"
+          },
+          "maLoaiHang": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "LichSuDungMa": {
         "type": "object",
         "properties": {
@@ -2409,6 +2641,27 @@
         },
         "additionalProperties": false
       },
+      "YeuCauTinhGiaNhanh": {
+        "type": "object",
+        "properties": {
+          "thanhPhoLay": {
+            "type": "string",
+            "nullable": true
+          },
+          "thanhPhoGiao": {
+            "type": "string",
+            "nullable": true
+          },
+          "danhSachKien": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KienHangSorce"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "YeuCauTinhPhi": {
         "type": "object",
         "properties": {
@@ -2436,6 +2689,11 @@
             "nullable": true
           },
           "maLoaiHang": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "maBangGiaVung": {
             "type": "integer",
             "format": "int32",
             "nullable": true

@@ -144,6 +144,107 @@
         }
       }
     },
+    "/api/dieuphoilotrinh/tai-xe/{maTaiXe}": {
+      "get": {
+        "tags": [
+          "QuanLyDieuPhoiLoTrinh"
+        ],
+        "parameters": [
+          {
+            "name": "maTaiXe",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dieuphoilotrinh/tat-ca-lo-trinh": {
+      "get": {
+        "tags": [
+          "QuanLyDieuPhoiLoTrinh"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dieuphoilotrinh/cap-nhat-toa-do": {
+      "post": {
+        "tags": [
+          "QuanLyDieuPhoiLoTrinh"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NhatKyTheoDoi"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NhatKyTheoDoi"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/NhatKyTheoDoi"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dieuphoilotrinh/den-diem-dung/{maDiemDung}": {
+      "put": {
+        "tags": [
+          "QuanLyDieuPhoiLoTrinh"
+        ],
+        "parameters": [
+          {
+            "name": "maDiemDung",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dieuphoilotrinh/tu-dong-gom-nhom": {
+      "post": {
+        "tags": [
+          "QuanLyDieuPhoiLoTrinh"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/WeatherForecast": {
       "get": {
         "tags": [
@@ -199,6 +300,38 @@
           },
           "ghiChuTuChoi": {
             "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "NhatKyTheoDoi": {
+        "type": "object",
+        "properties": {
+          "maNhatKy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maTaiXe": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "viDo": {
+            "type": "number",
+            "format": "double"
+          },
+          "kinhDo": {
+            "type": "number",
+            "format": "double"
+          },
+          "thoiGian": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tocDoKmh": {
+            "type": "number",
+            "format": "double",
             "nullable": true
           }
         },

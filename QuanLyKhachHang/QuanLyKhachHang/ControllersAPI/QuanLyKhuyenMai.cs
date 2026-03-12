@@ -307,49 +307,58 @@ namespace QuanLyKhachHang.ControllersAPI
         {
             try
             {
+                // Log để kiểm tra dữ liệu thực tế nhận được từ Frontend
+                Console.WriteLine($"🔍 Checking Promo: Money={tongTienDonHang}, CustomerID={maKhachHang}");
+
                 var now = DateTime.Now;
 
-                // 1. Lấy danh sách các mã KM đang hoạt động và còn thời hạn
-                var query = _context.KhuyenMais
-                    .AsNoTracking()
-                    .Where(km => km.TrangThai == true &&
-                                 km.NgayBatDau <= now &&
-                                 km.NgayKetThuc >= now &&
-                                 (km.SoLuongToiDa == null || km.SoLuongDaDung < km.SoLuongToiDa) &&
-                                 (km.DonHangToiThieu == null || tongTienDonHang >= km.DonHangToiThieu));
-
-                // 2. Kiểm tra xem khách hàng này đã sử dụng mã đó chưa (nếu nghiệp vụ chỉ cho dùng 1 lần)
-                // Đoạn này có thể mở rộng tùy theo quy định của bạn
-                var lichSuDung = await _context.LichSuDungMas
+                // 1. Lấy lịch sử sử dụng mã của khách hàng này trước
+                var lichSuDungIds = await _context.LichSuDungMas
                     .Where(ls => ls.MaKhachHang == maKhachHang)
                     .Select(ls => ls.MaKhuyenMai)
                     .ToListAsync();
 
-                // 3. Thực thi lấy dữ liệu
-                var danhSach = await query.ToListAsync();
+                // 2. Query danh sách khuyến mãi đang hoạt động (Lọc các điều kiện cứng tại Database)
+                var danhSachKm = await _context.KhuyenMais
+                    .AsNoTracking()
+                    .Where(km => km.TrangThai == true &&
+                                 km.NgayBatDau <= now &&
+                                 km.NgayKetThuc >= now)
+                    .ToListAsync();
 
-                // 4. Map sang Model hiển thị
-                var result = danhSach.Select(km => new
-                {
-                    km.MaKhuyenMai,
-                    km.CodeKhuyenMai,
-                    km.TenChuongTrinh,
-                    km.KieuGiamGia,
-                    km.GiaTriGiam,
-                    km.GiamToiDa,
-                    km.DonHangToiThieu,
-                    MoTa = km.KieuGiamGia == "Phần trăm"
-                        ? $"Giảm {km.GiaTriGiam}% (Tối đa {km.GiamToiDa:N0}đ)"
-                        : $"Giảm trực tiếp {km.GiaTriGiam:N0}đ",
-                    DaSuDung = lichSuDung.Contains(km.MaKhuyenMai) // Đánh dấu để FE hiển thị
-                }).ToList();
+                // 3. Lọc logic mềm tại Memory (tránh lỗi ép kiểu SQL hoặc so sánh null phức tạp)
+                var result = danhSachKm
+                    .Where(km =>
+                        // Điều kiện số lượng
+                        (km.SoLuongToiDa == null || km.SoLuongDaDung < km.SoLuongToiDa) &&
+                        // Điều kiện giá trị đơn hàng tối thiểu
+                        (km.DonHangToiThieu == null || tongTienDonHang >= km.DonHangToiThieu) &&
+                        // Điều kiện chưa từng sử dụng (nếu mỗi người chỉ dùng 1 lần)
+                        !lichSuDungIds.Contains(km.MaKhuyenMai)
+                    )
+                    .Select(km => new
+                    {
+                        km.MaKhuyenMai,
+                        CodeKhuyenMai = km.CodeKhuyenMai, // Đảm bảo đúng tên để FE nhận diện
+                        km.TenChuongTrinh,
+                        km.KieuGiamGia,
+                        km.GiaTriGiam,
+                        km.GiamToiDa,
+                        km.DonHangToiThieu,
+                        MoTa = km.KieuGiamGia == "Phần trăm"
+                            ? $"Giảm {km.GiaTriGiam}% (Tối đa {km.GiamToiDa:N0}đ)"
+                            : $"Giảm trực tiếp {km.GiaTriGiam:N0}đ",
+                        DaSuDung = false // Vì đã lọc !lichSuDungIds ở trên nên tất cả trả về đều là chưa dùng
+                    })
+                    .ToList();
 
+                Console.WriteLine($"✅ Found {result.Count} valid promotions.");
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Lỗi lấy danh sách khuyến mãi khả dụng");
-                return StatusCode(500, "Lỗi hệ thống");
+                return StatusCode(500, new { message = "Lỗi hệ thống khi tải khuyến mãi" });
             }
         }
         [HttpPost("ap-dung")]
@@ -436,7 +445,22 @@ namespace QuanLyKhachHang.ControllersAPI
                 return StatusCode(500, new { success = false, message = "Lỗi hệ thống khi xử lý mã giảm giá" });
             }
         }
+        [HttpGet("validate-voucher/{code}")]
+        public async Task<IActionResult> ValidateVoucher(string code)
+        {
+            // Giả sử bạn có bảng KhuyenMai
+            var voucher = await _context.KhuyenMais
+                .FirstOrDefaultAsync(k => k.CodeKhuyenMai == code && k.TrangThai == true && k.NgayKetThuc > DateTime.Now);
 
+            if (voucher == null) return NotFound("Mã giảm giá không tồn tại hoặc hết hạn.");
+
+            return Ok(new
+            {
+                MaGiamGia = voucher.CodeKhuyenMai,
+                GiaTriGiam = voucher.GiaTriGiam,
+                LoaiGiam = voucher.MaLoaiKmNavigation.MoTa // 1: % , 2: Tiền mặt
+            });
+        }
         // Request DTO (Data Transfer Object)
         public class ApplyPromotionRequest
         {
@@ -444,5 +468,7 @@ namespace QuanLyKhachHang.ControllersAPI
             public decimal TongTienDonHang { get; set; }
             public int MaKhachHang { get; set; }
         }
+
+
     }
 }

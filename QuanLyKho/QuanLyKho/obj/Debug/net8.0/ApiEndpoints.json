@@ -183,6 +183,22 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "QuanLyKho.ControllersAPI.QuanLyKho",
+    "Method": "TimKhoGanNhat",
+    "RelativePath": "api/quanlykhobai/tim-kho-gan-nhat/{maDiaChiLayHang}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "maDiaChiLayHang",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "QuanLyKho.ControllersAPI.QuanLyDanhXe",
     "Method": "CapNhatDangKiem",
     "RelativePath": "api/quanlyxe/capnhatdangkiem/{id}",
@@ -401,6 +417,27 @@
         "Name": "model",
         "Type": "QuanLyKho.Models1.QuanLyXe.PhuongTienModels",
         "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "QuanLyKho.ControllersAPI.QuanLyDanhXe",
+    "Method": "GetXeSanSang",
+    "RelativePath": "api/quanlyxe/xe-san-sang-dieu-phoi",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "khoiLuongHang",
+        "Type": "System.Double",
+        "IsRequired": false
+      },
+      {
+        "Name": "maKho",
+        "Type": "System.Int32",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []

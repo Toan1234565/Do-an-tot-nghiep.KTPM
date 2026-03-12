@@ -169,3 +169,8 @@ D:\Đồ án tốt nghiệp\QuanLyDonHang\QuanLyDonHang\obj\Debug\net8.0\refint\
 D:\Đồ án tốt nghiệp\QuanLyDonHang\QuanLyDonHang\obj\Debug\net8.0\QuanLyDonHang.pdb
 D:\Đồ án tốt nghiệp\QuanLyDonHang\QuanLyDonHang\obj\Debug\net8.0\QuanLyDonHang.genruntimeconfig.cache
 D:\Đồ án tốt nghiệp\QuanLyDonHang\QuanLyDonHang\obj\Debug\net8.0\ref\QuanLyDonHang.dll
+D:\Đồ án tốt nghiệp\QuanLyDonHang\QuanLyDonHang\obj\Debug\net8.0\QuanLyDonHang.sourcelink.json
+D:\Đồ án tốt nghiệp\QuanLyDonHang\QuanLyDonHang\bin\Debug\net8.0\RabbitMQ.Client.dll
+D:\Đồ án tốt nghiệp\QuanLyDonHang\QuanLyDonHang\bin\Debug\net8.0\H3Standard.dll
+D:\Đồ án tốt nghiệp\QuanLyDonHang\QuanLyDonHang\bin\Debug\net8.0\NetTopologySuite.dll
+D:\Đồ án tốt nghiệp\QuanLyDonHang\QuanLyDonHang\bin\Debug\net8.0\pocketken.H3.dll

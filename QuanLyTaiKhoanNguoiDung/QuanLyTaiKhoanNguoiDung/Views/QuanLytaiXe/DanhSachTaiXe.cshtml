@@ -1,0 +1,482 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models
+@using QuanLyTaiKhoanNguoiDung.Models12
+@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung
+@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyTaiXe
+@model PaginationResult<QuanLyTaiXeModels>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hệ Thống Quản Lý Tài Xế</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --success-color: #10b981;
+            --bg-body: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: #2b2d42;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            margin: 20px auto;
+            max-width: 98%;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+            .custom-table thead th {
+                color: #718096;
+                text-transform: uppercase;
+                font-size: 0.7rem;
+                font-weight: 700;
+                padding: 12px 20px;
+                border: none;
+            }
+
+            .custom-table tbody tr {
+                background: #fff;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                border-radius: 12px;
+                transition: all 0.2s ease;
+            }
+
+                .custom-table tbody tr:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+                }
+
+            .custom-table tbody td {
+                padding: 15px 20px;
+                vertical-align: middle;
+                border: none;
+            }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .bg-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .bg-busy {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .bg-locked {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .btn-action {
+            background-color: #f8fafc;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            transition: all 0.3s ease;
+        }
+
+            .btn-action:hover {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+        .score-box {
+            font-weight: 700;
+            color: var(--primary-color);
+            background: #eef2ff;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        
+    </style>
+</head>
+<body>
+    <main class="container-fluid py-4">
+        <div class="main-card">
+            <div class="page-header d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h4 fw-bold m-0 text-dark">
+                    <i class="fa-solid fa-id-card me-2 text-primary"></i>Quản Lý Hồ Sơ Tài Xế
+                </h1>
+                <div class="d-flex gap-3 align-items-center">
+                    <div class="position-relative cursor-pointer" onclick="showExpiryAlerts()" style="cursor: pointer;">
+                        <i class="fa-solid fa-bell fs-4 text-muted"></i>
+                        <span id="expiryCount" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                              style="display: none; font-size: 0.6rem;">
+                            0
+                        </span>
+                    </div>                  
+                    <a href="@Url.Action("DanhSachTaiXe")" class="btn btn-light btn-sm border rounded-pill px-3">
+                        <i class="fa-solid fa-arrows-rotate me-1 text-muted"></i> Làm mới
+                    </a>
+                </div>
+            </div>
+
+            @* Form Filter *@
+            <form id="filterForm" method="get" asp-action="DanhSachTaiXe" class="bg-light border rounded-3 p-3 mb-4 shadow-sm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="small fw-bold text-muted mb-1">Tìm kiếm tài xế</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                            <input type="text" name="search" class="form-control auto-submit" placeholder="Tên, SĐT, Số bằng lái..." value="@ViewBag.Search" />
+                        </div>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Loại bằng lái</label>
+                        <select name="loaiBang" class="form-select form-select-sm auto-submit">
+                            <option value="">Tất cả loại</option>
+                            <option value="B1" selected='@(ViewBag.LoaiBang == "B1")'>Bằng B1</option>
+                            <option value="B2" selected='@(ViewBag.LoaiBang == "B2")'>Bằng B2</option>
+                            <option value="C" selected='@(ViewBag.LoaiBang == "C")'>Bằng C</option>
+                            <option value="D" selected='@(ViewBag.LoaiBang == "D")'>Bằng D</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Sắp xếp theo</label>
+                        <select name="sortBy" class="form-select form-select-sm auto-submit">
+                            <option value="MaNguoiDung" selected='@(ViewBag.SortBy == "MaNguoiDung")'>Mặc định</option>
+                            <option value="kinhnghiem" selected='@(ViewBag.SortBy == "kinhnghiem")'>Kinh nghiệm</option>
+                            <option value="diemuytin" selected='@(ViewBag.SortBy == "diemuytin")'>Điểm uy tín</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-muted mb-1">Thứ tự</label>
+                        <select name="isDescending" class="form-select form-select-sm auto-submit">
+                            <option value="true" selected='@(ViewBag.IsDescending == true)'>Giảm dần</option>
+                            <option value="false" selected='@(ViewBag.IsDescending == false)'>Tăng dần</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Tài xế</th>
+                            <th>Số bằng lái</th>
+                            <th>Loại bằng</th>
+                            <th>Kinh nghiệm</th>
+                            <th>Điểm uy tín</th>
+                            <th>Trạng thái</th>
+                            <th class="text-end">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @* PHẦN SỬA CHÍNH: Lặp qua Model.Data *@
+                        @if (Model != null && Model.Data != null && Model.Data.Any())
+                        {
+                            @foreach (var item in Model.Data)
+                            {
+                                <tr class="align-middle" onclick="location.href='@Url.Action("ChiTietTaiXe", "QuanLyTaiXe", new { id = item.MaNguoiDung })'">
+                                    <td>
+                                        <div class="fw-bold text-dark">@(item.HoTenTaiXe ?? "N/A")</div>
+                                        <div class="small text-muted">
+                                            @{
+                                                var sbl = item.SoBangLai ?? "";
+                                                var shortSbl = sbl.Length > 5 ? sbl.Substring(0, 5) + "..." : sbl;
+                                            }
+                                            ID: #@shortSbl
+                                        </div>
+                                    </td>
+                                    <td><span class="font-monospace">@(item.SoBangLai ?? "---")</span></td>
+                                    <td><span class="badge bg-secondary">@(item.LoaiBangLai ?? "N/A")</span></td>
+                                    <td>@item.KinhNghiemNam năm</td>
+                                    <td><span class="score-box">@item.DiemUyTin</span></td>
+                                    <td>
+                                        @{
+                                            var statusClass = item.TrangThaiHoatDong switch
+                                            {
+                                                "Đang hoạt động" => "bg-active",
+                                                "Đang chuyến" => "bg-busy",
+                                                "Bị khóa" => "bg-locked",
+                                                _ => "bg-light text-muted"
+                                            };
+                                        }
+                                        <span class="status-badge @statusClass">@(item.TrangThaiHoatDong ?? "Không xác định")</span>
+                                    </td>                                 
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="7" class="text-center py-5 text-muted">Không tìm thấy hồ sơ tài xế nào.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* PHẦN SỬA CHÍNH: Kiểm tra phân trang dựa trên thuộc tính của PaginationResult *@
+            @if (Model != null && Model.TotalPages > 1)
+            {
+                <nav class="mt-4">
+                    <ul class="pagination pagination-sm justify-content-center">
+                        @for (int i = 1; i <= Model.TotalPages; i++)
+                        {
+                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                <a class="page-link shadow-none" href="@Url.Action("DanhSachTaiXe", new { search = ViewBag.Search, loaiBang = ViewBag.LoaiBang, sortBy = ViewBag.SortBy, isDescending = ViewBag.IsDescending, page = i })">@i</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        </div>
+        <div class="modal fade" id="expiryModal" tabindex="-1" aria-labelledby="expiryModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content" style="border-radius: 16px; border: none; overflow: hidden;">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="expiryModalLabel">
+                            <i class="fa-solid fa-triangle-exclamation me-2"></i> Danh Sách Bằng Lái Sắp Hết Hạn
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4">Tài xế</th>
+                                        <th>Số bằng lái</th>
+                                        <th>Ngày hết hạn</th>
+                                        <th class="text-center">Còn lại</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expiryTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer d-flex justify-content-between">
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="small fw-bold text-muted">Số ngày:</label>
+                            <input type="number" id="exportDays" class="form-control form-control-sm" value="30" style="width: 70px;">
+                        </div>
+                        <div>
+                            <button onclick="downloadReport()" class="btn btn-action btn-sm rounded-pill px-3 fw-medium">
+                                <i class="fa-solid fa-file-export me-1"></i> Xuất báo cáo Excel
+                            </button>
+                            <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const filterForm = document.getElementById('filterForm');
+            const autoSubmitElements = document.querySelectorAll('.auto-submit');
+
+            // Tự động submit form khi thay đổi filter
+            autoSubmitElements.forEach(item => {
+                if (item.tagName === 'SELECT') {
+                    item.addEventListener('change', () => filterForm.submit());
+                }
+
+                if (item.type === 'text') {
+                    let timeout = null;
+                    item.addEventListener('input', () => {
+                        clearTimeout(timeout);
+                        timeout = setTimeout(() => filterForm.submit(), 800);
+                    });
+                }
+            });
+
+            // Kiểm tra cảnh báo hết hạn ngay khi load trang
+            checkLicenseExpiry();
+        });
+
+        // Hàm gọi API kiểm tra hết hạn bằng lái
+        async function checkLicenseExpiry() {
+            try {
+                const response = await fetch('https://localhost:7022/api/quanlytaixe/canh-bao-het-han?days=30');
+                if (!response.ok) throw new Error('Network response was not ok');
+
+                const result = await response.json();
+                const badge = document.getElementById('expiryCount');
+
+                if (result.totalWarnings > 0) {
+                    badge.innerText = result.totalWarnings;
+                    badge.style.display = 'block';
+                    window.expiryData = result.data; // Lưu dữ liệu vào biến global
+                } else {
+                    badge.style.display = 'none';
+                    window.expiryData = [];
+                }
+            } catch (error) {
+                console.error("Không thể tải dữ liệu cảnh báo:", error);
+            }
+        }
+
+        // Hàm hiển thị danh sách cảnh báo lên Modal
+        function showExpiryAlerts() {
+            const tableBody = document.getElementById('expiryTableBody');
+
+            if (!window.expiryData || window.expiryData.length === 0) {
+                alert('Hiện tại không có tài xế nào sắp hết hạn bằng lái.');
+                return;
+            }
+
+            // Render danh sách vào bảng
+            const rowsHtml = window.expiryData.map(item => {
+                const dayClass = item.soNgayConLai <= 7 ? 'bg-danger' : 'bg-warning';
+
+                return `
+                    <tr>
+                        <td class="ps-4">
+                            <div class="fw-bold text-dark">${item.hoTenTaiXe}</div>
+                            <div class="small text-muted">${item.soDienThoai || 'Chưa cập nhật'}</div>
+                        </td>
+                        <td><code class="text-primary">${item.soBangLai}</code></td>
+                        <td><span class="text-danger fw-medium">${item.ngayHetHan}</span></td>
+                        <td class="text-center">
+                            <span class="badge ${dayClass} rounded-pill">
+                                ${item.soNgayConLai} ngày
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="/QuanLyTaiXe/ChiTietTaiXe/${item.maNguoiDung}" class="btn btn-sm btn-outline-primary rounded-circle" title="Xem chi tiết">
+                                    <i class="fa-solid fa-eye"></i>
+                                </a>
+                                <button onclick="guiYeuCauCapLai(${item.maNguoiDung}, '${item.hoTenTaiXe}')"
+                                        class="btn btn-sm btn-outline-danger rounded-circle" title="Gửi yêu cầu cấp lại">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tableBody.innerHTML = rowsHtml;
+
+            // Khởi tạo và hiển thị Bootstrap Modal
+            const expiryModal = new bootstrap.Modal(document.getElementById('expiryModal'));
+            expiryModal.show();
+        }
+
+        // Hàm gửi API yêu cầu cấp lại
+        async function guiYeuCauCapLai(maNguoiDung, tenTaiXe) {
+            if (!confirm(`Bạn có chắc muốn gửi yêu cầu cấp lại giấy phép cho tài xế ${tenTaiXe}?`)) return;
+
+            try {
+                const url = `https://localhost:7022/api/QuanLyTaiXe/GuiThongBaoCapLai?id=${maNguoiDung}`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                // Đọc dữ liệu dưới dạng text trước để tránh lỗi parse JSON nếu phản hồi trống
+                const responseText = await response.text();
+                let result = {};
+
+                try {
+                    result = responseText ? JSON.parse(responseText) : {};
+                } catch (e) {
+                    console.error("Phản hồi không phải JSON:", responseText);
+                }
+
+                if (response.ok) {
+                    alert(result.message || `Đã gửi thông báo thành công tới tài xế ${tenTaiXe}!`);
+                } else {
+                    // Xử lý các lỗi 400, 404, 500 từ server trả về
+                    alert(`Lỗi: ${result.message || 'Hệ thống không tìm thấy đường dẫn API (404) hoặc lỗi Server.'}`);
+                }
+
+            } catch (error) {
+                console.error("Lỗi kết nối:", error);
+                alert('Không thể kết nối tới máy chủ. Vui lòng kiểm tra lại kết nối mạng hoặc cổng API (7022).');
+            }
+        }
+        function downloadReport() {
+            const daysInput = document.getElementById('exportDays');
+            const days = daysInput ? daysInput.value : 30;
+
+            Swal.fire({
+                title: 'Xác nhận xuất báo cáo',
+                text: `Hệ thống sẽ tạo file Excel danh sách bằng lái sắp hết hạn trong ${days} ngày tới.`,
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonColor: '#4361ee',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: '<i class="fa-solid fa-download me-2"></i>Tải về ngay',
+                cancelButtonText: 'Hủy'
+                // Đã xóa dòng border: 'none' gây lỗi
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Đang khởi tạo file...',
+                        text: 'Vui lòng chờ trong giây lát',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    const url = `https://localhost:7022/api/quanlytaixe/xuat-bao-cao-het-han?days=${days}`;
+
+                    fetch(url)
+                        .then(response => {
+                            if (response.ok) return response.blob();
+                            // Nếu lỗi 500, ném lỗi để xuống catch xử lý
+                            return response.text().then(text => { throw new Error(text || 'Lỗi server (500)') });
+                        })
+                        .then(blob => {
+                            const urlBlob = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = urlBlob;
+                            a.download = `BaoCao_HetHanBangLai_${days}Ngay.xlsx`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a); // Xóa element sau khi click
+                            window.URL.revokeObjectURL(urlBlob);
+                            Swal.close();
+                        })
+                        .catch(error => {
+                            console.error("Export Error:", error);
+                            Swal.fire('Thất bại!', 'Không thể xuất file. Vui lòng kiểm tra lại Server API.', 'error');
+                        });
+                }
+            });
+        }
+        
+    </script>
+</body>
+</html>
