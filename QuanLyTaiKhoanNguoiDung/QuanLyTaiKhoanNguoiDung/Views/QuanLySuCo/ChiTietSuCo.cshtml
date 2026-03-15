@@ -12,11 +12,13 @@
         --dark-color: #5a5c69;
     }
 
+    
     .main-content-container {
-        background-color: #f8f9fc;
-        border-radius: 15px;
-        padding: 25px;
-        margin-top: 10px;
+        background-color: #ffffff;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.03);
+        margin-top: 20px;
     }
 
     .card {
@@ -93,27 +95,23 @@
         border: 1px solid #e3e6f0;
     }
 </style>
-
-<div class="page-wrapper">
-    <div class="main-content-container">
+<div class="main-content-container">
         @* Header Section *@
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center px-2 mb-4">
             <div>
                 <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-1" style="background: transparent; padding: 0;">
-                        <li class="breadcrumb-item"><a href="/QuanLySuCo/DanhSachSuCo">Quản lý</a></li>
+                    <ol class="breadcrumb mb-1">
+                        <li class="breadcrumb-item"><a href="/QuanLySuCo/DanhSachSuCo" class="text-decoration-none">Quản lý</a></li>
                         <li class="breadcrumb-item active">Chi tiết sự cố</li>
                     </ol>
                 </nav>
-                <h3 class="fw-bold text-gray-800">
-                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Sự cố #@Model.MaSuCo
-                </h3>
+                
+                
             </div>
-            <a href="/QuanLySuCo/DanhSachSuCo" class="btn btn-sm btn-light border shadow-sm px-3">
-                <i class="bi bi-arrow-left me-1"></i> Quay lại
+            <a href="javascript:history.back()" class="btn btn-outline-secondary px-4 shadow-sm" style="border-radius: 10px; background: white;">
+                <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
             </a>
         </div>
-
         <div class="row">
             @* --- CỘT TRÁI (3/12): THÔNG TIN ĐỊNH DANH --- *@
             <div class="col-lg-4">
@@ -123,11 +121,11 @@
                         <i class="bi bi-info-circle me-2"></i>Trạng thái & Phân loại
                     </div>
                     <div class="card-body text-center py-4">
-                        <h4 class="fw-bold text-dark mb-1">@(Model.MaLoaiSuCoNavigation?.TenLoaiSuCo ?? "N/A")</h4>
-                        <p class="text-muted small mb-3">Mã lộ trình: <span class="text-primary fw-bold">@Model.MaLoTrinh</span></p>
+                        <h4 class="fw-bold text-dark mb-1">@(Model?.MaLoaiSuCoNavigation?.TenLoaiSuCo ?? "N/A")</h4>
+                        <p class="text-muted small mb-3">Mã lộ trình: <span class="text-primary fw-bold">@Model?.MaLoTrinh</span></p>
 
                         @{
-                            var statusClass = Model.TrangThai switch
+                            var statusClass = Model?.TrangThai switch
                             {
                                 "Đã xử lý" => "bg-success text-white",
                                 "Mới" => "bg-primary text-white",
@@ -136,21 +134,21 @@
                             };
                         }
                         <div class="mb-4">
-                            <span class="status-pill @statusClass shadow-sm">@(Model.TrangThai ?? "Chờ xử lý")</span>
+                            <span class="status-pill @statusClass shadow-sm">@(Model?.TrangThai ?? "Chờ xử lý")</span>
                         </div>
 
                         <div class="text-start">
                             <div class="info-item">
                                 <span class="label-text">Mức độ:</span>
-                                <span class="badge bg-danger">@Model.MaLoaiSuCoNavigation?.MucDoNghiemTrong</span>
+                                <span class="badge bg-danger">@Model?.MaLoaiSuCoNavigation?.MucDoNghiemTrong</span>
                             </div>
                             <div class="info-item">
                                 <span class="label-text">Thời gian báo:</span>
-                                <span class="value-text">@Model.ThoiGianBaoCao?.ToString("HH:mm - dd/MM/yyyy")</span>
+                                <span class="value-text">@Model?.ThoiGianBaoCao?.ToString("HH:mm - dd/MM/yyyy")</span>
                             </div>
                             <div class="info-item">
                                 <span class="label-text">Thời gian xử lý:</span>
-                                <span class="value-text text-success">@(Model.ThoiGianXuLy?.ToString("dd/MM/yyyy") ?? "---")</span>
+                                <span class="value-text text-success">@(Model?.ThoiGianXuLy?.ToString("dd/MM/yyyy") ?? "---")</span>
                             </div>
                             <div class="info-item">
                                 <span class="label-text">Tài xế thực hiện chuyến hàng:</span>
@@ -217,8 +215,8 @@
                                 <i class="bi bi-map fs-1 opacity-25"></i>
                                 @* Thêm iframe map thật tại đây nếu cần *@
                             </div>
-                            <p class="small text-muted mb-3"><i class="bi bi-pin-map me-1"></i>@(Model.DiaChiCuThe ?? "Chưa có địa chỉ chính xác")</p>
-                            <a href="https://www.google.com/maps/search/?api=1&query=@Model.ViDo,@Model.KinhDo" target="_blank" class="btn btn-sm btn-outline-danger w-100">
+                            <p class="small text-muted mb-3"><i class="bi bi-pin-map me-1"></i>@(Model?.DiaChiCuThe ?? "Chưa có địa chỉ chính xác")</p>
+                            <a href="https://www.google.com/maps/search/?api=1&query=@Model?.ViDo,@Model?.KinhDo" target="_blank" class="btn btn-sm btn-outline-danger w-100">
                                 <i class="bi bi-cursor"></i> Xem trên Google Maps
                             </a>
                         }
@@ -348,7 +346,6 @@
                 </div>
             </div>
         </div>
-    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

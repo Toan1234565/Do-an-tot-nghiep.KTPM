@@ -8,7 +8,7 @@
 
         public DateTime ThoiGianTao { get; set; }
 
-        public int MaDiaChiGiao { get; set; }
+        public int MaDiaChiLayHang { get; set; }
 
         public string? TrangThaiHienTai { get; set; }
 
@@ -24,7 +24,7 @@
 
         public int? MaVung { get; set; }
 
-        public int? MaDiaChiLayHang { get; set; }
+        public int? MaDiaChiGiaoHang { get; set; }
 
         public string? TenNguoiNhan { get; set; }
 

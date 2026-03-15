@@ -10,6 +10,7 @@ using OfficeOpenXml;
 using QuanLyTaiKhoanNguoiDung.Models;
 using QuanLyTaiKhoanNguoiDung.Models12._1234;
 using QuanLyTaiKhoanNguoiDung.Models12.HamBam;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyLoTrinhTheoDoi;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyTaiXe;
 using System.ComponentModel;
@@ -80,7 +81,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     {
                         query = query.Where(tk => tk.NguoiDung.TaiXe.LoaiBangLai == loaiBang);
                     }
-                    if(!string.IsNullOrEmpty(maKho.ToString()))
+                    if (!string.IsNullOrEmpty(maKho.ToString()))
                     {
                         query = query.Where(tk => tk.NguoiDung.MaKho == maKho);
                     }
@@ -224,88 +225,88 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                 return StatusCode(500, "Lỗi hệ thống khi tải thông tin chi tiết.");
             }
         }
-        [HttpPut("capnhattaixe")]
-        public async Task<IActionResult> UpdateHoSoTaiXe([FromBody] UpdateTaiXeModel model)
-        {
-            try
-            {
-                var taiXe = await _context.TaiXes
-                    .Include(tx => tx.MaNguoiDungNavigation)
-                    .FirstOrDefaultAsync(tx => tx.MaNguoiDung == model.MaNguoiDung);
+        //[HttpPut("capnhattaixe")]
+        //public async Task<IActionResult> UpdateHoSoTaiXe([FromBody] UpdateTaiXeModel model)
+        //{
+        //    try
+        //    {
+        //        var taiXe = await _context.TaiXes
+        //            .Include(tx => tx.MaNguoiDungNavigation)
+        //            .FirstOrDefaultAsync(tx => tx.MaNguoiDung == model.MaNguoiDung);
 
-                if (taiXe == null) return NotFound("Tài xế không tồn tại.");
+        //        if (taiXe == null) return NotFound("Tài xế không tồn tại.");
 
-                var nguoiDung = taiXe.MaNguoiDungNavigation;
+        //        var nguoiDung = taiXe.MaNguoiDungNavigation;
 
-                // Cập nhật thông tin Người dùng (Lưu ý: Nếu dùng SecurityHelper.Encrypt thì nên encrypt lại ở đây)
-                nguoiDung.SoDienThoai = model.SoDienThoai;
-                nguoiDung.BaoHiemXaHoi = !string.IsNullOrEmpty(model.BaoHiemXaHoi) ? SecurityHelper.Encrypt(model.BaoHiemXaHoi) : nguoiDung.BaoHiemXaHoi;
-                nguoiDung.DonViLamViec = model.DonViLamViec;
-                nguoiDung.MaChucVu = model.MaChucVu;
+        //        // Cập nhật thông tin Người dùng (Lưu ý: Nếu dùng SecurityHelper.Encrypt thì nên encrypt lại ở đây)
+        //        nguoiDung.SoDienThoai = model.SoDienThoai;
+        //        nguoiDung.BaoHiemXaHoi = !string.IsNullOrEmpty(model.BaoHiemXaHoi) ? SecurityHelper.Encrypt(model.BaoHiemXaHoi) : nguoiDung.BaoHiemXaHoi;
+        //        nguoiDung.DonViLamViec = model.DonViLamViec;
+        //        nguoiDung.MaChucVu = model.MaChucVu;
 
-                // Cập nhật thông tin Tài xế
-                taiXe.SoBangLai = model.SoBangLai;
+        //        // Cập nhật thông tin Tài xế
+        //        taiXe.SoBangLai = model.SoBangLai;
 
-                if (taiXe.LoaiBangLai != model.LoaiBangLai)
-                {
-                    // Kiểm tra xem người dùng có gửi kèm Số bằng mới và Ngày mới không
-                    if (string.IsNullOrEmpty(model.SoBangLai) || model.NgayCapBang == default || model.NgayHetHanBang == default)
-                    {
-                        return BadRequest("Khi thay đổi Loại bằng lái, bạn phải cung cấp đầy đủ Số bằng, Ngày cấp và Ngày hết hạn mới.");
-                    }
+        //        if (taiXe.LoaiBangLai != model.LoaiBangLai)
+        //        {
+        //            // Kiểm tra xem người dùng có gửi kèm Số bằng mới và Ngày mới không
+        //            if (string.IsNullOrEmpty(model.SoBangLai) || model.NgayCapBang == default || model.NgayHetHanBang == default)
+        //            {
+        //                return BadRequest("Khi thay đổi Loại bằng lái, bạn phải cung cấp đầy đủ Số bằng, Ngày cấp và Ngày hết hạn mới.");
+        //            }
 
-                    // Nếu ok thì cập nhật toàn bộ cụm thông tin bằng lái
-                    taiXe.LoaiBangLai = model.LoaiBangLai;
-                    taiXe.SoBangLai = model.SoBangLai;
-                    taiXe.NgayCapBang = model.NgayCapBang;
-                    taiXe.NgayHetHanBang = model.NgayHetHanBang;
+        //            // Nếu ok thì cập nhật toàn bộ cụm thông tin bằng lái
+        //            taiXe.LoaiBangLai = model.LoaiBangLai;
+        //            taiXe.SoBangLai = model.SoBangLai;
+        //            taiXe.NgayCapBang = model.NgayCapBang;
+        //            taiXe.NgayHetHanBang = model.NgayHetHanBang;
 
-                    _logger.LogInformation("Tài xế {ID} đã nâng cấp/thay đổi loại bằng sang {Loai}", model.MaNguoiDung, model.LoaiBangLai);
-                }
-                else
-                {
-                    // Nếu không đổi loại bằng, vẫn cho phép cập nhật các trường lẻ nếu có thay đổi
-                    taiXe.SoBangLai = model.SoBangLai;
-                    taiXe.NgayCapBang = model.NgayCapBang;
-                    taiXe.NgayHetHanBang = model.NgayHetHanBang;
-                }
+        //            _logger.LogInformation("Tài xế {ID} đã nâng cấp/thay đổi loại bằng sang {Loai}", model.MaNguoiDung, model.LoaiBangLai);
+        //        }
+        //        else
+        //        {
+        //            // Nếu không đổi loại bằng, vẫn cho phép cập nhật các trường lẻ nếu có thay đổi
+        //            taiXe.SoBangLai = model.SoBangLai;
+        //            taiXe.NgayCapBang = model.NgayCapBang;
+        //            taiXe.NgayHetHanBang = model.NgayHetHanBang;
+        //        }
 
 
-                taiXe.KinhNghiemNam = model.KinhNghiemNam;
-                taiXe.TrangThaiHoatDong = model.TrangThaiHoatDong;
+        //        taiXe.KinhNghiemNam = model.KinhNghiemNam;
+        //        taiXe.TrangThaiHoatDong = model.TrangThaiHoatDong;
 
-                if (model.DiemUyTin.HasValue && model.DiemUyTin <= 100)
-                {
-                    taiXe.DiemUyTin = model.DiemUyTin;
-                }
+        //        if (model.DiemUyTin.HasValue && model.DiemUyTin <= 100)
+        //        {
+        //            taiXe.DiemUyTin = model.DiemUyTin;
+        //        }
 
-                if (!string.IsNullOrEmpty(model.AnhBangLaiTruoc)) taiXe.AnhBangLaiTruoc = model.AnhBangLaiTruoc;
-                if (!string.IsNullOrEmpty(model.AnhBangLaiSau)) taiXe.AnhBangLaiSau = model.AnhBangLaiSau;
+        //        if (!string.IsNullOrEmpty(model.AnhBangLaiTruoc)) taiXe.AnhBangLaiTruoc = model.AnhBangLaiTruoc;
+        //        if (!string.IsNullOrEmpty(model.AnhBangLaiSau)) taiXe.AnhBangLaiSau = model.AnhBangLaiSau;
 
-                await _context.SaveChangesAsync();
+        //        await _context.SaveChangesAsync();
 
-                // --- PHẦN QUAN TRỌNG: LÀM MỚI CACHE ---
+        //        // --- PHẦN QUAN TRỌNG: LÀM MỚI CACHE ---
 
-                // 1. Xóa cache chi tiết của chính tài xế này
-                _cache.Remove($"ChiTietTaiXe_{model.MaNguoiDung}");
+        //        // 1. Xóa cache chi tiết của chính tài xế này
+        //        _cache.Remove($"ChiTietTaiXe_{model.MaNguoiDung}");
 
-                // 2. Xóa cache danh sách. 
-                // Vì MemoryCache không hỗ trợ xóa theo Pattern (wildcard), 
-                // cách tốt nhất là dùng một "Signal Token" hoặc xóa các key phổ biến.
-                // Đơn giản nhất cho quy mô nhỏ là xóa các key mặc định:
-                _cache.Remove("DanhSachTaiXe_null_null_null_True_1");
+        //        // 2. Xóa cache danh sách. 
+        //        // Vì MemoryCache không hỗ trợ xóa theo Pattern (wildcard), 
+        //        // cách tốt nhất là dùng một "Signal Token" hoặc xóa các key phổ biến.
+        //        // Đơn giản nhất cho quy mô nhỏ là xóa các key mặc định:
+        //        _cache.Remove("DanhSachTaiXe_null_null_null_True_1");
 
-                // Nếu bạn muốn triệt để hơn, hãy cân nhắc sử dụng một biến Static để quản lý phiên bản Cache
-                // hoặc tạm thời chấp nhận việc người dùng sẽ thấy dữ liệu mới sau khi hết SlidingExpiration (5p).
+        //        // Nếu bạn muốn triệt để hơn, hãy cân nhắc sử dụng một biến Static để quản lý phiên bản Cache
+        //        // hoặc tạm thời chấp nhận việc người dùng sẽ thấy dữ liệu mới sau khi hết SlidingExpiration (5p).
 
-                return Ok(new { message = "Cập nhật hồ sơ thành công!" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi cập nhật tài xế {ID}", model.MaNguoiDung);
-                return BadRequest("Lỗi cập nhật: " + ex.Message);
-            }
-        }
+        //        return Ok(new { message = "Cập nhật hồ sơ thành công!" });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Lỗi cập nhật tài xế {ID}", model.MaNguoiDung);
+        //        return BadRequest("Lỗi cập nhật: " + ex.Message);
+        //    }
+        //}
         [HttpGet("canh-bao-het-han")]
         public async Task<IActionResult> GetCanhBaoHetHan([FromQuery] int days = 30)
         {
@@ -503,7 +504,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     .Include(tx => tx.DangKyCaTrucs)
                         .ThenInclude(dk => dk.MaCaNavigation)
                     .Where(tx => tx.NgayHetHanBang > today
-                        && tx.TrangThaiHoatDong == "Sẵn sàng" 
+                        && tx.TrangThaiHoatDong == "Sẵn sàng"
                         && tx.DangKyCaTrucs.Any(dk =>
                             dk.NgayTruc == today
                             && dk.TrangThai == "Đã duyệt"
@@ -519,12 +520,14 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                                     && (currentTime >= dk.MaCaNavigation.GioBatDau || currentTime <= dk.MaCaNavigation.GioKetThuc))
                             )
                         ))
-                    .Select(tx => new {
+                    .Select(tx => new
+                    {
                         tx.MaNguoiDung,
                         HoTen = tx.MaNguoiDungNavigation.HoTenNhanVien,
                         tx.LoaiBangLai,
                         tx.KinhNghiemNam,
                         tx.DiemUyTin
+
                     })
                     .OrderByDescending(tx => tx.DiemUyTin)
                     .ToListAsync();
@@ -537,34 +540,46 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                 return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
             }
         }
-       
-        [HttpPatch("cap-nhat-trang-thai")]
-        public async Task<IActionResult> UpdateTrangThaiTaiXe([FromBody] UpdateTaiXeModel model)
+
+        [HttpPost("cap-nhat-trang-thai")]
+        public async Task<IActionResult> UpdateTrangThaiTaiXe([FromBody] UpdateTaiXeTrangTai model)
         {
+            // 0. Kiểm tra đầu vào cơ bản
+            if (model == null || string.IsNullOrWhiteSpace(model.TrangThaiMoi))
+            {
+                return BadRequest(new { success = false, message = "Dữ liệu trạng thái không hợp lệ." });
+            }
+
             try
             {
-                // 1. Kiểm tra tài xế tồn tại
+                // 1. Tìm tài xế
                 var taiXe = await _context.TaiXes
                     .FirstOrDefaultAsync(tx => tx.MaNguoiDung == model.MaNguoiDung);
 
                 if (taiXe == null)
-                    return NotFound(new { success = false, message = "Không tìm thấy tài xế." });
+                {
+                    return NotFound(new { success = false, message = $"Không tìm thấy tài xế với mã {model.MaNguoiDung}." });
+                }
 
-                // 2. Cập nhật trạng thái
+                // 2. Cập nhật trạng thái trong DB
                 string trangThaiCu = taiXe.TrangThaiHoatDong;
-                taiXe.TrangThaiHoatDong = model.TrangThaiMoi;
 
-                await _context.SaveChangesAsync();
+                // Chỉ cập nhật nếu trạng thái thực sự thay đổi để tiết kiệm tài nguyên
+                if (trangThaiCu != model.TrangThaiMoi)
+                {
+                    taiXe.TrangThaiHoatDong = model.TrangThaiMoi;
+                    await _context.SaveChangesAsync();
 
-                // 3. Xử lý Cache
-                // Xóa cache chi tiết
-                _cache.Remove($"ChiTietTaiXe_{model.MaNguoiDung}");
+                    // 3. Xử lý Cache (Chỉ thực hiện khi có thay đổi thực sự)
+                    string cacheKeyDetail = $"ChiTietTaiXe_{model.MaNguoiDung}";
+                    string cacheKeyList = "DanhSachTaiXe_null_null_null_True_1";
 
-                // Xóa cache danh sách mặc định (để tránh hiển thị sai trạng thái ở trang chủ)
-                _cache.Remove("DanhSachTaiXe_null_null_null_True_1");
+                    _cache.Remove(cacheKeyDetail);
+                    _cache.Remove(cacheKeyList);
 
-                _logger.LogInformation("Tài xế {ID} thay đổi trạng thái từ {Cu} sang {Moi}",
-                    model.MaNguoiDung, trangThaiCu, model.TrangThaiMoi);
+                    _logger.LogInformation("Tài xế {ID} thay đổi trạng thái từ '{Cu}' sang '{Moi}'",
+                        model.MaNguoiDung, trangThaiCu, model.TrangThaiMoi);
+                }
 
                 return Ok(new
                 {
@@ -573,7 +588,8 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     data = new
                     {
                         MaNguoiDung = model.MaNguoiDung,
-                        TrangThaiMoi = model.TrangThaiMoi
+                        TrangThaiMoi = model.TrangThaiMoi,
+                        ThoiGianCapNhat = DateTime.Now
                     }
                 });
             }
@@ -581,6 +597,54 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
             {
                 _logger.LogError(ex, "Lỗi khi cập nhật trạng thái tài xế {ID}", model.MaNguoiDung);
                 return StatusCode(500, new { success = false, message = "Lỗi hệ thống: " + ex.Message });
+            }
+        }
+
+        //API Lấy thông tên tài xế để hiện ở trong giao diện theo dõi lộ trình 
+        [HttpGet("lay-ten-tai-xe/{maNguoiDung}")] // 1. Dùng HttpGet cho tác vụ đọc dữ liệu
+        public async Task<IActionResult> LayTenTaiXe(int maNguoiDung)
+        {
+            try
+            {
+                // 2. Tận dụng MemoryCache: Kiểm tra xem tên tài xế này đã có trong cache chưa
+                string cacheKey = $"TenTaiXe_{maNguoiDung}";
+                if (_cache.TryGetValue(cacheKey, out string tenTaiXeCached))
+                {
+                    return Ok(new TenTaiXeLoTrinhModels
+                    {
+                        MaNguoiDung = maNguoiDung,
+                        TenTaiXeThucHien = tenTaiXeCached
+                        
+                    });
+                }
+
+                // 3. Tối ưu EF Core: Dùng Select để ép DB chỉ query đúng 1 cột HoTenNhanVien
+                var tenTaiXeDb = await _context.TaiXes
+                    .Where(tx => tx.MaNguoiDung == maNguoiDung)
+                    .Select(tx => tx.MaNguoiDungNavigation.HoTenNhanVien) // Không load cả object vào RAM
+                    .FirstOrDefaultAsync();
+
+                if (string.IsNullOrEmpty(tenTaiXeDb))
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy tài xế hoặc thông tin người dùng." });
+                }
+
+                // Lưu kết quả vào Cache trong 60 phút để tái sử dụng cho các request sau
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetAbsoluteExpiration(TimeSpan.FromMinutes(60));
+                _cache.Set(cacheKey, tenTaiXeDb, cacheOptions);
+
+                return Ok(new TenTaiXeLoTrinhModels
+                {
+                    MaNguoiDung = maNguoiDung,
+                    TenTaiXeThucHien = tenTaiXeDb
+                });
+            }
+            catch (Exception ex)
+            {
+                // 4. Ghi log chi tiết lỗi cho Dev đọc, trả lỗi chung chung cho Client
+                _logger.LogError(ex, "Lỗi xảy ra khi lấy tên tài xế cho mã người dùng: {MaNguoiDung}", maNguoiDung);
+                return StatusCode(500, new { success = false, message = "Lỗi hệ thống nội bộ. Vui lòng thử lại sau." });
             }
         }
     }

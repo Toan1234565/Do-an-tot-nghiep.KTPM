@@ -19,5 +19,7 @@ public partial class DiemDung
 
     public DateTime? ThoiGianDenThucTe { get; set; }
 
+    public string? MaVungH3 { get; set; }
+
     public virtual LoTrinh MaLoTrinhNavigation { get; set; } = null!;
 }

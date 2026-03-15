@@ -92,6 +92,10 @@ public partial class TmdtContext : DbContext
                 .HasColumnName("loai_dung");
             entity.Property(e => e.MaDiaChi).HasColumnName("ma_dia_chi");
             entity.Property(e => e.MaLoTrinh).HasColumnName("ma_lo_trinh");
+            entity.Property(e => e.MaVungH3)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("ma_vung_h3");
             entity.Property(e => e.ThoiGianDenThucTe)
                 .HasColumnType("datetime")
                 .HasColumnName("thoi_gian_den_thuc_te");
@@ -110,6 +114,7 @@ public partial class TmdtContext : DbContext
             entity.ToTable("Lo_Trinh");
 
             entity.Property(e => e.MaLoTrinh).HasColumnName("ma_lo_trinh");
+            entity.Property(e => e.GhiChu).HasColumnName("ghi_chu");
             entity.Property(e => e.MaPhuongTien).HasColumnName("ma_phuong_tien");
             entity.Property(e => e.MaTaiXeChinh).HasColumnName("ma_tai_xe_chinh");
             entity.Property(e => e.MaTaiXePhu).HasColumnName("ma_tai_xe_phu");
@@ -151,6 +156,9 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.MaNhatKy).HasColumnName("ma_nhat_ky");
             entity.Property(e => e.KinhDo).HasColumnName("kinh_do");
             entity.Property(e => e.MaTaiXe).HasColumnName("ma_tai_xe");
+            entity.Property(e => e.MaVungH3)
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.ThoiGian)
                 .HasColumnType("datetime")
                 .HasColumnName("thoi_gian");

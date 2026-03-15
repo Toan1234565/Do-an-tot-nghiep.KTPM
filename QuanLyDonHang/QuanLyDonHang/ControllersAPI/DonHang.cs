@@ -89,14 +89,14 @@ namespace QuanLyDonHang.ControllersAPI
                         MaDonHang = dh.MaDonHang,
                         MaKhachHang = dh.MaKhachHang,
 
-                        MaDiaChiGiao = dh.MaDiaChiGiao,
+                        MaDiaChiLayHang = dh.MaDiaChiLayHang,
                         // Kiểm tra null để tránh lỗi nếu KienHangs trống                     
                         TenDonHang = dh.TenDonHang,
                         ThoiGianTao = dh.ThoiGianTao,
                         TrangThaiHienTai = dh.TrangThaiHienTai,
                         MaLoaiDv = dh.MaLoaiDv,
                         LaDonGiaoThang = dh.LaDonGiaoThang,
-                        MaDiaChiLayHang = dh.MaDiaChiNhanHang,
+                        MaDiaChiNhanHang = dh.MaDiaChiNhanHang ?? 0,
 
                         KienHangs = dh.KienHangs.Select(kh => new KienHangModels
                         {
@@ -134,6 +134,62 @@ namespace QuanLyDonHang.ControllersAPI
             }
         }
 
+        // lay thong tin de hien o lo trinh 
+        [HttpGet("chi-tiet-don-hang/{madonhang}")]
+        public async Task<IActionResult> ChiTietDonHang(int? madonhang)
+        {
+            // 1. Kiểm tra đầu vào (Input Validation)
+            if (!madonhang.HasValue || madonhang <= 0)
+            {
+                return BadRequest("Mã đơn hàng không hợp lệ.");
+            }
+
+            try
+            {
+                string cacheKey = $"ChiTietDonHang_{madonhang}";
+
+                // 2. Kiểm tra Cache
+                if (_cache.TryGetValue(cacheKey, out object cachedData))
+                {
+                    return Ok(cachedData);
+                }
+
+                // 3. Truy vấn Database (Dùng try-catch để bắt lỗi kết nối DB)
+                var donhang = await _context.DonHangs
+                    .Where(dh => dh.MaDonHang == madonhang)                   
+                    .Select(dh => new ChiTietDonHang
+                    {
+                        TenNguoiNhan = dh.TenNguoiNhan,
+                        SdtNguoiNhan = dh.SdtNguoiNhan,
+                        MaDiaChiLayHang = dh.MaDiaChiLayHang,
+                        MaKhachHang = dh.MaKhachHang,
+                    })
+                    .FirstOrDefaultAsync();
+
+                // 4. Kiểm tra dữ liệu có tồn tại không
+                if (donhang == null)
+                {
+                    return NotFound($"Không tìm thấy đơn hàng với mã: {madonhang}");
+                }
+
+                // 5. Thiết lập Cache
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetAbsoluteExpiration(TimeSpan.FromMinutes(5))
+                    // Tránh lỗi nếu _resetCacheSignal bị null
+                    .AddExpirationToken(new CancellationChangeToken(_resetCacheSignal.Token));
+
+                _cache.Set(cacheKey, donhang, cacheOptions);
+
+                return Ok(donhang);
+            }
+            catch (Exception ex)
+            {
+                // 6. Ghi log lỗi (Sử dụng ILogger nếu có)
+                _logger.LogError(ex, "Lỗi khi lấy thông tin đơn hàng {MaDonHang}", madonhang);
+                return StatusCode(500, "Đã xảy ra lỗi hệ thống khi xử lý yêu cầu của bạn.");
+            }
+        }
+
         [HttpGet("thongtindonhang/{madonhang}")]
         public async Task<IActionResult> GetThongTinDonHang(int? madonhang)
         {
@@ -163,14 +219,14 @@ namespace QuanLyDonHang.ControllersAPI
                         MaKhachHang = dh.MaKhachHang,
                         TenDonHang = dh.TenDonHang,
                         ThoiGianTao = dh.ThoiGianTao,
-                        MaDiaChiGiao = dh.MaDiaChiGiao,
+                        MaDiaChiLayHang = dh.MaDiaChiLayHang,
                         TrangThaiHienTai = dh.TrangThaiHienTai,
                         MaLoaiDv = dh.MaLoaiDv,
                         MaHopDongNgoai = dh.MaHopDongNgoai,
                         GhiChuDacBiet = dh.GhiChuDacBiet,
                         LaDonGiaoThang = dh.LaDonGiaoThang,
                         MaVung = dh.MaVung,
-                        MaDiaChiLayHang = dh.MaDiaChiNhanHang,
+                        MaDiaChiNhanHang = dh.MaDiaChiNhanHang ?? 0,
                         TenNguoiNhan = dh.TenNguoiNhan,
                         SdtNguoiNhan = dh.SdtNguoiNhan,
                         TongTienDuKien = dh.TongTienDuKien,
@@ -258,10 +314,11 @@ namespace QuanLyDonHang.ControllersAPI
                         MaLoaiDv = dh.MaLoaiDv,
                         LaDonGiaoThang = dh.LaDonGiaoThang,
                         MaVung = dh.MaVung,
-                        MaDiaChiGiao = dh.MaDiaChiGiao,
-                        MaDiaChiLayHang = dh.MaDiaChiNhanHang,
+                        MaDiaChiLayHang = dh.MaDiaChiLayHang,                       
+                       
                         TenNguoiNhan = dh.TenNguoiNhan,
                         SdtNguoiNhan = dh.SdtNguoiNhan,
+                        MaDiaChiNhanHang = dh.MaDiaChiNhanHang ?? 0,
                         KienHangs = dh.KienHangs.Select(kh => new KienHangModels
                         {
                             MaVach = kh.MaVach,
@@ -308,6 +365,7 @@ namespace QuanLyDonHang.ControllersAPI
 
             try
             {
+                
                 // --- BƯỚC 1: ĐỒNG BỘ KHÁCH HÀNG & ĐỊA CHỈ ---
                 var resKh = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlykhachhang/check_so_dien_thoai", new
                 {
@@ -316,61 +374,53 @@ namespace QuanLyDonHang.ControllersAPI
                     DiaChi = request.DiaChiLay
                 });
 
-                if (!resKh.IsSuccessStatusCode) return BadRequest("Lỗi xác thực thông tin khách hàng.");
+                // KIỂM TRA LỖI TRƯỚC KHI ĐỌC JSON
+                if (!resKh.IsSuccessStatusCode)
+                {
+                    // Đọc dưới dạng chuỗi để xem lỗi thực sự là gì (thường là chữ 'S' nằm ở đây)
+                    var errorRaw = await resKh.Content.ReadAsStringAsync();
+                    _logger.LogError($"API Khách hàng trả về lỗi 400: {errorRaw}");
+                    return BadRequest(new { message = "Thông tin khách hàng không hợp lệ", detail = errorRaw });
+                }
+
+                // Nếu thành công thì mới đọc Json
                 var khData = await resKh.Content.ReadFromJsonAsync<JsonElement>();
                 int maKhachHang = khData.GetProperty("maKhachHang").GetInt32();
 
-                // Check địa chỉ lấy và giao
+                // --- BƯỚC 2: XỬ LÝ ĐỊA CHỈ & LẤY MÃ VÙNG H3 ---
+                // Gọi Service Địa chỉ cho bên LẤY
                 var resDcLay = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlydiachi/check_dia_chi", request.DiaChiLay);
-                if (resDcLay.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                if (!resDcLay.IsSuccessStatusCode) return BadRequest("Địa chỉ LẤY không hợp lệ.");
+
+                // ĐỌC OBJECT: { maDiaChi, maVungH3 }
+                var dataDcLay = await resDcLay.Content.ReadFromJsonAsync<JsonElement>();
+                int maDcLay = dataDcLay.GetProperty("maDiaChi").GetInt32();
+                if (maDcLay <= 0)
                 {
-                    var errorMsg = await resDcLay.Content.ReadFromJsonAsync<JsonElement>();
-                    return BadRequest(new { message = $"Địa chỉ LẤY hàng không hợp lệ: {errorMsg.GetProperty("message").GetString()}" });
+                    return BadRequest("Mã địa chỉ không hợp lệ (ID=0).");
                 }
 
+                string maH3Nhan = dataDcLay.GetProperty("maVungH3").GetString() ?? "";
+
+                // Gọi Service Địa chỉ cho bên GIAO
                 var resDcGiao = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlydiachi/check_dia_chi", request.DiaChiGiao);
-                if (resDcGiao.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                if (!resDcGiao.IsSuccessStatusCode) return BadRequest("Địa chỉ GIAO không hợp lệ.");
+
+                var dataDcGiao = await resDcGiao.Content.ReadFromJsonAsync<JsonElement>();
+                int maDcGiao = dataDcGiao.GetProperty("maDiaChi").GetInt32();
+                if (maDcGiao <= 0)
                 {
-                    var errorMsg = await resDcGiao.Content.ReadFromJsonAsync<JsonElement>();
-                    return BadRequest(new { message = $"Địa chỉ GIAO hàng không hợp lệ: {errorMsg.GetProperty("message").GetString()}" });
+                    return BadRequest("Mã địa chỉ không hợp lệ (ID=0).");
                 }
-                
-                var resH3Nhan = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlydiachi/check_dia_chi", request.H3Nhan);
-                var resH3Giao = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlydiachi/check_dia_chi", request.H3Giao);
-                if (!resDcLay.IsSuccessStatusCode || !resDcGiao.IsSuccessStatusCode)
-                    return BadRequest("Lỗi xác thực địa chỉ lấy/giao hàng.");
+                string maH3Giao = dataDcGiao.GetProperty("maVungH3").GetString() ?? "";
 
-                int maDcLay = await resDcLay.Content.ReadFromJsonAsync<int>();
-                int maDcGiao = await resDcGiao.Content.ReadFromJsonAsync<int>();
-
-                var dataNhan = await resH3Nhan.Content.ReadFromJsonAsync<JsonElement>();
-                var dataGiao = await resH3Giao.Content.ReadFromJsonAsync<JsonElement>();
-                string maH3Nhan = "";
-                string maH3Giao = "";
-                if (dataNhan.TryGetProperty("maVungH3", out var pH3Nhan)) maH3Nhan = pH3Nhan.GetString() ?? "";
-                if (dataGiao.TryGetProperty("maVungH3", out var pH3Giao)) maH3Giao = pH3Giao.GetString() ?? "";
-
-
-
-
-                // --- BƯỚC 1.5: TÌM KHO GẦN NHẤT (Thực hiện trước để lưu vào DB) ---
+                // --- BƯỚC 3: TÌM KHO PHỤ TRÁCH (Dùng ID địa chỉ để tính khoảng cách) ---
                 int? maKhoGanNhat = null;
-                try
+                var resKho = await client.GetAsync($"https://localhost:7286/api/quanlykhobai/tim-kho-gan-nhat/{maDcLay}");
+                if (resKho.IsSuccessStatusCode)
                 {
-                    // Gọi Service Kho Bãi (Đảm bảo port 7286 đang chạy)
-                    var resKho = await client.GetAsync($"https://localhost:7286/api/quanlykhobai/tim-kho-gan-nhat/{maDcLay}");
-                    if (resKho.IsSuccessStatusCode)
-                    {
-                        var khoJson = await resKho.Content.ReadFromJsonAsync<JsonElement>();
-                        if (khoJson.TryGetProperty("maKho", out var maKhoProp))
-                        {
-                            maKhoGanNhat = maKhoProp.GetInt32();
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning($"Lỗi tìm kho tự động: {ex.Message}. Sẽ xử lý điều phối sau.");
+                    var khoJson = await resKho.Content.ReadFromJsonAsync<JsonElement>();
+                    maKhoGanNhat = khoJson.GetProperty("maKho").GetInt32();
                 }
 
                 // --- BƯỚC 2: TÍNH TOÁN GIÁ CƠ BẢN TỪNG KIỆN ---
@@ -446,7 +496,7 @@ namespace QuanLyDonHang.ControllersAPI
                     TenDonHang = request.TenDonHang ?? $"Đơn {DateTime.Now:HHmm}",
                     MaKhachHang = maKhachHang,
                     MaDiaChiNhanHang = maDcLay,
-                    MaDiaChiGiao = maDcGiao,
+                    MaDiaChiLayHang = maDcGiao,
 
                     MaMucDoDv = request.MaMucDoDv,
                     TongTienDuKien = tongTienDuKien,
@@ -517,7 +567,7 @@ namespace QuanLyDonHang.ControllersAPI
                     }
                 }
 
-                return Ok(responseData);
+                return Ok(new { Success = true, MaDonHang = newDonHang.MaDonHang, H3 = maH3Nhan });
             }
 
 
@@ -534,47 +584,63 @@ namespace QuanLyDonHang.ControllersAPI
         {
             try
             {
-                // 1. Eager Loading + AsNoTracking: Tối ưu bộ nhớ và tốc độ DB
+                // 1. Eager Loading + AsNoTracking: Lấy đơn hàng cùng danh sách kiện hàng
                 var donHangs = await _context.DonHangs
                     .Include(dh => dh.KienHangs)
                     .Where(dh => dh.TrangThaiHienTai == "Chờ lấy hàng"
-                              && dh.MaDiaChiNhanHang != null 
-                              
-                              && dh.MaMucDoDv != 3)
+                              && dh.MaDiaChiNhanHang != null // Phải có địa chỉ lấy
+                              && dh.MaVungH3Nhan != null    // Phải có vùng H3 nhận
+                              && dh.MaMucDoDv != 3)         // Ví dụ: Loại biên 3 không gom nhóm
                     .AsNoTracking()
                     .ToListAsync();
 
                 if (!donHangs.Any())
                     return NotFound(new { message = "Không có đơn hàng cần thu gom." });
 
-                // 2. Tính toán trực tiếp trên RAM bằng SelectMany
+                // 2. Gom nhóm theo vùng H3 của bên NHẬN (MaVungH3Nhan)
                 var clusters = donHangs
-                    .GroupBy(dh => dh.MaDiaChiNhanHang)
+                    .GroupBy(dh => dh.MaVungH3Nhan)
                     .Select(group => {
+                        // Lấy đơn hàng đầu tiên trong nhóm làm đại diện để lấy mã địa chỉ
+                        var representativeOrder = group.First();
                         var allKienHangs = group.SelectMany(dh => dh.KienHangs).ToList();
 
                         return new ClusterResult
                         {
-                            MaDiaChiCum = group.Key ?? 0,
+                            MaVungH3 = group.Key!,
                             SoLuongDonHang = group.Count(),
+
+                            // QUAN TRỌNG: Bắn mã địa chỉ về để phía Điều phối tìm được Kho gần nhất
+                            // Sử dụng MaDiaChiNhanHang (nơi lấy hàng) làm điểm mốc tìm kho
+                            MaDiaChiCum = representativeOrder.MaDiaChiNhanHang ?? 0,
+                            MaDiaChiLayHang = representativeOrder.MaDiaChiNhanHang ?? 0,
+                            MaDiaChiGiao = representativeOrder.MaDiaChiLayHang,
+
                             DanhSachMaDonHang = group.Select(dh => dh.MaDonHang).ToList(),
                             TongKhoiLuong = allKienHangs.Sum(kh => kh.KhoiLuong ?? 0),
                             TongTheTich = allKienHangs.Sum(kh => kh.TheTich ?? 0)
                         };
                     })
+                    // Có thể lọc thêm: Chỉ lấy cụm có từ N đơn hàng trở lên (nếu request yêu cầu)
+                    // .Where(c => c.SoLuongDonHang >= (request.MinOrdersPerCluster ?? 1))
                     .OrderByDescending(c => c.SoLuongDonHang)
                     .ToList();
 
-                // 3. Xử lý Cache (Nên dùng Redis để tối ưu hơn CancellationToken)
+                // 3. Xử lý Signal/Cache (Giữ nguyên logic của bạn)
                 _resetCacheSignal.Cancel();
                 _resetCacheSignal = new CancellationTokenSource();
 
-                return Ok(new { TotalClusters = clusters.Count, Clusters = clusters });
+                return Ok(new
+                {
+                    TotalClusters = clusters.Count,
+                    TotalOrders = donHangs.Count,
+                    Clusters = clusters
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi gom nhóm.");
-                return StatusCode(500, "Internal Server Error");
+                _logger.LogError(ex, "Lỗi khi thực hiện thuật toán gom nhóm đơn hàng H3");
+                return StatusCode(500, "Lỗi Server nội bộ khi xử lý gom nhóm: " + ex.Message);
             }
         }
         [HttpPut("cap-nhat-trang-thai-nhieu")]

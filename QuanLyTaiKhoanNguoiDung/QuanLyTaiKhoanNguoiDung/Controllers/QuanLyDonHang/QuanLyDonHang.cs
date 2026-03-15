@@ -125,37 +125,34 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyDonHang
                 var tasks = new List<Task>();
 
                 // Task 1: Địa chỉ Giao
-                if (donHang?.MaDiaChiGiao > 0)
+                if (donHang?.MaDiaChiLayHang > 0)
                 {
                     tasks.Add(Task.Run(async () => {
                         try
                         {
-                            var res = await client.GetAsync($"{apiDiaChi}/chitietdiachi/{donHang.MaDiaChiGiao}");
+                            var res = await client.GetAsync($"{apiDiaChi}/chitietdiachi/{donHang.MaDiaChiLayHang}");
                             if (res.IsSuccessStatusCode)
                             {
                                 var json = await res.Content.ReadAsStringAsync();
-                                ViewBag.DiaChiGiao = JsonConvert.DeserializeObject<DiaChiModel>(json);
+                                ViewBag.DiaChiLayHang = JsonConvert.DeserializeObject<DiaChiModel>(json);
                             }
                         }
                         catch { /* Để mặc định null để View hiển thị "Đang tải" */ }
                     }));
                 }
                 // task 2: lay thogn tin khach hang
-                if (donHang?.MaKhachHang > 0)
-                {
+                tasks.Add(Task.Run(async () => {
                     try
                     {
-                        var res = await client.GetAsync($"{apiKhachHang}/khachhang/{donHang.MaKhachHang}");
+                        var res = await client.GetAsync($"{apiKhachHang}/chi-tiet-khach-hang/{donHang?.MaKhachHang}");
                         if (res.IsSuccessStatusCode)
                         {
                             var json = await res.Content.ReadAsStringAsync();
                             ViewBag.ThongTinKhachHang = JsonConvert.DeserializeObject<KhachHangModels>(json);
                         }
                     }
-                    catch
-                    {
-                    }
-                }
+                    catch { }
+                }));
                 // Task 3: Địa chỉ Lấy hang 
                 if (donHang?.MaDiaChiLayHang > 0)
                 {
@@ -166,7 +163,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyDonHang
                             if (res.IsSuccessStatusCode)
                             {
                                 var json = await res.Content.ReadAsStringAsync();
-                                ViewBag.DiaChiLayHang = JsonConvert.DeserializeObject<DiaChiModel>(json);
+                                ViewBag.DiaChiNhanHang = JsonConvert.DeserializeObject<DiaChiModel>(json);
                             }
                         }
                         catch { }

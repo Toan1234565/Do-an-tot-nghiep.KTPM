@@ -23,18 +23,26 @@ namespace QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh
 
         [JsonPropertyName("soLuongDonHang")]
         public int SoLuongDonHang { get; set; }
+        public string? MaVungH3 { get; internal set; }
+        public double TongTheTich { get; internal set; }
+        public int MaDiaChiLayHang { get; internal set; }
     }
    
     public class DonHangDto
     {
         public int MaDonHang { get; set; }
-        public int? MaDiaChiNhanHang { get; set; }
+        
+        
+        
         public string? TrangThaiHienTai { get; set; }
         public int? MaMucDoDv { get; set; }
         public List<KienHangDto> KienHangs { get; set; } = new();
 
         // Thuộc tính tính toán nhanh tổng khối lượng cụm
         public double TongKhoiLuong => KienHangs?.Sum(kh => kh.KhoiLuong ?? 0) ?? 0;
+
+        public int MaDiaChiGiao { get; set; }
+        public int MaDiaChiLayHang { get; set; }
     }
 
     public class KienHangDto
@@ -81,5 +89,28 @@ namespace QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh
         public string? LoaiBangLai { get; set; }
         public double DiemUyTin { get; set; }
         public string? TrangThai { get; set; }
+    }
+    public class ClusterResult
+    {
+        public int MaDiaChiCum { get; set; }
+        public int SoLuongDonHang { get; set; }
+        public List<int>? DanhSachMaDonHang { get; set; }
+        public double TongKhoiLuong { get; set; }
+        public double TongTheTich { get; set; }
+        public string? MaVungH3 { get; set; }
+        public int MaDiaChiLayHang { get; set; }
+    }
+    public class UpdateTrangThaiXeDto
+    {
+        public string TrangThai { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// DTO dùng để gửi cập nhật trạng thái Tài xế qua POST
+    /// </summary>
+    public class UpdateTaiXeTrangThaiDto
+    {
+        public int MaNguoiDung { get; set; }
+        public string TrangThaiMoi { get; set; } = string.Empty;
     }
 }

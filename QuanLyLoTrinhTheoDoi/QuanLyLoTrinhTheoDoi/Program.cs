@@ -36,7 +36,7 @@ builder.Services.AddCors(options =>
 });
 
 // --- 5. ĐĂNG KÝ BACKGROUND SERVICE ---
-builder.Services.AddHostedService<OrderTaskConsumer>(); //
+//builder.Services.AddHostedService<OrderTaskConsumer>(); //
 
 var app = builder.Build();
 

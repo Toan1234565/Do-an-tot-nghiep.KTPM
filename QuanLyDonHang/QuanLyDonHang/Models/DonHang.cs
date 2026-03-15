@@ -11,7 +11,7 @@ public partial class DonHang
 
     public DateTime ThoiGianTao { get; set; }
 
-    public int MaDiaChiGiao { get; set; }
+    public int MaDiaChiLayHang { get; set; }
 
     public string? TrangThaiHienTai { get; set; }
 

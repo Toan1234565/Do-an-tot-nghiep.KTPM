@@ -16,4 +16,6 @@ public partial class NhatKyTheoDoi
     public DateTime ThoiGian { get; set; }
 
     public double? TocDoKmh { get; set; }
+
+    public string? MaVungH3 { get; set; }
 }

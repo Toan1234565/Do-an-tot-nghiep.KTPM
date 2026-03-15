@@ -10,7 +10,7 @@ namespace QuanLyDonHang.Models1
 
         public DateTime ThoiGianTao { get; set; }
 
-        public int MaDiaChiGiao { get; set; }
+        public int MaDiaChiNhanHang { get; set; }
 
         public string? TrangThaiHienTai { get; set; }
 

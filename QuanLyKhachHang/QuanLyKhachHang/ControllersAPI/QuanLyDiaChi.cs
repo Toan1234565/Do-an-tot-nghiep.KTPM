@@ -136,7 +136,6 @@ namespace QuanLyKhachHang.ControllersAPI
             }
         }
 
-
         [HttpPost("check_dia_chi")]
         public async Task<IActionResult> CheckOrCreateDiaChi([FromBody] DiaChiModels request)
         {
@@ -145,40 +144,52 @@ namespace QuanLyKhachHang.ControllersAPI
                 // 1. Kiểm tra xem địa chỉ này đã tồn tại trong DB chưa
                 var existingAddress = await _context.DiaChis
                     .FirstOrDefaultAsync(dc => dc.ThanhPho == request.ThanhPho &&
-                                             dc.Phuong == request.Phuong &&
-                                             dc.Duong == request.Duong);
+                                               dc.Phuong == request.Phuong &&
+                                               dc.Duong == request.Duong);
 
+                // --- LOGIC CẬP NHẬT MÃ H3 NẾU THIẾU ---
                 if (existingAddress != null)
                 {
-                    return Ok(existingAddress.MaDiaChi); // Trả về ID nếu đã có
-                }
-                var (lat, lon) = await GetCoordinatesAsync(request.Duong, request.Phuong, request.ThanhPho);
+                    // Nếu địa chỉ đã có nhưng chưa có mã H3 hoặc tọa độ
+                    if (string.IsNullOrEmpty(existingAddress.MaVungH3) || existingAddress.ViDo == null)
+                    {
+                        var (lat, lon) = await GetCoordinatesAsync(existingAddress.Duong, existingAddress.Phuong, existingAddress.ThanhPho);
 
-                string h3Hex = string.Empty;
-                if (lat.HasValue && lon.HasValue)
+                        if (lat.HasValue && lon.HasValue)
+                        {
+                            var h3IndexObj = H3Index.FromLatLng(new LatLng(lat.Value, lon.Value), 7);
+                            existingAddress.MaVungH3 = h3IndexObj.ToString();
+                            existingAddress.ViDo = lat;
+                            existingAddress.KinhDo = lon;
+
+                            _context.DiaChis.Update(existingAddress);
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+
+                    // Trả về object đồng nhất (MaDiaChi + MaVungH3) thay vì chỉ trả về ID
+                    return Ok(new { maDiaChi = existingAddress.MaDiaChi, maVungH3 = existingAddress.MaVungH3 });
+                }
+
+                // 2. Nếu chưa có thì tạo mới hoàn toàn (giữ nguyên logic cũ của bạn)
+                var (newLat, newLon) = await GetCoordinatesAsync(request.Duong, request.Phuong, request.ThanhPho);
+
+                if (newLat == null || newLon == null)
                 {
-                    // Độ phân giải 7 (khoảng 1.2km) phù hợp cho vận tải đô thị
-                    var h3IndexObj = H3Index.FromLatLng(new LatLng(lat.Value, lon.Value), 7);
-                    h3Hex = h3IndexObj.ToString();
+                    return BadRequest(new { message = "Không tìm thấy kinh độ/vĩ độ trên bản đồ." });
                 }
 
-                // 2. Nếu chưa có thì tạo mới
+                var h3IndexNew = H3Index.FromLatLng(new LatLng(newLat.Value, newLon.Value), 7);
                 var newDc = new DiaChi
                 {
                     ThanhPho = request.ThanhPho,
                     Phuong = request.Phuong,
                     Duong = request.Duong,
-                    KinhDo =lon,
-                    ViDo = lat,
-                    MaVungH3 = h3Hex
-
+                    KinhDo = newLon,
+                    ViDo = newLat,
+                    MaVungH3 = h3IndexNew.ToString()
                 };
-                if (lat == null || lon == null)
-                {
-                    
-                    return BadRequest(new { message = "Không tìm thấy kinh độ/vĩ độ trên bản đồ." });
-                }
-               
+
                 _context.DiaChis.Add(newDc);
                 await _context.SaveChangesAsync();
 
@@ -187,9 +198,10 @@ namespace QuanLyKhachHang.ControllersAPI
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Lỗi khi kiểm tra hoặc tạo địa chỉ");
-                return StatusCode(500, "Lỗi tạo địa chỉ");
+                return StatusCode(500, "Lỗi hệ thống khi xử lý địa chỉ");
             }
         }
+
         private async Task<(double? lat, double? lon)> GetCoordinatesAsync(string? duong, string? phuong, string? thanhPho)
         {
             if (string.IsNullOrWhiteSpace(thanhPho)) return (null, null);

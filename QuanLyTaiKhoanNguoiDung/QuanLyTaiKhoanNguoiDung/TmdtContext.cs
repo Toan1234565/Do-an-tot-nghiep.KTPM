@@ -78,7 +78,7 @@ public partial class TmdtContext : DbContext
 
             entity.Property(e => e.MaDangKy).HasColumnName("ma_dang_ky");
             entity.Property(e => e.MaCa).HasColumnName("ma_ca");
-            entity.Property(e => e.MaTaiXe).HasColumnName("ma_tai_xe");
+            entity.Property(e => e.MaNguoiDung).HasColumnName("ma_nguoi_dung");
             entity.Property(e => e.NgayTruc).HasColumnName("ngay_truc");
             entity.Property(e => e.TrangThai)
                 .HasMaxLength(50)
@@ -89,8 +89,8 @@ public partial class TmdtContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_DangKy_Ca");
 
-            entity.HasOne(d => d.MaTaiXeNavigation).WithMany(p => p.DangKyCaTrucs)
-                .HasForeignKey(d => d.MaTaiXe)
+            entity.HasOne(d => d.MaNguoiDungNavigation).WithMany(p => p.DangKyCaTrucs)
+                .HasForeignKey(d => d.MaNguoiDung)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_DangKy_TaiXe");
         });

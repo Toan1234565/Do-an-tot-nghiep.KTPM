@@ -106,6 +106,13 @@ namespace QuanLyKhachHang.ControllersAPI
         {
             try
             {
+                string cacheKey = $"LayKhachHang_{maKhachHang}";
+
+                // 2. Kiểm tra Cache
+                if (_cache.TryGetValue(cacheKey, out object cachedData))
+                {
+                    return Ok(cachedData);
+                }
                 // TỐI ƯU: Sử dụng Select để Projection ngay từ đầu. 
                 // Điều này giúp SQL không phải thực hiện "Select *", giảm băng thông và CPU của DB.
                 var result = await _context.KhachHangs
@@ -148,6 +155,53 @@ namespace QuanLyKhachHang.ControllersAPI
                     .FirstOrDefaultAsync();
 
                 if (result == null) return NotFound(new { message = "Khách hàng không tồn tại" });
+
+                var cacheOptions = new MemoryCacheEntryOptions()
+               .SetSlidingExpiration(TimeSpan.FromMinutes(10)) // Hết hạn nếu không truy cập trong 10p
+               .SetAbsoluteExpiration(TimeSpan.FromHours(1));  // Xóa cứng sau 1 giờ
+
+                _cache.Set(cacheKey, result, cacheOptions);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy khách hàng ID: {ID}", maKhachHang);
+                return StatusCode(500, new { message = "Lỗi hệ thống" });
+            }
+        }
+        [HttpGet("chi-tiet-khach-hang/{maKhachHang}")]
+        public async Task<IActionResult> chitietkhachhang(int maKhachHang)
+        {
+            try
+            {
+                string cacheKey = $"chitietkhachhang_{maKhachHang}";
+
+                // 2. Kiểm tra Cache
+                if (_cache.TryGetValue(cacheKey, out object cachedData))
+                {
+                    return Ok(cachedData);
+                }
+                // TỐI ƯU: Sử dụng Select để Projection ngay từ đầu. 
+                // Điều này giúp SQL không phải thực hiện "Select *", giảm băng thông và CPU của DB.
+                var result = await _context.KhachHangs
+                    .AsNoTracking()
+                    .Where(kh => kh.MaKhachHang == maKhachHang)
+                    .Select(kh => new KhachHangSummaryDto
+                    {
+                        TenKhachHang = kh.TenLienHe,
+                        SoDienThoai = kh.SoDienThoai,
+                                      
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (result == null) return NotFound(new { message = "Khách hàng không tồn tại" });
+
+                var cacheOptions = new MemoryCacheEntryOptions()
+                .SetSlidingExpiration(TimeSpan.FromMinutes(10)) // Hết hạn nếu không truy cập trong 10p
+                .SetAbsoluteExpiration(TimeSpan.FromHours(1));  // Xóa cứng sau 1 giờ
+
+                _cache.Set(cacheKey, result, cacheOptions);
 
                 return Ok(result);
             }

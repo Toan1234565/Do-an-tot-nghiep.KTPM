@@ -4,8 +4,8 @@
 
 @{
     ViewData["Title"] = "Chi Tiết Đơn Hàng";
-    var diaChiGiao = ViewBag.DiaChiGiao as DiaChiModel;
-    var diaChiLay = ViewBag.DiaChiLayHang as DiaChiModel;
+    var diachilayhang = ViewBag.DiaChiLayHang as DiaChiModel;
+    var diachinhanhang = ViewBag.DiaChiNhanHang as DiaChiModel;
     
     var diaChiKho = ViewBag.DiaChiKhoHienTai as DiaChiModel;
     var khachHang = ViewBag.ThongTinKhachHang as KhachHangModels;
@@ -99,24 +99,28 @@
 
 <div class="container-fluid py-4">
     <div class="main-content-container">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        
+        <div class="d-flex justify-content-between align-items-center px-2 mb-4">
             <div>
-                <h2 class="fw-bold m-0 text-primary"><i class="bi bi-box2-fill me-2"></i>Chi tiết #@Model?.TenDonHang</h2>
-                <span class="text-muted">Ngày tạo: @Model?.ThoiGianTao.ToString("dd/MM/yyyy HH:mm")</span>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1">
+                        <li class="breadcrumb-item"><a href="/QuanLyDonHang/DanhSachDonhang" class="text-decoration-none">Quản lý</a></li>
+                        <li class="breadcrumb-item active">Chi tiết đơn hàng</li>
+                    </ol>
+                </nav>
+                <h3 class="fw-bold m-0" style="color: #333;">@Model?.TenDonHang</h3>
             </div>
-            <div class="d-flex gap-2">
-                <button onclick="window.print()" class="btn btn-outline-primary"><i class="bi bi-printer me-2"></i>In vận đơn</button>
-                <a href="javascript:history.back()" class="btn btn-secondary px-4"><i class="bi bi-arrow-left me-2"></i>Quay lại</a>
-            </div>
+            <a href="javascript:history.back()" class="btn btn-outline-secondary px-4 shadow-sm" style="border-radius: 10px; background: white;">
+                <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+            </a>
         </div>
-
         <div class="card shadow-sm mb-4 py-4">
             <div class="timeline-steps">
                 <div class="timeline-step active">
                     <div class="timeline-content">
                         <div class="inner-circle"></div>
                         <p class="h6 mt-3 mb-1 fw-bold">Điểm lấy hàng</p>
-                        <p class="small text-muted mb-0">@(diaChiLay?.ThanhPho ?? "Đang cập nhật...")</p>
+                        <p class="small text-muted mb-0">@(diachilayhang?.ThanhPho ?? "Đang cập nhật...")</p>
                     </div>
                 </div>
 
@@ -150,7 +154,7 @@
                     <div class="timeline-content">
                         <div class="inner-circle"></div>
                         <p class="h6 mt-3 mb-1 fw-bold">Điểm giao hàng</p>
-                        <p class="small text-muted mb-0">@(diaChiGiao?.ThanhPho ?? "---")</p>
+                        <p class="small text-muted mb-0">@(diachinhanhang?.ThanhPho ?? "---")</p>
                     </div>
                 </div>
             </div>
@@ -319,15 +323,15 @@
                 <div class="card shadow-sm mb-4">
                     <div class="card-body">
                         <h6 class="fw-bold text-muted mb-3"><i class="bi bi-geo-alt-fill me-2 text-danger"></i>ĐỊA CHỈ LẤY HÀNG</h6>
-                        @if (diaChiGiao != null)
+                        @if (diachilayhang != null)
                         {
                            
                             <p class="small text-dark mb-0 lh-base">
                                 @khachHang?.TenLienHe - @khachHang?.SoDienThoai<br>
-                                @diaChiLay?.Duong, @diaChiLay?.Phuong<br>
-                                <strong>@diaChiLay?.ThanhPho</strong>
+                                @diachilayhang?.Duong, @diachilayhang?.Phuong<br>
+                                <strong>@diachilayhang?.ThanhPho</strong>
                             </p>
-                            <a href="https://www.google.com/maps/search/?api=1&query=@(diaChiLay?.ViDo),@(diaChiLay?.KinhDo)"
+                            <a href="https://www.google.com/maps/search/?api=1&query=@(diachilayhang?.ViDo),@(diachilayhang?.KinhDo)"
                                target="_blank" class="btn btn-sm btn-outline-danger mt-3 w-100">
                                 <i class="bi bi-map me-2"></i>Xem trên bản đồ
                             </a>
@@ -338,16 +342,16 @@
                         }
                     </div>
                     <div class="card-body">
-                        <h6 class="fw-bold text-muted mb-3"><i class="bi bi-geo-alt-fill me-2 text-danger"></i>ĐỊA CHỈ GIAO HÀNG</h6>
-                        @if (diaChiGiao != null)
+                        <h6 class="fw-bold text-muted mb-3"><i class="bi bi-geo-alt-fill me-2 text-danger"></i>ĐỊA CHỈ NHẬN HÀNG</h6>
+                        @if (diachinhanhang != null)
                         {
 
                             <p class="small text-dark mb-0 lh-base">
                                 @Model?.TenNguoiNhan - @Model?.SdtNguoiNhan<br>
-                                @diaChiGiao.Duong, @diaChiGiao.Phuong<br>
-                                <strong>@diaChiGiao.ThanhPho</strong>
+                                @diachinhanhang.Duong, @diachinhanhang.Phuong<br>
+                                <strong>@diachinhanhang.ThanhPho</strong>
                             </p>
-                            <a href="https://www.google.com/maps/search/?api=1&query=@(diaChiGiao.ViDo),@(diaChiGiao.KinhDo)"
+                            <a href="https://www.google.com/maps/search/?api=1&query=@(diachinhanhang.ViDo),@(diachinhanhang.KinhDo)"
                                target="_blank" class="btn btn-sm btn-outline-danger mt-3 w-100">
                                 <i class="bi bi-map me-2"></i>Xem trên bản đồ
                             </a>

@@ -1068,5 +1068,50 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, "Lỗi hệ thống khi điều phối lộ trình");
             }
         }
+        [HttpPost("cap-nhat-trang-thai-xe/{maPhuongTien}")]
+        public async Task<IActionResult> UpdateTrangThaiXe(int maPhuongTien, [FromBody] UpdateTrangThaiXeDto model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.TrangThai))
+            {
+                return BadRequest("Trạng thái không hợp lệ.");
+            }
+
+            try
+            {
+                // Sử dụng FirstOrDefaultAsync hoặc FindAsync
+                var existingXe = await _context.PhuongTiens.FindAsync(maPhuongTien);
+
+                if (existingXe == null)
+                {
+                    return NotFound($"Không tìm thấy phương tiện với mã {maPhuongTien}");
+                }
+
+                // Chỉ cập nhật duy nhất trường trạng thái
+                if (existingXe.TrangThai != model.TrangThai)
+                {
+                    existingXe.TrangThai = model.TrangThai;
+
+                    // Nếu bạn có dùng Cache cho danh sách xe, hãy xóa nó ở đây
+                    // _cache.Remove("DanhSachXe_Key");
+
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInformation("Phương tiện {ID} đã chuyển sang trạng thái: {Status}",
+                        maPhuongTien, model.TrangThai);
+                }
+
+                return Ok(new
+                {
+                    Success = true,
+                    Message = "Cập nhật trạng thái thành công",
+                    NewStatus = model.TrangThai
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi cập nhật trạng thái xe {ID}", maPhuongTien);
+                return StatusCode(500, "Lỗi hệ thống khi cập nhật trạng thái");
+            }
+        }
     }
 }

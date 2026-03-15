@@ -7,7 +7,7 @@ public partial class DangKyCaTruc
 {
     public int MaDangKy { get; set; }
 
-    public int MaTaiXe { get; set; }
+    public int MaNguoiDung { get; set; }
 
     public int MaCa { get; set; }
 
@@ -17,5 +17,5 @@ public partial class DangKyCaTruc
 
     public virtual CaLamViec MaCaNavigation { get; set; } = null!;
 
-    public virtual TaiXe MaTaiXeNavigation { get; set; } = null!;
+    public virtual TaiXe MaNguoiDungNavigation { get; set; } = null!;
 }

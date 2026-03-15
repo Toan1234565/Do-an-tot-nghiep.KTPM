@@ -1,0 +1,467 @@
+﻿@using QuanLyLoTrinhTheoDoi.Models12
+@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDiaChi
+@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyLoTrinhTheoDoi
+@model LoTrinhModels
+
+@{
+    ViewData["Title"] = "Chi Tiết Lộ Trình #" + Model?.MaLoTrinh;
+    
+    var tentaixe = ViewBag.LayTenTaiXe as TenTaiXeLoTrinhModels;
+    var tentaixephu = ViewBag.LayTenTaiXePhu as TenTaiXeLoTrinhModels;
+    var dictDiaChi = ViewBag.DictionaryDiaChi as System.Collections.Concurrent.ConcurrentDictionary<int, DiaChiModel>;
+    var dictDonHang = ViewBag.DictionaryDonHang as System.Collections.Concurrent.ConcurrentDictionary<int, ChiTietDonHangViewModel>;
+   
+}
+<style>
+    .main-content-container {
+        background-color: #f8f9fa;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    }
+
+    .timeline {
+        border-left: 2px dashed #e3e6f0;
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        color: #4e73df;
+        font-weight: 500;
+    }
+
+        .nav-tabs .nav-link.active {
+            border-bottom: 3px solid #4e73df;
+            color: #2e59d9 !important;
+        }
+
+    .border-left-danger {
+        border-left: 0.25rem solid #e74a3b !important;
+    }
+
+    @@media print {
+        .btn, .nav-tabs, .breadcrumb {
+            display: none !important;
+        }
+    }
+</style>
+<div class="container-fluid py-4">
+    <div class="main-content-container">
+        @if (Model == null)
+        {
+            <div class="container-fluid py-4">
+                <div class="alert alert-danger shadow-sm">
+                    <i class="fas fa-exclamation-triangle me-2"></i> Không thể tải dữ liệu lộ trình hoặc lộ trình không tồn tại.
+                    @if (ViewBag.Error != null)
+                    {
+                        <br />
+                        <strong>Lỗi:</strong>
+ 
+                        @ViewBag.Error
+                    }
+                </div>
+                <a href="@Url.Action("QuanLyLoTrinhTheoDoi")" class="btn btn-primary"><i class="fas fa-arrow-left me-1"></i> Quay lại danh sách</a>
+            </div>
+        }
+        else
+        {
+            <div class="container-fluid py-4">               
+                <div class="d-flex justify-content-between align-items-center px-2 mb-4">
+                    <div>
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-1">
+                                <li class="breadcrumb-item"><a href="/QuanLyLoTrinhTheoDoi/ChiTietLoTrinhTheoDoi" class="text-decoration-none">Quản lý</a></li>
+                                <li class="breadcrumb-item active">Chi tiết lộ trình</li>
+                            </ol>
+                        </nav>
+                      
+                    </div>
+                    <a href="javascript:history.back()" class="btn btn-outline-secondary px-4 shadow-sm" style="border-radius: 10px; background: white;">
+                        <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+                    </a>
+                </div>
+                <div class="row">
+                    <div class="col-xl-4 col-lg-5">
+                        <div class="card shadow-sm border-0 mb-4">
+                            <div class="card-header bg-white py-3">
+                                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-info-circle me-2"></i>Thông tin chung</h6>
+                            </div>
+                            <div class="card-body">
+                                
+                                <div class="mb-3">
+                                    <label class="text-muted small fw-bold">LỘ TRÌNH</label>
+                                    <div class="h5 fw-bold text-dark">
+                                        <i class="fas fa-route me-2 text-secondary"></i>
+                                        @Model?.MaLoTrinh
+                                        <span class="badge bg-light text-primary border border-primary ms-2">@Model?.TrangThai</span>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="text-muted small fw-bold">PHƯƠNG TIỆN</label>
+                                    <div class="h5 fw-bold text-dark">
+                                        <i class="fas fa-truck me-2 text-secondary"></i>
+                                        @(Model?.MaPhuongTien?.ToString() ?? "Chưa xếp xe")
+
+                                        @if (Model?.MaPhuongTien != null)
+                                        {
+                                            <a href="@Url.Action("ChiTietPhuongTien", "QuanLyPhuongTien", new { maPhuongTien = Model?.MaPhuongTien })"
+                                               class="btn btn-sm btn-link text-decoration-none align-middle">
+                                                <i class="fas fa-external-link-alt me-1"></i> Chi tiết phương tiện
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="row">
+                                    <div class="col-6" onclick="location.href='@Url.Action("ChiTietTaiXe", "QuanLyTaiXe", new { id = Model?.MaTaiXeChinh })'">
+                                        <label class="text-muted small fw-bold">
+                                            <i class="fas fa-user-tie me-1"></i> TÀI XẾ CHÍNH
+                                        </label>
+                                        <p class="text-primary fw-bold mb-1">
+                                            @if (tentaixe != null && !string.IsNullOrEmpty(tentaixe.TenTaiXeThucHien))
+                                            {
+                                                @tentaixe.TenTaiXeThucHien
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">N/A</span>
+                                            }
+                                        </p>
+                                        <small class="text-muted bg-light px-2 rounded border">
+                                            
+                                            ID: @(Model?.MaTaiXeChinh?.ToString() ?? "N/A")
+                                        </small>
+                                    </div>
+                                    <div class="col-6 border-start" onclick="location.href='@Url.Action("ChiTietTaiXe", "QuanLyTaiXe", new { id = Model?.MaTaiXePhu })'">
+                                        <label class="text-muted small fw-bold">
+                                            <i class="fas fa-user-friends me-1"></i> TÀI XẾ PHỤ
+                                        </label>
+                                        <p class="text-dark mb-1">
+                                            @if (tentaixephu != null)
+                                            {
+                                                @tentaixephu.TenTaiXeThucHien
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Không có</span>
+                                            }
+                                        </p>
+                                        <small class="text-muted bg-light px-2 rounded border">
+                                            ID: @(Model?.MaTaiXePhu?.ToString() ?? "N/A")
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card shadow-sm border-0 mb-4">
+                            <div class="card-header bg-white py-3">
+                                <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-clock me-2"></i>Thời gian thực tế</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span>Kế hoạch:</span>
+                                        <span class="fw-bold">@(Model?.ThoiGianBatDauKeHoach?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa có")</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between text-success">
+                                        <span>Bắt đầu thực tế:</span>
+                                        <span class="fw-bold">@(Model?.ThoiGianBatDauThucTe?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa bắt đầu")</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-8 col-lg-7">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white p-0 border-bottom">
+                                <ul class="nav nav-tabs border-bottom-0" id="detailTab" role="tablist">
+                                    <li class="nav-item">
+                                        <a class="nav-link active py-3 px-4" id="stops-tab" data-bs-toggle="tab" href="#stops" role="tab">
+                                            <i class="fas fa-map-marked-alt me-2"></i>Hành trình (@Model?.TongSoDiemDung)
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link py-3 px-4" id="cargo-tab" data-bs-toggle="tab" href="#cargo" role="tab">
+                                            <i class="fas fa-boxes me-2"></i>Kiện hàng (@Model?.TongSoDonHang)
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link py-3 px-4 text-danger" id="costs-tab" data-bs-toggle="tab" href="#costs" role="tab">
+                                            <i class="fas fa-file-invoice-dollar me-2"></i>Chi phí
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="card-body">
+                                <div class="tab-content">
+                                    <div class="tab-pane fade show active" id="stops" role="tabpanel">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h5 class="mb-0 text-primary fw-bold">Danh sách điểm dừng</h5>
+                                            <button id="btnViewMap" class="btn btn-sm btn-primary shadow-sm rounded-pill px-3">
+                                                <i class="fas fa-directions me-1"></i> Xem lộ trình trên Map
+                                            </button>
+                                        </div>
+                                        <div class="timeline ps-3 py-2">
+                                            @if (Model?.DiemDungs != null && Model.DiemDungs.Any())
+                                            {
+                                                foreach (var dd in Model.DiemDungs.OrderBy(x => x.ThuTuDung))
+                                                {
+                                                    <div class="timeline-item position-relative mb-4">
+                                                        <div class="timeline-marker position-absolute rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                                                             style="width: 28px; height: 28px; left: -35px; top: 0; z-index: 1;">
+                                                            @dd.ThuTuDung
+                                                        </div>
+                                                        <div class="card border-0 shadow-sm bg-light rounded-3 p-3">
+                                                            <div class="d-flex justify-content-between align-items-start">
+                                                                <div>
+                                                                    <h6 class="fw-bold text-primary mb-1">
+                                                                        <i class="fas fa-map-marker-alt me-2"></i>@dd.LoaiDung 
+                                                                    </h6>
+                                                                    @{
+                                                                        
+                                                                        var dc = (dictDiaChi != null && dictDiaChi.TryGetValue(dd.MaDiaChi, out var result)) ? result : null;
+                                                                    }
+
+                                                                    <div class="text-dark small mb-2 stop-location"
+                                                                         data-vido="@(dc?.ViDo ?? 0)"
+                                                                         data-kinhdo="@(dc?.KinhDo ?? 0)">
+                                                                        @if (dc != null)
+                                                                        {
+                                                                            <span>@dc.Duong, @dc.Phuong, @dc.ThanhPho, @dc.ViDo</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span class="text-muted fst-italic">Đang cập nhật địa chỉ...</span>
+                                                                        }
+                                                                    </div>
+                                                         
+                                                                    
+                                                                </div>
+                                                                <span class="badge @(dd.LoaiDung == "Giao hàng" ? "bg-info text-dark" : "bg-warning text-dark")">
+                                                                    @dd.LoaiDung
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <p class="text-muted fst-italic text-center">Chưa có điểm dừng nào được cấu hình.</p>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div class="tab-pane fade" id="cargo" role="tabpanel">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover align-middle">
+                                                <thead class="bg-light">
+                                                    <tr>
+                                                        <th>Mã Đơn</th>
+                                                        <th>Thông tin người nhận</th>
+                                                        <th>Trạng Thái Trên Xe</th>                                               
+                                                        <th class="text-center">Thao tác</th>
+                                                    </tr>
+                                                </thead>
+                                             
+                                                <tbody>
+                                                    @if (Model?.ChiTietLoTrinhKienHangs != null && Model.ChiTietLoTrinhKienHangs.Any())
+                                                    {
+                                                        foreach (var ct in Model.ChiTietLoTrinhKienHangs)
+                                                        {
+                                                            <tr>
+                                                                <td class="fw-bold">#@ct.MaDonHang</td>
+                                                                <td>
+                                                                    @if (dictDonHang != null && ct.MaDonHang.HasValue && dictDonHang.TryGetValue(ct.MaDonHang.Value, out var dh))
+                                                                    {
+                                                                        <div class="small">
+                                                                            <div class="mb-2">
+                                                                                <span class="badge bg-secondary mb-1">Người nhận</span><br />
+                                                                                <i class="fas fa-user text-muted me-1"></i> @dh.TenNguoiNhan <br />
+                                                                                <i class="fas fa-phone text-muted me-1"></i> @dh.SdtNguoiNhan
+                                                                            </div>
+
+                                                                            <div class="customer-info" data-ma-khach-hang="@dh.MakhachHang">
+                                                                                <span class="badge bg-primary mb-1">Người gửi</span><br />
+                                                                                <div class="loading-spinner-small">
+                                                                                    <i class="fas fa-spinner fa-spin text-primary"></i> Đang tải...
+                                                                                </div>
+                                                                                <div class="content-khach-hang d-none">
+                                                                                    <i class="fas fa-building text-muted me-1"></i> <span class="ten-kh"></span> <br />
+                                                                                    <i class="fas fa-phone-alt text-muted me-1"></i> <span class="sdt-kh"></span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <span class="text-muted small fst-italic">Đang tải...</span>
+                                                                    }
+                                                                </td>
+                                                                <td><span class="badge bg-light text-primary border border-primary">@ct.TrangThaiTrenXe</span></td>
+                                                                <td class="text-center">
+                                                                    <a href="@Url.Action("ChiTietDonHang", "QuanLyDonHang", new { maDonHang = ct.MaDonHang })" class="btn btn-sm btn-link">
+                                                                        <i class="fas fa-external-link-alt me-1"></i> Chi tiết đơn
+                                                                    </a>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div class="tab-pane fade" id="costs" role="tabpanel">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered align-middle">
+                                                <thead class="table-light text-danger">
+                                                    <tr>
+                                                        <th>Loại Chi Phí</th>
+                                                        <th>Ghi Chú</th>
+                                                        <th class="text-end">Số Tiền</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @if (Model?.ChiPhiLoTrinhs != null && Model.ChiPhiLoTrinhs.Any())
+                                                    {
+                                                        foreach (var cp in Model.ChiPhiLoTrinhs)
+                                                        {
+                                                            <tr>
+                                                                <td class="fw-bold">@cp.LoaiChiPhi</td>
+                                                                <td>@(string.IsNullOrEmpty(cp.GhiChu) ? "-" : cp.GhiChu)</td>
+                                                                <td class="text-end fw-bold text-danger">
+                                                                    @(cp.SoTien?.ToString("N0") ?? "0") VNĐ
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                        <tr class="table-light">
+                                                            <td colspan="2" class="text-end fw-bold">Tổng cộng:</td>
+                                                            <td class="text-end fw-bold text-danger fs-5">
+                                                                @(Model.ChiPhiLoTrinhs.Sum(x => x.SoTien ?? 0).ToString("N0")) VNĐ
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                    else
+                                                    {
+                                                        <tr>
+                                                            <td colspan="3" class="text-center text-muted py-4">
+                                                                <i class="fas fa-receipt text-secondary fs-4 mb-2 d-block"></i>
+                                                                Chưa ghi nhận chi phí nào cho lộ trình này
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        async function loadCustomerDetails() {
+            const containers = document.querySelectorAll('.customer-info');
+            const maKhachHangs = new Set();
+
+            containers.forEach(c => {
+                const id = c.getAttribute('data-ma-khach-hang');
+                if (id && id > 0) maKhachHangs.add(id);
+            });
+
+            // Thay vì dùng maKhachHangs.forEach(async...), dùng for...of để kiểm soát bất đồng bộ tốt hơn
+            for (const maKH of maKhachHangs) {
+                try {
+                    // Đã xóa dấu $ dư thừa ở đầu link và dùng Template Literal chính xác
+                    const response = await fetch(`https://localhost:7149/api/quanlykhachhang/chi-tiet-khach-hang/${maKH}`);
+                    if (response.status === 404) {
+                        // Xử lý khi API tồn tại nhưng dữ liệu khách hàng không có
+                        const elements = document.querySelectorAll(`.customer-info[data-ma-khach-hang="${maKH}"]`);
+                        elements.forEach(el => {
+                            el.querySelector('.loading-spinner-small').innerHTML = '<span class="text-muted small">Không tìm thấy khách</span>';
+                        });
+                        return;
+                    }
+                    if (response.ok) {
+                        const data = await response.json();
+
+                        const elements = document.querySelectorAll(`.customer-info[data-ma-khach-hang="${maKH}"]`);
+                        elements.forEach(el => {
+                            // Gán dữ liệu (đảm bảo đúng tên thuộc tính trả về từ DTO của bạn)
+                            el.querySelector('.ten-kh').innerText = data.tenKhachHang || 'N/A';
+                            el.querySelector('.sdt-kh').innerText = data.soDienThoai || 'N/A';
+
+                            // Cập nhật giao diện
+                            const spinner = el.querySelector('.loading-spinner-small');
+                            const content = el.querySelector('.content-khach-hang');
+
+                            if(spinner) spinner.classList.add('d-none');
+                            if(content) content.classList.remove('d-none');
+                        });
+                    }
+                } catch (error) {
+                    console.error(`Lỗi khi lấy thông tin khách hàng ${maKH}:`, error);
+                    const elements = document.querySelectorAll(`.customer-info[data-ma-khach-hang="${maKH}"]`);
+                    elements.forEach(el => {
+                        const spinner = el.querySelector('.loading-spinner-small');
+                        if(spinner) spinner.innerHTML = '<span class="text-danger small">Lỗi tải dữ liệu</span>';
+                    });
+                }
+            }
+        }
+
+        const cargoTab = document.getElementById('cargo-tab');
+        if (cargoTab) {
+            cargoTab.addEventListener('shown.bs.tab', function () {
+                loadCustomerDetails();
+            }, { once: true });
+        }
+
+        const btnViewMap = document.getElementById('btnViewMap');
+        if (btnViewMap) {
+            btnViewMap.addEventListener('click', function () {
+                // Lấy tất cả các điểm có tọa độ
+                const stopElements = document.querySelectorAll('.stop-location');
+                const coordinates = [];
+
+                stopElements.forEach(el => {
+                    const lat = el.getAttribute('data-vido');
+                    const lng = el.getAttribute('data-kinhdo');
+                    if (lat && lng && lat !== "" && lng !== "") {
+                        coordinates.push(`${lat},${lng}`);
+                    }
+                });
+
+                if (coordinates.length < 2) {
+                    alert("Cần ít nhất 2 điểm có tọa độ để chỉ đường!");
+                    return;
+                }
+
+                // Điểm bắt đầu
+                const origin = coordinates[0];
+                // Điểm kết thúc
+                const destination = coordinates[coordinates.length - 1];
+                // Các điểm trung gian (nếu có)
+                let waypoints = "";
+                if (coordinates.length > 2) {
+                    const middlePoints = coordinates.slice(1, -1);
+                    waypoints = "&waypoints=" + middlePoints.join('|');
+                }
+
+                // Tạo link Google Maps Directions
+                const mapUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints}&travelmode=driving`;
+
+                // Mở tab mới
+                window.open(mapUrl, '_blank');
+            });
+        }
+    });
+</script>

@@ -133,7 +133,7 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.LaDonGiaoThang)
                 .HasDefaultValue(false)
                 .HasColumnName("la_don_giao_thang");
-            entity.Property(e => e.MaDiaChiGiao).HasColumnName("ma_dia_chi_giao");
+            entity.Property(e => e.MaDiaChiLayHang).HasColumnName("ma_dia_chi_lay_hang");
             entity.Property(e => e.MaDiaChiNhanHang).HasColumnName("ma_dia_chi_nhan_hang");
             entity.Property(e => e.MaHopDongNgoai).HasColumnName("ma_hop_dong_ngoai");
             entity.Property(e => e.MaKhachHang).HasColumnName("ma_khach_hang");

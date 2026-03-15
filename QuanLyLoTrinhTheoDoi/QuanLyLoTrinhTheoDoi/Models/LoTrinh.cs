@@ -19,6 +19,8 @@ public partial class LoTrinh
 
     public int? MaTaiXePhu { get; set; }
 
+    public string? GhiChu { get; set; }
+
     public virtual ICollection<ChiPhiLoTrinh> ChiPhiLoTrinhs { get; set; } = new List<ChiPhiLoTrinh>();
 
     public virtual ICollection<ChiTietLoTrinhKienHang> ChiTietLoTrinhKienHangs { get; set; } = new List<ChiTietLoTrinhKienHang>();

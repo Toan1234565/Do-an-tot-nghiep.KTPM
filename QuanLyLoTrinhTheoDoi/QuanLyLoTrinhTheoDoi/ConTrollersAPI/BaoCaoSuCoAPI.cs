@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
 using QuanLyLoTrinhTheoDoi.Models12;
+using QuanLyLoTrinhTheoDoi.Models12.QuanLySuCo;
 using System;
 
 namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
