@@ -1,0 +1,313 @@
+﻿@model List<QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyLichLamViec.DangKyCaTrucModels>
+
+@{
+    ViewData["Title"] = "Quản lý lịch làm việc";
+    var queryDate = ViewBag.CurrentThoiGian;
+    var currentMaKho = ViewBag.CurrentMaKho;
+}
+
+<head>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --bg-body: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: #2b2d42;
+        }
+
+        .main-card {
+            background: white;
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            margin: 20px auto;
+            max-width: 98%;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        h1 {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: #1a202c;
+            margin: 0;
+        }
+
+        .btn-add-new {
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-weight: 600;
+            border: none;
+            transition: 0.3s;
+        }
+
+            .btn-add-new:hover {
+                background-color: var(--secondary-color);
+                color: white;
+                box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+            }
+
+        /* Modal Custom Styling */
+        .modal-content {
+            border-radius: 20px;
+            border: none;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+        }
+
+        .btn-close-white {
+            filter: brightness(0) invert(1);
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+            .custom-table thead th {
+                color: #718096;
+                text-transform: uppercase;
+                font-size: 0.7rem;
+                font-weight: 700;
+                padding: 12px 20px;
+                border: none;
+            }
+
+            .custom-table tbody tr {
+                background: #fff;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                border-radius: 12px;
+                transition: all 0.2s ease;
+            }
+
+                .custom-table tbody tr:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+                }
+
+            .custom-table tbody td {
+                padding: 15px 20px;
+                vertical-align: middle;
+                border: none;
+            }
+    </style>
+</head>
+
+<body>
+    <main class="container-fluid py-4">
+        <div class="main-card">
+            <div class="page-header">
+                <h1><i class="fa-solid fa-users-gear me-2 text-primary"></i>Quản lý lịch làm việc</h1>
+                <button class="btn btn-add-new" data-bs-toggle="modal" data-bs-target="#PhanBoModal">
+                    <i class="fas fa-plus-circle me-2"></i>Phân công lịch mới
+                </button>
+            </div>
+
+            <div class="card mb-4 border-0 shadow-sm bg-light">
+                <div class="card-body">
+                    <form id="filterForm" method="get" action="@Url.Action("DanhSachLichLamViec", "QuanLyLichLamViec")" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-secondary">Chọn ngày làm việc</label>
+                            <input type="date" name="thoigian" class="form-control auto-submit" value="@queryDate" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-secondary"><i class="fas fa-warehouse me-1"></i> Kho bãi</label>
+                            <select name="maKho" id="selectFilterKho" class="form-select auto-submit">
+                                <option value="">-- Tất cả kho --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <a href="@Url.Action("DanhSachLichLamViec")" class="btn btn-outline-secondary">Làm mới</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            @if (ViewBag.Error != null)
+            {
+                <div class="alert alert-danger">@ViewBag.Error</div>
+            }
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <i class="fas fa-table me-1"></i> Danh sách ca trực ngày <strong>@queryDate</strong>
+                </div>
+                <div class="table-responsive">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">ID</th>
+                                <th>Họ tên nhân viên</th>
+                                <th>Ca làm việc</th>
+                                <th>Khung giờ</th>
+                                <th>Trạng thái</th>
+                                <th class="text-center">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model != null && Model.Any())
+                            {
+                                foreach (var item in Model)
+                                {
+                                    <tr>
+                                        <td>@item.MaNguoiDung</td>
+                                        <td>
+                                            <div class="fw-bold">@item.HoTenNhanVien</div>
+                                            <small class="text-muted">Mã đăng ký: #@item.MaDangKy</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info text-dark">@(item.MaCaNavigation?.TenCa ?? "N/A")</span>
+                                        </td>
+                                        <td>
+                                            @if (item.MaCaNavigation != null)
+                                            {
+                                                <span>@item.MaCaNavigation.GioBatDau?.ToString("HH:mm") - @item.MaCaNavigation.GioKetThuc?.ToString("HH:mm")</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @{
+                                                var badgeClass = item.TrangThai == "Đã duyệt" ? "bg-success" : (item.TrangThai == "Chờ duyệt" ? "bg-warning text-dark" : "bg-secondary");
+                                            }
+                                            <span class="badge @badgeClass">@item.TrangThai</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editSchedule(@item.MaDangKy)"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteSchedule(@item.MaDangKy)"><i class="fas fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr><td colspan="6" class="text-center py-5 text-muted">Không tìm thấy lịch làm việc phù hợp.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal fade" id="PhanBoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Phân Công Ca Trực Mới</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formAddSchedule">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Nhân viên</label>
+                            <select name="MaNguoiDung" id="modalSelectNhanVien" class="form-select" required>
+                                <option value="">-- Chọn nhân viên --</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Ngày làm việc</label>
+                            <input type="date" name="NgayTruc" class="form-control" value="@queryDate" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Ca làm việc</label>
+                            <select name="MaCa" id="modalSelectCa" class="form-select" required>
+                                <option value="">-- Chọn ca trực --</option>
+                            </select>
+                        </div>
+                        <input type="hidden" name="TrangThai" value="Đã duyệt" />
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-primary px-4" onclick="saveSchedule()">Lưu phân công</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            loadDanhSachKho();
+
+            // Logic Auto Submit khi thay đổi bộ lọc
+            const filterForm = document.getElementById('filterForm');
+            document.querySelectorAll('.auto-submit').forEach(item => {
+                item.addEventListener('change', () => filterForm.submit());
+            });
+
+            // Load data cho Modal khi mở
+            const phanBoModal = document.getElementById('PhanBoModal');
+            phanBoModal.addEventListener('show.bs.modal', function () {
+                loadNhanVienModal();
+                loadCaModal();
+            });
+        });
+
+        // --- HÀM LOAD ĐƠN VỊ ---
+        document.addEventListener("DOMContentLoaded", function () {
+             // 1. Load danh sách kho từ API
+             loadDanhSachKho();
+
+             // 2. Logic Auto Submit Form
+             const filterForm = document.getElementById('filterForm');
+             document.querySelectorAll('.auto-submit').forEach(item => {
+                 item.addEventListener('change', () => filterForm.submit());
+             });
+         });
+
+         async function loadDanhSachKho() {
+             const selectFilter = document.getElementById('selectFilterKho');
+             // Lấy mã kho hiện tại từ URL để set 'selected' sau khi load xong
+             const urlParams = new URLSearchParams(window.location.search);
+             const currentMaKho = urlParams.get('maKho');
+
+             try {
+                 const response = await fetch('https://localhost:7286/api/quanlykhobai/gettenkhobai');
+                 if (!response.ok) throw new Error('Không thể kết nối API Kho');
+
+                 const data = await response.json();
+
+                 data.forEach(item => {
+                     // Xác định ID (linh hoạt theo tên trường API trả về)
+                     const valueId = item.maKhoBai || item.maKho || item.id;
+                     const textTen = item.tenKhoBai || item.tenKho;
+
+                     const option = new Option(textTen, valueId);
+
+                     // Nếu ID trùng với maKho trên URL thì đánh dấu selected
+                     if (currentMaKho && String(valueId) === String(currentMaKho)) {
+                         option.selected = true;
+                     }
+
+                     selectFilter.add(option);
+                 });
+             } catch (e) {
+                 console.error("Lỗi load đơn vị kho:", e);
+                 // Hiển thị một tùy chọn lỗi nếu cần
+                 const optError = new Option("Lỗi tải danh sách kho", "");
+                 optError.disabled = true;
+                 selectFilter.add(optError);
+             }
+         }
+    </script>
+</body>

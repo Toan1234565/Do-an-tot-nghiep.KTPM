@@ -92,7 +92,9 @@ public partial class TmdtContext : DbContext
             entity.HasOne(d => d.MaNguoiDungNavigation).WithMany(p => p.DangKyCaTrucs)
                 .HasForeignKey(d => d.MaNguoiDung)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_DangKy_TaiXe");
+                .HasConstraintName("FK_DangKyCaTruc_NguoiDung");
+
+            
         });
 
         modelBuilder.Entity<LichSuViPham>(entity =>
@@ -182,19 +184,11 @@ public partial class TmdtContext : DbContext
 
             entity.HasIndex(e => e.TenDangNhap, "UQ__Tai_Khoa__363698B3642AE707").IsUnique();
 
-            entity.HasIndex(e => e.Email, "UQ__Tai_Khoa__AB6E6164CB10A69A").IsUnique();
-
             entity.Property(e => e.MaNguoiDung).HasColumnName("ma_nguoi_dung");
-            entity.Property(e => e.Email)
-                .HasMaxLength(100)
-                .HasColumnName("email");
             entity.Property(e => e.HoatDong).HasColumnName("hoat_dong");
             entity.Property(e => e.MatKhauHash)
                 .HasMaxLength(255)
                 .HasColumnName("mat_khau_hash");
-            entity.Property(e => e.SoDienThoai)
-                .HasMaxLength(20)
-                .HasColumnName("so_dien_thoai");
             entity.Property(e => e.TenDangNhap)
                 .HasMaxLength(50)
                 .HasColumnName("ten_dang_nhap");

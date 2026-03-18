@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using QuanLyTaiKhoanNguoiDung.Models12._1234;
 using OfficeOpenXml;
+
 namespace QuanLyTaiKhoanNguoiDung
 {
     public class Program
@@ -15,7 +16,30 @@ namespace QuanLyTaiKhoanNguoiDung
             builder.Services.AddDbContext<TmdtContext>(options =>
                 options.UseSqlServer(connectionString));
 
-            // 2. Cấu hình CORS (Cho phép gọi từ Web đến API)
+            // 2. Cấu hình Authentication & Cookie
+            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie(options =>
+                {
+                    options.Cookie.Name = "TMDT_Auth";
+                    options.LoginPath = "/QuanLyPhanQuyen/DangNhap";
+                    options.AccessDeniedPath = "/Home/Error";
+                    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+                    options.SlidingExpiration = true;
+                    options.Cookie.HttpOnly = true;
+                    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                    options.Cookie.SameSite = SameSiteMode.Lax;
+                });
+
+            // 3. Cấu hình Session (SỬA LỖI TẠI ĐÂY)
+            builder.Services.AddDistributedMemoryCache(); // Cần thiết cho Session
+            builder.Services.AddSession(options =>
+            {
+                options.IdleTimeout = TimeSpan.FromMinutes(30);
+                options.Cookie.HttpOnly = true;
+                options.Cookie.IsEssential = true; // Bắt buộc để hoạt động
+            });
+
+            // 4. Cấu hình CORS
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowSpecificOrigins", corsBuilder =>
@@ -27,17 +51,7 @@ namespace QuanLyTaiKhoanNguoiDung
                 });
             });
 
-            // 3. Cấu hình Authentication & Cookie
-            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-                .AddCookie(options =>
-                {
-                    options.Cookie.Name = "TMDT_Auth";
-                    options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
-                    options.SlidingExpiration = true;
-                    options.Cookie.HttpOnly = true;
-                });
-
-            // 4. Cấu hình HttpClient Bypass SSL (Dùng để gọi API localhost)
+            // 5. Các dịch vụ khác
             builder.Services.AddHttpClient("BypassSSL").ConfigurePrimaryHttpMessageHandler(() => {
                 return new HttpClientHandler
                 {
@@ -50,17 +64,15 @@ namespace QuanLyTaiKhoanNguoiDung
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddControllersWithViews();
             builder.Services.AddControllers();
-            builder.Services.AddMemoryCache();
+
             builder.Services.AddScoped<IEmailService, EmailService>();
-            // Giữ nguyên dòng đăng ký Worker cũ
             builder.Services.AddHostedService<LicenseExpiryWorker>();
-            // Thêm dòng này ở đây
+
             OfficeOpenXml.ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
-            builder.Services.AddControllers();
 
-            var app = builder.Build(); // --- XÂY DỰNG APP TẠI ĐÂY ---
+            var app = builder.Build();
 
-            // 5. Thứ tự Middleware (CỰC KỲ QUAN TRỌNG)
+            // 6. Thứ tự Middleware (CỰC KỲ QUAN TRỌNG)
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Home/Error");
@@ -69,16 +81,19 @@ namespace QuanLyTaiKhoanNguoiDung
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
+
             app.UseRouting();
 
-            app.UseCors("AllowSpecificOrigins"); // CORS phải đặt trước Auth
+            app.UseCors("AllowSpecificOrigins");
 
+            // THỨ TỰ: Session -> Auth
+            app.UseSession();
             app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllerRoute(
                 name: "default",
-                pattern: "{controller=Home}/{action=Index}/{id?}");
+                pattern: "{controller=QuanLyPhanQuyen}/{action=DangNhap}");
 
             app.MapControllers();
             app.Run();

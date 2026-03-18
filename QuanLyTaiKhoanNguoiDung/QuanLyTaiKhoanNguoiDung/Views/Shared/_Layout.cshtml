@@ -1,4 +1,27 @@
-﻿<!DOCTYPE html>
+﻿@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+@{
+    // 1. Lấy HttpContext an toàn
+    var context = HttpContextAccessor.HttpContext;
+    var session = context?.Session;
+
+    bool isLoggedIn = false;
+    string maNguoiDungStr = "0"; // Mặc định là chuỗi "0"
+    int maNguoiDung = 0;
+
+    if (session != null)
+    {
+        var tenDangNhap = session.GetString("TenDangNhap");
+        isLoggedIn = !string.IsNullOrEmpty(tenDangNhap);
+
+        // 2. Lấy MaNguoiDung từ Session (Lưu ý: Session.GetString trả về string)
+        maNguoiDungStr = session.GetString("MaNguoiDung") ?? "0";
+
+        // 3. Chuyển đổi sang int an toàn để dùng cho logic backend
+        int.TryParse(maNguoiDungStr, out maNguoiDung);
+    }
+}
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -120,13 +143,15 @@
             border-top: 1px solid #e0e0e0;
             text-align: center;
         }
-     
+
+        
     </style>
 </head>
 <body>
-
-    <aside class="sidebar">
-        <div class="sidebar-header">
+    @if (isLoggedIn)
+    {
+        <aside class="sidebar">
+            <div class="sidebar-header">
             <i class="fas fa-shipping-fast"></i> LOGISTICS TTT
         </div>
         <nav class="mt-2">
@@ -147,6 +172,12 @@
                     <ul class="submenu-list">
                         <li><a href="/QuanLyNguoiDung/DanhSachNhanVien"><i class="fas fa-user-friends me-2"></i>Nhân viên văn phòng</a></li>
                         <li><a href="/QuanLyTaiXe/DanhSachTaiXe"><i class="fas fa-id-card me-2"></i>Đội ngũ Tài xế (KPI)</a></li>
+                            <li>
+                                <a href="/QuanLyLichLamViec/DanhSachLichLamViec" class="nav-link">
+                                    <i class="fas fa-calendar-check me-2"></i>
+                                    <span>Quản lý lịch làm việc</span>
+                                </a>
+                            </li>
                         <li><a href="/QuanLyPhanQuyen/PhanQuyen"><i class="fas fa-user-shield me-2"></i>Nhóm quyền RBAC</a></li>
                     </ul>
                 </li>
@@ -262,25 +293,47 @@
                         <span>Cấu hình hệ thống</span>
                     </a>
                 </li>
+                    <li class="mt-auto border-top pt-2">
+                        <form asp-controller="QuanLyPhanQuyen" asp-action="DangXuat" method="get" id="logoutForm">
+                            <a href="javascript:void(0)" onclick="document.getElementById('logoutForm').submit()" class="sidebar-link text-danger" style="text-decoration: none; display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Đăng xuất</span>
+                            </a>
+                        </form>
+                    </li>
             </ul>
         </nav>
     </aside>
+    }
+    <div class="main-wrapper @(isLoggedIn ? "" : "no-menu")">
 
-    <div class="main-wrapper">
-        <header class="bg-white border-bottom p-3 d-flex justify-content-between align-items-center shadow-sm">
-            <span class="text-muted">Xin chào, Admin</span>
-            <div class="user-profile">
-                <img src="https://ui-avatars.com/api/?name=Admin&background=2ecc71&color=fff" class="rounded-circle" width="35" alt="avatar">
-            </div>
-        </header>
+        @if (isLoggedIn)
+        {
+            <header class="bg-white border-bottom p-3 d-flex justify-content-between align-items-center shadow-sm">
+                <span class="text-muted">Xin chào, <strong>@Context.Session.GetString("TenDangNhap")</strong></span>
 
-        <main role="main" class="content-body">
+                <div class="user-profile">
+                    @* Sử dụng href="@Url.Action(...)" để Razor render ra đường dẫn chính xác *@
+                    <a href="@Url.Action("ChiTietNhanVien", "QuanLyNguoiDung", new { maNhanVien = maNguoiDung })"
+                       class="d-block transition-all" title="Xem chi tiết tài khoản">
+
+                        <img src="https://ui-avatars.com/api/?name=@(Context.Session.GetString("TenDangNhap"))&background=2ecc71&color=fff"
+                             class="rounded-circle border"
+                             width="35"
+                             height="35"
+                             alt="avatar"
+                             style="object-fit: cover; border-color: #eee !important;">
+                    </a>
+                </div>
+            </header>
+        }
+
+        <main role="main" class="content-body @(isLoggedIn ? "" : "d-flex align-items-center justify-content-center")">
             <div class="container-fluid">
                 @RenderBody()
             </div>
         </main>
     </div>
-
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 

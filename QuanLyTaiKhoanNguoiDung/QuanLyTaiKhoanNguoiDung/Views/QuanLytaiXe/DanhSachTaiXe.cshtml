@@ -2,8 +2,7 @@
 @using QuanLyTaiKhoanNguoiDung.Models12
 @using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung
 @using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyTaiXe
-@model PaginationResult<QuanLyTaiXeModels>
-
+@model IEnumerable<QuanLyTaiXeModels>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -118,19 +117,17 @@
 </head>
 <body>
     <main class="container-fluid py-4">
-        <div class="main-card">
+       <div class="main-card">
+            @if (ViewBag.Error != null)
+            {
+                <div class="alert alert-danger">@ViewBag.Error</div>
+            }
+
             <div class="page-header d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h4 fw-bold m-0 text-dark">
                     <i class="fa-solid fa-id-card me-2 text-primary"></i>Quản Lý Hồ Sơ Tài Xế
                 </h1>
                 <div class="d-flex gap-3 align-items-center">
-                    <div class="position-relative cursor-pointer" onclick="showExpiryAlerts()" style="cursor: pointer;">
-                        <i class="fa-solid fa-bell fs-4 text-muted"></i>
-                        <span id="expiryCount" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                              style="display: none; font-size: 0.6rem;">
-                            0
-                        </span>
-                    </div>                  
                     <a href="@Url.Action("DanhSachTaiXe")" class="btn btn-light btn-sm border rounded-pill px-3">
                         <i class="fa-solid fa-arrows-rotate me-1 text-muted"></i> Làm mới
                     </a>
@@ -138,43 +135,56 @@
             </div>
 
             @* Form Filter *@
-            <form id="filterForm" method="get" asp-action="DanhSachTaiXe" class="bg-light border rounded-3 p-3 mb-4 shadow-sm">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="small fw-bold text-muted mb-1">Tìm kiếm tài xế</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
-                            <input type="text" name="search" class="form-control auto-submit" placeholder="Tên, SĐT, Số bằng lái..." value="@ViewBag.Search" />
+            <form id="filterForm" method="get" action="@Url.Action("DanhSachTaiXe")" class="bg-white border rounded-4 p-4 mb-4 shadow-sm">
+                <div class="row g-3 align-items-end">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label small fw-bold text-secondary"><i class="fas fa-search me-1"></i> Tìm kiếm</label>
+                        <input type="text" name="search" class="form-control bg-light auto-submit" placeholder="Tên, SĐT, Bằng lái..." value="@ViewBag.CurrentSearch" />
+                    </div>
+
+                   <div class="col-lg-2 col-md-6">
+                        <label class="form-label small fw-bold text-secondary">
+                            <i class="fas fa-warehouse me-1"></i> Kho bãi
+                        </label>
+                        <select name="maKho" id="selectFilterKho" class="form-select bg-light auto-submit">
+                            <option value="">-- Tất cả kho --</option>
+                        </select>
+                    </div>
+                   <div class="col-lg-2 col-md-6">
+                        <label class="form-label small fw-bold text-secondary">
+                            <i class="fas fa-toggle-on me-1"></i> Trạng thái
+                        </label>
+                        <select name="trangthai" class="form-select bg-light auto-submit">
+                            <option value="true" selected="@(ViewBag.CurrentTrangThai == true)">Đang hoạt động</option>
+                            <option value="false" selected="@(ViewBag.CurrentTrangThai == false)">Đã vô hiệu hóa</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-4">
+                        <label class="form-label small fw-bold text-secondary"><i class="fas fa-shuttle-van me-1"></i> Loại bằng</label>
+                        <select name="loaiBang" class="form-select bg-light auto-submit">
+                            <option value="">Tất cả</option>
+                            @foreach (var b in new[] { "B1", "B2", "C", "D", "E", "FC" })
+                            {
+                                <option value="@b" selected='@(ViewBag.CurrentLoaiBang == b)'>Bằng @b</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-lg-3 col-md-4">
+                        <label class="form-label small fw-bold text-secondary"><i class="fas fa-sort me-1"></i> Sắp xếp</label>
+                        <div class="input-group">
+                            <select name="sortBy" class="form-select bg-light auto-submit">
+                                <option value="MaNguoiDung" selected='@(ViewBag.CurrentSortBy == "MaNguoiDung")'>Mặc định</option>
+                                <option value="kinhnghiem" selected='@(ViewBag.CurrentSortBy == "kinhnghiem")'>Kinh nghiệm</option>
+                                <option value="diemuytin" selected='@(ViewBag.CurrentSortBy == "diemuytin")'>Điểm uy tín</option>
+                            </select>
+                            <select name="isDescending" class="form-select bg-light auto-submit" style="max-width: 100px;">
+                                <option value="true" selected='@(ViewBag.IsDescending == true)'>Giảm</option>
+                                <option value="false" selected='@(ViewBag.IsDescending == false)'>Tăng</option>
+                            </select>
                         </div>
                     </div>
 
-                    <div class="col-md-2">
-                        <label class="small fw-bold text-muted mb-1">Loại bằng lái</label>
-                        <select name="loaiBang" class="form-select form-select-sm auto-submit">
-                            <option value="">Tất cả loại</option>
-                            <option value="B1" selected='@(ViewBag.LoaiBang == "B1")'>Bằng B1</option>
-                            <option value="B2" selected='@(ViewBag.LoaiBang == "B2")'>Bằng B2</option>
-                            <option value="C" selected='@(ViewBag.LoaiBang == "C")'>Bằng C</option>
-                            <option value="D" selected='@(ViewBag.LoaiBang == "D")'>Bằng D</option>
-                        </select>
-                    </div>
-
-                    <div class="col-md-2">
-                        <label class="small fw-bold text-muted mb-1">Sắp xếp theo</label>
-                        <select name="sortBy" class="form-select form-select-sm auto-submit">
-                            <option value="MaNguoiDung" selected='@(ViewBag.SortBy == "MaNguoiDung")'>Mặc định</option>
-                            <option value="kinhnghiem" selected='@(ViewBag.SortBy == "kinhnghiem")'>Kinh nghiệm</option>
-                            <option value="diemuytin" selected='@(ViewBag.SortBy == "diemuytin")'>Điểm uy tín</option>
-                        </select>
-                    </div>
-
-                    <div class="col-md-2">
-                        <label class="small fw-bold text-muted mb-1">Thứ tự</label>
-                        <select name="isDescending" class="form-select form-select-sm auto-submit">
-                            <option value="true" selected='@(ViewBag.IsDescending == true)'>Giảm dần</option>
-                            <option value="false" selected='@(ViewBag.IsDescending == false)'>Tăng dần</option>
-                        </select>
-                    </div>
                 </div>
             </form>
 
@@ -188,25 +198,18 @@
                             <th>Kinh nghiệm</th>
                             <th>Điểm uy tín</th>
                             <th>Trạng thái</th>
-                            <th class="text-end">Thao tác</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
-                        @* PHẦN SỬA CHÍNH: Lặp qua Model.Data *@
-                        @if (Model != null && Model.Data != null && Model.Data.Any())
+                        @if (Model != null && Model.Any())
                         {
-                            @foreach (var item in Model.Data)
+                            foreach (var item in Model)
                             {
-                                <tr class="align-middle" onclick="location.href='@Url.Action("ChiTietTaiXe", "QuanLyTaiXe", new { id = item.MaNguoiDung })'">
+                                <tr onclick="location.href='@Url.Action("ChiTietTaiXe", "QuanLyTaiXe", new { id = item.MaNguoiDung })'">
                                     <td>
                                         <div class="fw-bold text-dark">@(item.HoTenTaiXe ?? "N/A")</div>
-                                        <div class="small text-muted">
-                                            @{
-                                                var sbl = item.SoBangLai ?? "";
-                                                var shortSbl = sbl.Length > 5 ? sbl.Substring(0, 5) + "..." : sbl;
-                                            }
-                                            ID: #@shortSbl
-                                        </div>
+                                        <div class="small text-muted">Mã: #@item.MaNguoiDung</div>
                                     </td>
                                     <td><span class="font-monospace">@(item.SoBangLai ?? "---")</span></td>
                                     <td><span class="badge bg-secondary">@(item.LoaiBangLai ?? "N/A")</span></td>
@@ -214,36 +217,58 @@
                                     <td><span class="score-box">@item.DiemUyTin</span></td>
                                     <td>
                                         @{
-                                            var statusClass = item.TrangThaiHoatDong switch
-                                            {
+                                            var statusClass = item.TrangThaiHoatDong switch {
                                                 "Đang hoạt động" => "bg-active",
                                                 "Đang chuyến" => "bg-busy",
                                                 "Bị khóa" => "bg-locked",
                                                 _ => "bg-light text-muted"
                                             };
                                         }
-                                        <span class="status-badge @statusClass">@(item.TrangThaiHoatDong ?? "Không xác định")</span>
-                                    </td>                                 
+                                        <span class="status-badge @statusClass">@(item.TrangThaiHoatDong ?? "N/A")</span>
+                                    </td>
+                                    <td>
+                                        @if (item.TrangThai == true) // Giả định true là đang hoạt động
+                                            {
+                                                <button type="button" class="btn btn-outline-danger btn-sm"
+                                                        onclick="event.stopPropagation(); vôHiệuHóa('@item.MaNguoiDung')">
+                                                    <i class="fas fa-ban"></i> Vô hiệu hóa
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" class="btn btn-success btn-sm"
+                                                        onclick="event.stopPropagation(); kichHoat('@item.MaNguoiDung')">
+                                                    <i class="fas fa-check"></i> Kích hoạt
+                                                </button>
+                                            }
+                                    </td>
                                 </tr>
                             }
                         }
                         else
                         {
-                            <tr><td colspan="7" class="text-center py-5 text-muted">Không tìm thấy hồ sơ tài xế nào.</td></tr>
+                            <tr><td colspan="6" class="text-center py-5 text-muted">Không tìm thấy hồ sơ nào.</td></tr>
                         }
                     </tbody>
                 </table>
             </div>
 
-            @* PHẦN SỬA CHÍNH: Kiểm tra phân trang dựa trên thuộc tính của PaginationResult *@
-            @if (Model != null && Model.TotalPages > 1)
+            @* Phân trang *@
+            @if (ViewBag.TotalPages > 1)
             {
                 <nav class="mt-4">
-                    <ul class="pagination pagination-sm justify-content-center">
-                        @for (int i = 1; i <= Model.TotalPages; i++)
+                    <ul class="pagination justify-content-center">
+                        @for (int i = 1; i <= ViewBag.TotalPages; i++)
                         {
-                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                <a class="page-link shadow-none" href="@Url.Action("DanhSachTaiXe", new { search = ViewBag.Search, loaiBang = ViewBag.LoaiBang, sortBy = ViewBag.SortBy, isDescending = ViewBag.IsDescending, page = i })">@i</a>
+                            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                <a class="page-link" href="@Url.Action("DanhSachTaiXe", new { 
+                                    search = ViewBag.CurrentSearch, 
+                                    loaiBang = ViewBag.CurrentLoaiBang, 
+                                    maKho = ViewBag.CurrentMaKho,
+                                    sortBy = ViewBag.CurrentSortBy, 
+                                    isDescending = ViewBag.IsDescending, 
+                                    page = i 
+                                })">@i</a>
                             </li>
                         }
                     </ul>
@@ -295,6 +320,7 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+     <script src="~/js/quanlytaikhoan/kichhoat-vohieuhoa.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const filterForm = document.getElementById('filterForm');
@@ -476,7 +502,52 @@
                 }
             });
         }
+        // --- HÀM LOAD ĐƠN VỊ ---
+       document.addEventListener("DOMContentLoaded", function () {
+            // 1. Load danh sách kho từ API
+            loadDanhSachKho();
+
+            // 2. Logic Auto Submit Form
+            const filterForm = document.getElementById('filterForm');
+            document.querySelectorAll('.auto-submit').forEach(item => {
+                item.addEventListener('change', () => filterForm.submit());
+            });
+        });
+
+        async function loadDanhSachKho() {
+            const selectFilter = document.getElementById('selectFilterKho');
+            // Lấy mã kho hiện tại từ URL để set 'selected' sau khi load xong
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentMaKho = urlParams.get('maKho');
+
+            try {
+                const response = await fetch('https://localhost:7286/api/quanlykhobai/gettenkhobai');
+                if (!response.ok) throw new Error('Không thể kết nối API Kho');
         
+                const data = await response.json();
+
+                data.forEach(item => {
+                    // Xác định ID (linh hoạt theo tên trường API trả về)
+                    const valueId = item.maKhoBai || item.maKho || item.id;
+                    const textTen = item.tenKhoBai || item.tenKho;
+
+                    const option = new Option(textTen, valueId);
+            
+                    // Nếu ID trùng với maKho trên URL thì đánh dấu selected
+                    if (currentMaKho && String(valueId) === String(currentMaKho)) {
+                        option.selected = true;
+                    }
+            
+                    selectFilter.add(option);
+                });
+            } catch (e) {
+                console.error("Lỗi load đơn vị kho:", e);
+                // Hiển thị một tùy chọn lỗi nếu cần
+                const optError = new Option("Lỗi tải danh sách kho", "");
+                optError.disabled = true;
+                selectFilter.add(optError);
+            }
+        }
     </script>
 </body>
 </html>

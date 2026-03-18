@@ -4,6 +4,10 @@ namespace QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan
 {
     public class DangNhapModel
     {
+        public int MaNguoiDung { get; set; }
+
+        public string? Email { get; set; } 
+
         [Required(ErrorMessage = "Tên đăng nhập là bắt buộc")]
         public string? TenDangNhap { get; set; }
 

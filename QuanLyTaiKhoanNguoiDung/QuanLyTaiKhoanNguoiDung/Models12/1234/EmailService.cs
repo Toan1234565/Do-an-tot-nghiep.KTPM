@@ -3,6 +3,8 @@
     public interface IEmailService
     {
         Task SendEmailAsync(string emailNhan, string tenNhan, string ngayHetHan);
+        Task SendForgotPasswordEmailAsync(string email, string hoTen, string newPassword);
+         Task SendLockAccountEmailAsync(string emailNhan, string tenNhan, string lyDo, bool isLock);
     }
 
     public class EmailService : IEmailService
@@ -63,8 +65,12 @@
         public interface IEmailService
         {
             Task SendEmailAsync(string emailNhan, string tenNhan, string ngayHetHan);
-            // Thêm phương thức này:
+            
             Task SendAccountInfoAsync(string emailNhan, string tenNhan, string tenDangNhap, string matKhau);
+
+            Task SendForgotPasswordEmailAsync(string emailNhan, string tenNhan, string matKhauMoi);
+
+            Task SendLockAccountEmailAsync(string emailNhan, string tenNhan, string lyDo, bool isLock);
         }
 
         // Trong EmailService.cs
@@ -90,6 +96,74 @@
                     * Vui lòng đăng nhập và đổi mật khẩu ngay trong lần đầu sử dụng để bảo mật thông tin.
                 </p>
             </div>"
+            };
+            email.Body = builder.ToMessageBody();
+
+            using var smtp = new MailKit.Net.Smtp.SmtpClient();
+            await smtp.ConnectAsync("smtp.gmail.com", 587, MailKit.Security.SecureSocketOptions.StartTls);
+            await smtp.AuthenticateAsync(AdminEmail, AdminPassword);
+            await smtp.SendAsync(email);
+            await smtp.DisconnectAsync(true);
+        }
+
+        // Trong EmailService.cs
+        public async Task SendForgotPasswordEmailAsync(string emailNhan, string tenNhan, string matKhauMoi)
+        {
+            var email = new MimeKit.MimeMessage();
+            email.From.Add(MimeKit.MailboxAddress.Parse(AdminEmail)); // AdminEmail bạn đã định nghĩa ở trên
+            email.To.Add(MimeKit.MailboxAddress.Parse(emailNhan));
+            email.Subject = "[HỆ THỐNG] Khôi phục mật khẩu tài khoản";
+
+            var builder = new MimeKit.BodyBuilder
+            {
+                HtmlBody = $@"
+                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px;'>
+                        <h2 style='color: #28a745; text-align: center;'>KHÔI PHỤC MẬT KHẨU</h2>
+                        <p>Xin chào <strong>{tenNhan}</strong>,</p>
+                        <p>Hệ thống đã nhận được yêu cầu khôi phục mật khẩu của bạn. Dưới đây là mật khẩu mới được tạo tự động:</p>
+                        <div style='background: #fff3cd; padding: 15px; border-radius: 5px; text-align: center;'>
+                            <span style='color: #856404; font-size: 1.5em; font-weight: bold;'>{matKhauMoi}</span>
+                        </div>
+                        <p style='color: #555; font-size: 0.9em; margin-top: 20px;'>
+                            * Vì lý do bảo mật, bạn hãy dùng mật khẩu này để đăng nhập và <strong>đổi lại mật khẩu riêng của mình</strong> ngay lập tức.
+                        </p>
+                    </div>"
+            };
+            email.Body = builder.ToMessageBody();
+
+            using var smtp = new MailKit.Net.Smtp.SmtpClient();
+            await smtp.ConnectAsync("smtp.gmail.com", 587, MailKit.Security.SecureSocketOptions.StartTls);
+            await smtp.AuthenticateAsync(AdminEmail, AdminPassword); // AdminPassword bạn đã định nghĩa ở trên
+            await smtp.SendAsync(email);
+            await smtp.DisconnectAsync(true);
+        }
+
+        public async Task SendLockAccountEmailAsync(string emailNhan, string tenNhan, string lyDo, bool isLock)
+        {
+            var email = new MimeKit.MimeMessage();
+            email.From.Add(MimeKit.MailboxAddress.Parse(AdminEmail));
+            email.To.Add(MimeKit.MailboxAddress.Parse(emailNhan));
+
+            // Tiêu đề thay đổi tùy theo trạng thái Khóa hay Mở
+            email.Subject = isLock ? "[HỆ THỐNG] Thông báo khóa tài khoản người dùng" : "[HỆ THỐNG] Thông báo kích hoạt lại tài khoản";
+
+            var statusText = isLock ? "BỊ VÔ HIỆU HÓA" : "ĐÃ ĐƯỢC MỞ KHÓA";
+            var color = isLock ? "#d9534f" : "#28a745";
+
+            var builder = new MimeKit.BodyBuilder
+            {
+                HtmlBody = $@"
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px;'>
+                    <h2 style='color: {color}; text-align: center;'>THÔNG BÁO TRẠNG THÁI TÀI KHOẢN</h2>
+                    <p>Xin chào <strong>{tenNhan}</strong>,</p>
+                    <p>Hệ thống quản lý xin thông báo tài khoản của bạn hiện tại {statusText}.</p>
+                    <div style='background: #f8f9fa; padding: 15px; border-left: 5px solid {color}; margin: 20px 0;'>
+                        <p><strong>Lý do:</strong> {lyDo}</p>
+                    </div>
+                    <p style='color: #555; font-size: 0.9em;'>
+                        {(isLock ? "Nếu bạn cho rằng đây là sai sót, vui lòng liên hệ quản trị viên để được hỗ trợ." : "Bây giờ bạn đã có thể đăng nhập vào hệ thống bình thường.")}
+                    </p>
+                </div>"
             };
             email.Body = builder.ToMessageBody();
 

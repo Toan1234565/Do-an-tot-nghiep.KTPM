@@ -35,6 +35,8 @@ public partial class NguoiDung
 
     public int? MaKho { get; set; }
 
+    public virtual ICollection<DangKyCaTruc> DangKyCaTrucs { get; set; } = new List<DangKyCaTruc>();
+
     public virtual ICollection<LichSuViPham> LichSuViPhams { get; set; } = new List<LichSuViPham>();
 
     public virtual ChucVu? MaChucVuNavigation { get; set; }

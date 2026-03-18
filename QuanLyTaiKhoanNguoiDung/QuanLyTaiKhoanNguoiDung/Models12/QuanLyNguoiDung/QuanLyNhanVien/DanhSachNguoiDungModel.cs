@@ -16,7 +16,7 @@ namespace QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien
         public string? TenChucVu { get; set; }
         public string? DonViLamViec { get; set; }
         public string? NoiSinh { get; set; }
-
+        public bool? TrangThai { get; set; }
 
     }
 }

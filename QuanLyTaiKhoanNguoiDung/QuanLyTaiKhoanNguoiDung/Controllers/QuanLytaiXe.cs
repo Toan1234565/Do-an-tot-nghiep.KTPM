@@ -1,8 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using MailKit.Search;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using QuanLyTaiKhoanNguoiDung.Models;
 using QuanLyTaiKhoanNguoiDung.Models12; // Chứa PaginationResult
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyTaiXe;
 using System.Text.Encodings.Web;
 
@@ -14,63 +17,56 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
         private readonly ILogger<QuanLytaiXe> _logger;
         private readonly string apiBaseUrl = "https://localhost:7022/api/quanlytaixe";
         private readonly string apiBaseUrlLichSuVP = "https://localhost:7022/api/quanlyllichsuvipham";
-        
+        private readonly TmdtContext _context;
 
-        public QuanLytaiXe(IHttpClientFactory httpClientFactory, ILogger<QuanLytaiXe> logger)
+        public QuanLytaiXe(IHttpClientFactory httpClientFactory, ILogger<QuanLytaiXe> logger, TmdtContext context)
         {
             _httpClientFactory = httpClientFactory;
             _logger = logger;
+            _context = context;
         }
+        public async Task<IActionResult> DanhSachTaiXe(string? search, string? loaiBang, int? maKho, string? sortBy = "MaNguoiDung", bool isDescending = true, int page = 1, bool trangthai =true)
+        {          
+            ViewBag.CurrentSearch = search;
+            ViewBag.CurrentLoaiBang = loaiBang;
+            ViewBag.CurrentSortBy = sortBy;
+            ViewBag.CurrentMaKho = maKho;
+            ViewBag.IsDescending = isDescending;
+            ViewBag.CurrentTrangThai = trangthai;
+            var client = _httpClientFactory.CreateClient("BypassSSL");
 
-        public async Task<IActionResult> DanhSachTaiXe(
-            string? search,
-            string? loaiBang,
-            string? sortBy = "MaNguoiDung",
-            bool isDescending = true,
-            int page = 1)
-        {
-            var client = _httpClientFactory.CreateClient();
 
-            var url = $"{apiBaseUrl}/danhsachtaixe?" +
-                      $"search={UrlEncoder.Default.Encode(search ?? "")}&" +
-                      $"loaiBang={UrlEncoder.Default.Encode(loaiBang ?? "")}&" +
-                      $"sortBy={sortBy}&" +
-                      $"isDescending={isDescending}&" +
-                      $"page={page}";
+            int pageIndex = page < 1 ? 1 : page;
 
-            // Khởi tạo object rỗng để tránh lỗi null ở View nếu API thất bại
-            var result = new PaginationResult<QuanLyTaiXeModels>();
+
+            var queryParams = $"{apiBaseUrl}/danhsachtaixe?search={search}&loaiBang={loaiBang}&maKho={maKho}&sortBy={sortBy}&isDescending={isDescending}&page={page}&trangthai={trangthai}";
+            //string apiUrl = $"{apiBaseUrl}/danhsachnguoidung?searchTerm={searchTerm}&maChucVu={maChucVu}&maKho={maKho}&page={pageIndex}";
 
             try
             {
-                var response = await client.GetAsync(url);
-
+                var response = await client.GetAsync(queryParams);
                 if (response.IsSuccessStatusCode)
                 {
-                    var jsonData = await response.Content.ReadAsStringAsync();
+                    var content = await response.Content.ReadAsStringAsync();
+                    var jsonResult = Newtonsoft.Json.Linq.JObject.Parse(content);
 
-                    // THAY THẾ dynamic bằng Type cụ thể
-                    var decodedResult = JsonConvert.DeserializeObject<PaginationResult<QuanLyTaiXeModels>>(jsonData);
-                    if (decodedResult != null) result = decodedResult;
+
+                    var dsNhanVien = jsonResult["data"]?.ToObject<List<QuanLyTaiXeModels>>() ?? new List<QuanLyTaiXeModels>();
+
+                    ViewBag.TotalPages = (int)(jsonResult["totalPages"] ?? 0);
+                    ViewBag.CurrentPage = (int)(jsonResult["currentPage"] ?? 1);
+
+                    return View(dsNhanVien);
                 }
-                else
-                {
-                    TempData["Error"] = "Không thể lấy dữ liệu từ hệ thống.";
-                }
+
             }
             catch (Exception ex)
             {
-                TempData["Error"] = "Lỗi kết nối API: " + ex.Message;
+                ViewBag.Error = ex.Message;
             }
-
-            // Gán lại ViewBag để giữ trạng thái Form lọc
-            ViewBag.Search = search;
-            ViewBag.LoaiBang = loaiBang;
-            ViewBag.SortBy = sortBy;
-            ViewBag.IsDescending = isDescending;
-
-            return View(result);
+            return View(new List<QuanLyTaiXeModels>());
         }
+        
         public async Task<IActionResult> ChiTietTaiXe(int id)
         {
             var client = _httpClientFactory.CreateClient();

@@ -11,10 +11,6 @@ public partial class TaiKhoan
 
     public string MatKhauHash { get; set; } = null!;
 
-    public string? Email { get; set; }
-
-    public string? SoDienThoai { get; set; }
-
     public bool? HoatDong { get; set; }
 
     public virtual NguoiDung? NguoiDung { get; set; }

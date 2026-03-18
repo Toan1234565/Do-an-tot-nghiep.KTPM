@@ -18,12 +18,6 @@ namespace QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan
         [StringLength(100, MinimumLength = 6, ErrorMessage = "Mật khẩu phải từ 6 ký tự trở lên")]
         public string? MatKhauHash { get; set; } // Trong thực tế, tên nên là MatKhau (Password) và việc Hash nên được thực hiện trong API/Service
 
-        [Required(ErrorMessage = "Email là bắt buộc")]
-        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
-        public string? Email { get; set; }
-
-        [Phone(ErrorMessage = "Số điện thoại không hợp lệ")]
-        public string? SoDienThoai { get; set; }
 
         // Mặc định là True khi tạo, có thể ẩn trong form
         public bool HoatDong { get; set; } = true;

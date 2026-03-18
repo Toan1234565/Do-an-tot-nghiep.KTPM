@@ -19,7 +19,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
         }
         string apiBaseUrl = "https://localhost:7022/api/quanlynguoidung";
         string apiDiaChi = "https://localhost:7149/api/quanlydiachi";
-        public async Task<IActionResult> DanhSachNhanVien(string? searchTerm, int? maChucVu,int? maKho, int page = 1)
+        public async Task<IActionResult> DanhSachNhanVien(string? searchTerm, int? maChucVu,int? maKho, int page = 1, bool trangthai = true)
         {
 
             var chucVus = await _context.ChucVus
@@ -32,13 +32,14 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
             ViewBag.CurrentSearch = searchTerm;
             ViewBag.CurrentMaChucVu = maChucVu; // Kiểu int?
             ViewBag.CurrentMaKho = maKho;
+            ViewBag.CurrentTrangThai = trangthai;
             var client = _httpClientFactory.CreateClient("BypassSSL");
 
            
             int pageIndex = page < 1 ? 1 : page;
 
 
-            string apiUrl = $"{apiBaseUrl}/danhsachnguoidung?searchTerm={searchTerm}&maChucVu={maChucVu}&maKho={maKho}&page={pageIndex}";
+            string apiUrl = $"{apiBaseUrl}/danhsachnguoidung?searchTerm={searchTerm}&maChucVu={maChucVu}&maKho={maKho}&page={pageIndex}&trangthai={trangthai}";
 
             try
             {
@@ -66,6 +67,10 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
         }
         public async Task<IActionResult> ChiTietNhanVien(int maNhanVien)
         {
+            if (maNhanVien <= 0)
+            {
+                return RedirectToAction("Index", "Home");
+            }
             var client = _httpClientFactory.CreateClient("BypassSSL");
             string apiUrl = $"{apiBaseUrl}/chitietnhanvien/{maNhanVien}";
             try

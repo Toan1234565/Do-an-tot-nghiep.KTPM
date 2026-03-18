@@ -170,16 +170,31 @@
 
             <div class="filter-section">
                 <form asp-action="DanhSachNhanVien" method="get" id="filterForm" class="row g-3">
-                    <div class="col-md-5">
+                    <div class="col-md-3">
                         <div class="input-group border rounded-3 bg-white shadow-sm">
                             <span class="input-group-text bg-transparent border-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                            <input type="text" name="searchTerm" class="form-control border-0 bg-transparent" placeholder="Tìm kiếm tên, ID..." value="@ViewBag.CurrentSearch">
+                            <input type="text" name="searchTerm" class="form-control border-0 bg-transparent"
+                                   placeholder="Tìm kiếm tên, ID..." value="@ViewBag.CurrentSearch">
                         </div>
                     </div>
 
-                    <div class="col-md-3">
-                        <select name="maChucVu" id="selectFilterChucVu" class="form-select border rounded-3 shadow-sm">
-                            <option value="Tất cả">-- Tất cả chức vụ --</option>
+                    <div class="col-md-2">
+                        <select name="trangthai" class="form-select border rounded-3 shadow-sm" onchange="this.form.submit()">
+                            <option value="true" selected="@(ViewBag.CurrentTrangThai == true)">Đang hoạt động</option>
+                            <option value="false" selected="@(ViewBag.CurrentTrangThai == false)">Đã vô hiệu hóa</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <select name="maChucVu" class="form-select border rounded-3 shadow-sm" onchange="this.form.submit()">
+                            <option value="">-- Chức vụ --</option>
+                            @if (ViewBag.DanhSachChucVu != null)
+                            {
+                                foreach (var cv in ViewBag.DanhSachChucVu)
+                                {
+                                    <option value="@cv.maChucVu" selected="@(ViewBag.CurrentMaChucVu == cv.maChucVu)">@cv.tenChucVu</option>
+                                }
+                            }
                         </select>
                     </div>
 
@@ -205,6 +220,7 @@
                             <th class="text-center">Giới Tính</th>
                             <th>Chức Vụ</th>
                             <th>Đơn vị</th>
+                            <th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -236,6 +252,22 @@
                                     </td>
                                     <td><span class="role-badge">@item.TenChucVu</span></td>
                                     <td>@item.DonViLamViec</td>
+                                    <td>
+                                        @if (item.TrangThai == true) // Giả định true là đang hoạt động
+                                        {
+                                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                                    onclick="event.stopPropagation(); vôHiệuHóa('@item.MaNguoiDung')">
+                                                <i class="fas fa-ban"></i> Vô hiệu hóa
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="btn btn-success btn-sm"
+                                                    onclick="event.stopPropagation(); kichHoat('@item.MaNguoiDung')">
+                                                <i class="fas fa-check"></i> Kích hoạt
+                                            </button>
+                                        }
+                                    </td>
                                 </tr>
                                 stt++;
                             }
@@ -355,7 +387,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
+    <script src="~/js/quanlytaikhoan/kichhoat-vohieuhoa.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             // --- 1. KHỞI TẠO DỮ LIỆU ---

@@ -12,5 +12,7 @@
         public int? KinhNghiemNam { get; set; }
         public string? TrangThaiHoatDong { get; set; }
         public decimal? DiemUyTin { get; set; }
+        public bool? TrangThai { get; set; }
+        public string? TenChucVu { get; set; }
     }
 }

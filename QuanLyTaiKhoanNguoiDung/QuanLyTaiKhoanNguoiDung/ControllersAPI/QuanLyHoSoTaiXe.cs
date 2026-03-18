@@ -1,10 +1,12 @@
 ﻿using MailKit.Net.Smtp;
 using MailKit.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Primitives;
 using MimeKit;
 using OfficeOpenXml;
 using QuanLyTaiKhoanNguoiDung.Models;
@@ -14,6 +16,7 @@ using QuanLyTaiKhoanNguoiDung.Models12.QuanLyLoTrinhTheoDoi;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyTaiXe;
 using System.ComponentModel;
+using System.Security.Claims;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using LicenseContext = OfficeOpenXml.LicenseContext;
 
@@ -27,6 +30,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
         private readonly ILogger<QuanLyHoSoTaiXe> _logger;
         private readonly IMemoryCache _cache;
         private readonly IEmailService _emailService; // Dùng Interface chuẩn
+        private static CancellationTokenSource _resetCacheSignal = new CancellationTokenSource();
 
         public QuanLyHoSoTaiXe(TmdtContext context,
                                ILogger<QuanLyHoSoTaiXe> logger,
@@ -38,87 +42,108 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
             _cache = cache;
             _emailService = emailService;
         }
-
+        private int? GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            return (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId)) ? userId : null;
+        }
         [HttpGet("danhsachtaixe")]
+        [Authorize]
         public async Task<IActionResult> GetDanhSachTaiXe(
             [FromQuery] string? search,
             [FromQuery] string? loaiBang,
             [FromQuery] int? maKho,
-            [FromQuery] string? sortBy, // Thêm: kinhnghiem hoặc diemuytin
-            [FromQuery] bool isDescending = true, // Mặc định giảm dần (ưu tiên cao xuống thấp)
-            [FromQuery] int page = 1)
+            [FromQuery] string? sortBy,
+            [FromQuery] bool isDescending = true,
+            [FromQuery] int page = 1,
+            [FromQuery] bool trangthai = true)
         {
             try
             {
-                // Cập nhật CacheKey bao gồm cả tham số sắp xếp
-                var cacheKey = $"DanhSachTaiXe_{search}_{loaiBang}_{maKho}_{sortBy}_{isDescending}_{page}";
+                // 1. Lấy và kiểm tra ID người dùng hiện tại
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                    return Unauthorized(new { message = "Vui lòng đăng nhập." });
+
+                // Lấy thông tin người dùng đang thực hiện request để check Vai trò và Kho
+                var currentUser = await _context.NguoiDungs
+                    .Include(nd => nd.MaChucVuNavigation)
+                    .ThenInclude(cv => cv.MaVaiTroNavigation)
+                    .FirstOrDefaultAsync(nd => nd.MaNguoiDung == currentUserId);
+
+                if (currentUser == null)
+                    return Unauthorized(new { message = "Người dùng không tồn tại." });
+
+                string tenVaiTro = currentUser.MaChucVuNavigation?.TenChucVu ?? "";
+
+                // 2. Xác định quyền (Bạn có thể điều chỉnh chuỗi này cho khớp chính xác với DB của bạn)
+                bool isQuanLyTong = tenVaiTro.Contains("Quản lý tổng") || tenVaiTro.Contains("Admin");
+                bool isQuanLyKho = tenVaiTro.Contains("Quản lý chi nhánh") || tenVaiTro.Contains("Quản lý kho");
+
+                // Nếu không có cả 2 quyền trên thì từ chối truy cập (Forbidden)
+                if (!isQuanLyTong && !isQuanLyKho)
+                {
+                    return StatusCode(403, new { message = "Bạn không có quyền truy cập danh sách này." });
+                }
+
+                // 3. Xử lý logic lọc mã Kho
+                int? filterMaKho = maKho; // Mặc định dùng tham số từ client (dành cho quản lý tổng)
+                if (isQuanLyKho && !isQuanLyTong)
+                {
+                    filterMaKho = currentUser.MaKho;
+                }
+
+                // 3. Quản lý Cache
+                var cacheKey = $"Drivers_K{filterMaKho ?? 0}_S{search}_B{loaiBang}_Sort{sortBy}_{isDescending}_P{page}_TT{trangthai}";
 
                 if (!_cache.TryGetValue(cacheKey, out var cachedData))
                 {
                     int pageSize = 20;
-
                     var query = _context.TaiKhoans
-                      .Include(tk => tk.NguoiDung)
-                          .ThenInclude(nd => nd.TaiXe)
-                      .Include(tk => tk.NguoiDung)
-                          .ThenInclude(nd => nd.MaChucVuNavigation) // Load thêm thông tin chức vụ
-                      .Where(tk => tk.NguoiDung.MaChucVu == 16) // Kiểm tra mã chức vụ là 16 (Tài xế)
-                      .Where(tk => tk.NguoiDung.TaiXe != null)  // Đảm bảo đã có thông tin bằng lái
-                      .AsQueryable();
+                        .AsNoTracking()
+                        .Include(tk => tk.NguoiDung)
+                            .ThenInclude(nd => nd.TaiXe) 
+                        .Include(tk => tk.NguoiDung)
+                            .ThenInclude(nd => nd.MaChucVuNavigation)
+                        .Where(tk => tk.NguoiDung != null && tk.NguoiDung.MaChucVu == 16) // Giả định 16 là Driver
+                        .AsQueryable();
 
-                    // 1. Tìm kiếm
+                    // Lọc dữ liệu
+                    if (filterMaKho.HasValue) query = query.Where(tk => tk.NguoiDung.MaKho == filterMaKho.Value);
+                    if (!string.IsNullOrEmpty(loaiBang)) query = query.Where(tk => tk.NguoiDung.TaiXe.LoaiBangLai == loaiBang);
                     if (!string.IsNullOrEmpty(search))
                     {
-                        string searchLower = search.ToLower();
-                        query = query.Where(tk =>
-                            tk.NguoiDung.HoTenNhanVien.ToLower().Contains(searchLower) ||
-                            tk.SoDienThoai.Contains(search) ||
-                            tk.NguoiDung.TaiXe.SoBangLai.Contains(search));
+                        string s = search.ToLower();
+                        query = query.Where(tk => tk.NguoiDung.HoTenNhanVien.ToLower().Contains(s) || tk.NguoiDung.TaiXe.SoBangLai.Contains(s));
                     }
-
-                    // 2. Lọc loại bằng
-                    if (!string.IsNullOrEmpty(loaiBang))
+                    if (!trangthai)
                     {
-                        query = query.Where(tk => tk.NguoiDung.TaiXe.LoaiBangLai == loaiBang);
+                        query = query.Where(tk => tk.HoatDong == trangthai);
                     }
-                    if (!string.IsNullOrEmpty(maKho.ToString()))
+                    // Sắp xếp
+                    query = sortBy?.ToLower() switch
                     {
-                        query = query.Where(tk => tk.NguoiDung.MaKho == maKho);
-                    }
-                    // 3. Xử lý Sắp xếp (Mới)
-                    switch (sortBy?.ToLower())
-                    {
-                        case "kinhnghiem":
-                            query = isDescending
-                                ? query.OrderByDescending(tk => tk.NguoiDung.TaiXe.KinhNghiemNam)
-                                : query.OrderBy(tk => tk.NguoiDung.TaiXe.KinhNghiemNam);
-                            break;
-                        case "diemuytin":
-                            query = isDescending
-                                ? query.OrderByDescending(tk => tk.NguoiDung.TaiXe.DiemUyTin)
-                                : query.OrderBy(tk => tk.NguoiDung.TaiXe.DiemUyTin);
-                            break;
-                        default:
-                            query = query.OrderBy(tk => tk.MaNguoiDung); // Sắp xếp mặc định
-                            break;
-                    }
+                        "kinhnghiem" => isDescending ? query.OrderByDescending(tk => tk.NguoiDung.TaiXe.KinhNghiemNam) : query.OrderBy(tk => tk.NguoiDung.TaiXe.KinhNghiemNam),
+                        "diemuytin" => isDescending ? query.OrderByDescending(tk => tk.NguoiDung.TaiXe.DiemUyTin) : query.OrderBy(tk => tk.NguoiDung.TaiXe.DiemUyTin),
+                        _ => query.OrderBy(nd => nd.MaNguoiDung)
+                    };
 
                     var totalItems = await query.CountAsync();
-
-                    var data = await query
-                        .Skip((page - 1) * pageSize)
-                        .Take(pageSize)
+                    // Chỉnh sửa phần Select để khớp với cấu trúc TaiKhoan -> NguoiDung -> TaiXe
+                    var data = await query.Skip((page - 1) * pageSize).Take(pageSize)
                         .Select(tk => new QuanLyTaiXeModels
                         {
                             MaNguoiDung = tk.MaNguoiDung,
+                            
                             HoTenTaiXe = tk.NguoiDung.HoTenNhanVien,
-                            SoBangLai = tk.NguoiDung.TaiXe.SoBangLai,
-                            LoaiBangLai = tk.NguoiDung.TaiXe.LoaiBangLai,
-                            KinhNghiemNam = tk.NguoiDung.TaiXe.KinhNghiemNam,
-                            TrangThaiHoatDong = tk.NguoiDung.TaiXe.TrangThaiHoatDong,
-                            DiemUyTin = tk.NguoiDung.TaiXe.DiemUyTin
-                        })
-                        .ToListAsync();
+                            TrangThai = tk.HoatDong,
+                           
+                            SoBangLai = tk.NguoiDung.TaiXe != null ? tk.NguoiDung.TaiXe.SoBangLai : "",
+                            LoaiBangLai = tk.NguoiDung.TaiXe != null ? tk.NguoiDung.TaiXe.LoaiBangLai : "",
+                            KinhNghiemNam = tk.NguoiDung.TaiXe != null ? tk.NguoiDung.TaiXe.KinhNghiemNam : 0,
+                            TrangThaiHoatDong = tk.NguoiDung.TaiXe != null ? tk.NguoiDung.TaiXe.TrangThaiHoatDong : "",
+                            DiemUyTin = tk.NguoiDung.TaiXe != null ? tk.NguoiDung.TaiXe.DiemUyTin : 0
+                        }).ToListAsync();
 
                     var result = new
                     {
@@ -128,16 +153,18 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                         Data = data
                     };
 
-                    var cacheOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(5));
-                    _cache.Set(cacheKey, result, cacheOptions);
+                    var cacheOptions = new MemoryCacheEntryOptions()
+                     .SetAbsoluteExpiration(TimeSpan.FromMinutes(5))
+                     .AddExpirationToken(new CancellationChangeToken(_resetCacheSignal.Token)); // Thêm dòng này
                     cachedData = result;
+                    _cache.Set(cacheKey, cachedData, cacheOptions);
+                    
                 }
-
                 return Ok(cachedData);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi truy vấn danh sách tài xế");
+                _logger.LogError(ex, "Lỗi API Danh sách tài xế");
                 return StatusCode(500, "Lỗi hệ thống");
             }
         }
@@ -175,8 +202,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     // Thông tin tài khoản & định danh
                     MaNguoiDung = data.MaNguoiDung,
                     TenDangNhap = data.TenDangNhap,
-                    Email = data.Email,
-                    SoDienThoai = data.SoDienThoai,
+                    
                     MaChucVu = nd.MaChucVu,
 
                     // Thông tin cá nhân (Giải mã các trường nhạy cảm)
@@ -184,6 +210,8 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     NgaySinh = nd.NgaySinh,
                     GioiTinh = nd.GioiTinh,
                     NoiSinh = nd.NoiSinh,
+                    Email = nd.Email,
+                    SoDienThoai = nd.SoDienThoai,
                     //HinhAnh = nd.HinhAnh,
                     SoCccd = !string.IsNullOrEmpty(nd.SoCccd) ? SecurityHelper.Decrypt(nd.SoCccd) : "",
 
@@ -492,30 +520,36 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
 
 
         [HttpGet("lich-trinh-tai-xe")]
-        public async Task<IActionResult> GetLichTrinhTaiXe(int maKho, string? loaiXeYeuCau)
+        public async Task<IActionResult> GetLichTrinhTaiXe([FromQuery] int maKho, [FromQuery] string? loaiXeYeuCau)
         {
             try
             {
                 var today = DateOnly.FromDateTime(DateTime.Now);
                 var currentTime = TimeOnly.FromDateTime(DateTime.Now);
 
-                var danhSachTaiXe = await _context.TaiXes
-                    .Include(tx => tx.MaNguoiDungNavigation)
-                    .Include(tx => tx.DangKyCaTrucs)
-                        .ThenInclude(dk => dk.MaCaNavigation)
+                var query = _context.TaiXes.AsNoTracking().AsQueryable();
+
+                // 1. Lọc theo loại xe/bằng lái nếu có yêu cầu từ điều phối
+                if (!string.IsNullOrEmpty(loaiXeYeuCau))
+                {
+                    query = query.Where(tx => tx.LoaiBangLai.Contains(loaiXeYeuCau));
+                }
+
+                var danhSachTaiXe = await query
                     .Where(tx => tx.NgayHetHanBang > today
                         && tx.TrangThaiHoatDong == "Sẵn sàng"
-                        && tx.DangKyCaTrucs.Any(dk =>
+                        // Truy cập qua MaNguoiDungNavigation vì DangKyCaTrucs đã chuyển sang NguoiDung
+                        && tx.MaNguoiDungNavigation.DangKyCaTrucs.Any(dk =>
                             dk.NgayTruc == today
                             && dk.TrangThai == "Đã duyệt"
                             && dk.MaCaNavigation.MaKho == maKho
                             && (
-                                // Trường hợp 1: Ca trong ngày (VD: 06:00 - 14:00)
+                                // Trường hợp 1: Ca trong ngày (VD: 08:00 - 17:00)
                                 (dk.MaCaNavigation.GioBatDau <= dk.MaCaNavigation.GioKetThuc
                                     && currentTime >= dk.MaCaNavigation.GioBatDau
                                     && currentTime <= dk.MaCaNavigation.GioKetThuc)
                                 ||
-                                // Trường hợp 2: Ca xuyên đêm (VD: 22:00 - 06:00)
+                                // Trường hợp 2: Ca xuyên đêm (VD: 22:00 - 06:00 sáng hôm sau)
                                 (dk.MaCaNavigation.GioBatDau > dk.MaCaNavigation.GioKetThuc
                                     && (currentTime >= dk.MaCaNavigation.GioBatDau || currentTime <= dk.MaCaNavigation.GioKetThuc))
                             )
@@ -524,15 +558,18 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     {
                         tx.MaNguoiDung,
                         HoTen = tx.MaNguoiDungNavigation.HoTenNhanVien,
+                        SoDienThoai = tx.MaNguoiDungNavigation.SoDienThoai,
                         tx.LoaiBangLai,
                         tx.KinhNghiemNam,
-                        tx.DiemUyTin
-
+                        tx.DiemUyTin,
+                        TenCa = tx.MaNguoiDungNavigation.DangKyCaTrucs
+                                .Where(dk => dk.NgayTruc == today)
+                                .Select(dk => dk.MaCaNavigation.TenCa)
+                                .FirstOrDefault()
                     })
-                    .OrderByDescending(tx => tx.DiemUyTin)
+                    .OrderByDescending(tx => tx.DiemUyTin) // Ưu tiên tài xế uy tín cao lên đầu để điều phối
                     .ToListAsync();
 
-                // QUAN TRỌNG: Trả về Ok([]) thay vì NotFound()
                 return Ok(danhSachTaiXe);
             }
             catch (Exception ex)

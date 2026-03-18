@@ -36,50 +36,106 @@ namespace TaiKhoan1.ControllersAPI
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             return (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId)) ? userId : null;
         }
+
         // 1. api phía web quản lý 
         [HttpGet("danhsachnguoidung")]
-        public async Task<IActionResult> DanhSachNguoiDung([FromQuery] string? searchTerm, [FromQuery] int? maKho, [FromQuery] int? maChucVu, [FromQuery] int page = 1)
+        [Authorize]
+        public async Task<IActionResult> DanhSachNguoiDung([FromQuery] string? searchTerm, [FromQuery] int? maKho, [FromQuery] int? maChucVu, [FromQuery] int page = 1, [FromQuery] bool trangthai = true)
         {
+            // 1. Lấy và kiểm tra ID người dùng hiện tại
+            var currentUserId = GetCurrentUserId();
+            if (currentUserId == null)
+                return Unauthorized(new { message = "Vui lòng đăng nhập." });
+
+            // Lấy thông tin người dùng đang thực hiện request để check Vai trò và Kho
+            var currentUser = await _context.NguoiDungs
+                .Include(nd => nd.MaChucVuNavigation)
+                .ThenInclude(cv => cv.MaVaiTroNavigation)
+                .FirstOrDefaultAsync(nd => nd.MaNguoiDung == currentUserId);
+
+            if (currentUser == null)
+                return Unauthorized(new { message = "Người dùng không tồn tại." });
+
+            string tenVaiTro = currentUser.MaChucVuNavigation?.TenChucVu ?? "";
+
+            // 2. Xác định quyền (Bạn có thể điều chỉnh chuỗi này cho khớp chính xác với DB của bạn)
+            bool isQuanLyTong = tenVaiTro.Contains("Quản lý tổng") || tenVaiTro.Contains("Admin");
+            bool isQuanLyKho = tenVaiTro.Contains("Quản lý chi nhánh") || tenVaiTro.Contains("Quản lý kho");
+
+            // Nếu không có cả 2 quyền trên thì từ chối truy cập (Forbidden)
+            if (!isQuanLyTong && !isQuanLyKho)
+            {
+                return StatusCode(403, new { message = "Bạn không có quyền truy cập danh sách này." });
+            }
+
+            // 3. Xử lý logic lọc mã Kho
+            int? filterMaKho = maKho; // Mặc định dùng tham số từ client (dành cho quản lý tổng)
+
+            if (isQuanLyKho && !isQuanLyTong)
+            {
+                // Nếu chỉ là quản lý kho, BẮT BUỘC ép mã kho thành mã kho của người đang đăng nhập
+                // Ngăn chặn việc họ đổi tham số maKho trên URL để xem kho khác
+                filterMaKho = currentUser.MaKho;
+            }
             // Tạo key dựa trên tham số query
-            
-            string cacheKey = $"ListUser_S:{searchTerm}_K:{maKho}_C:{maChucVu}_P:{page}";
+
+            string cacheKey = $"ListUser_S:{searchTerm}_K:{filterMaKho}_C:{maChucVu}_P:{page}_TT:{trangthai}";
 
             if (!_cache.TryGetValue(cacheKey, out var cachedData))
             {
                 int pageSize = 20;
                 // Lọc tất cả người dùng CÓ mã chức vụ KHÁC 16
-                var query = _context.NguoiDungs
-                    .Where(nd => nd.MaChucVu != 16)
+                // 1. Khởi tạo query từ bảng TaiKhoan
+                var query = _context.TaiKhoans
+                    .AsNoTracking() // Tối ưu: Không tracking để tăng tốc độ đọc và cache
+                    .Include(tk => tk.NguoiDung)
+                        .ThenInclude(nd => nd.MaChucVuNavigation)
+                    .Where(tk => tk.NguoiDung != null && tk.NguoiDung.MaChucVu != 16)
                     .AsQueryable();
 
-                // Logic lọc dữ liệu...
+                // 2. Lọc theo trạng thái hoạt động (Sửa lỗi tt.Ta)
+                if (trangthai != null) // Giả sử trangthai là bool?
+                {
+                    query = query.Where(tk => tk.HoatDong == trangthai);
+                }
+
+                // 3. Logic lọc dữ liệu từ bảng NguoiDung thông qua tk.NguoiDung
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
-                    query = query.Where(nd => nd.HoTenNhanVien.Contains(searchTerm));
+                    // Tìm theo tên hoặc tên đăng nhập để tối ưu trải nghiệm
+                    query = query.Where(tk => tk.NguoiDung.HoTenNhanVien.Contains(searchTerm) || tk.TenDangNhap.Contains(searchTerm));
                 }
+
                 if (maChucVu.HasValue)
                 {
-                    query = query.Where(nd => nd.MaChucVu == maChucVu.Value);
+                    query = query.Where(tk => tk.NguoiDung.MaChucVu == maChucVu.Value);
                 }
-               if(maKho.HasValue)
+
+                if (filterMaKho.HasValue)
                 {
-                    query = query.Where(nd => nd.MaKho == maKho.Value);
+                    // Giả sử MaKho nằm trong bảng NguoiDung
+                    query = query.Where(tk => tk.NguoiDung.MaKho == filterMaKho.Value);
                 }
+
+                // 4. Tính toán tổng số bản ghi (Count nên thực hiện trước khi Select để nhanh hơn)
                 int totalRecords = await query.CountAsync();
+
+                // 5. Phân trang và Mapping dữ liệu
                 var danhsach = await query
-                    .Include(nd => nd.MaChucVuNavigation)
-                    .OrderBy(nd => nd.HoTenNhanVien)
-                    .Skip((page - 1) * pageSize).Take(pageSize)
-                    .Select(nd => new DanhSachNguoiDungModel
+                    .OrderBy(tk => tk.NguoiDung.HoTenNhanVien) // Sắp xếp theo tên người dùng
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(tk => new DanhSachNguoiDungModel
                     {
-                        MaNguoiDung = nd.MaNguoiDung,
-                        HoTenNhanVien = nd.HoTenNhanVien,
-                        NgaySinh = nd.NgaySinh,
-                        GioiTinh = nd.GioiTinh,
-                        TenChucVu = nd.MaChucVuNavigation != null ? nd.MaChucVuNavigation.TenChucVu : null,
-                        NoiSinh = nd.NoiSinh,
-                        DonViLamViec = nd.DonViLamViec,
-                        MaDiaChi = nd.MaDiaChi
+                        MaNguoiDung = tk.MaNguoiDung,                      
+                        HoTenNhanVien = tk.NguoiDung.HoTenNhanVien,
+                        TrangThai = tk.HoatDong, // Giả sử TrangThai là bool? trong NguoiDung
+                        NgaySinh = tk.NguoiDung.NgaySinh,
+                        GioiTinh = tk.NguoiDung.GioiTinh,
+                        TenChucVu = tk.NguoiDung.MaChucVuNavigation != null ? tk.NguoiDung.MaChucVuNavigation.TenChucVu : null,
+                        NoiSinh = tk.NguoiDung.NoiSinh,
+                        DonViLamViec = tk.NguoiDung.DonViLamViec,
+                        MaDiaChi = tk.NguoiDung.MaDiaChi
                     })
                     .ToListAsync();
 
@@ -111,8 +167,8 @@ namespace TaiKhoan1.ControllersAPI
                 {
                     MaNguoiDung = taiKhoan.MaNguoiDung,
                     HoTenNhanVien = nd.HoTenNhanVien,
-                    Email = taiKhoan.Email,
-                    SoDienThoai = taiKhoan.SoDienThoai,
+                    Email = nd.Email,
+                    SoDienThoai = nd.SoDienThoai,
                     TenChucVu = nd.MaChucVuNavigation?.TenChucVu,
                     SoCccd = !string.IsNullOrEmpty(nd.SoCccd) ? SecurityHelper.Decrypt(nd.SoCccd) : "",
                     BaoHiemXaHoi = !string.IsNullOrEmpty(nd.BaoHiemXaHoi) ? SecurityHelper.Decrypt(nd.BaoHiemXaHoi) : "",
@@ -135,9 +191,9 @@ namespace TaiKhoan1.ControllersAPI
             // 1. Kiểm tra tên đăng nhập đã tồn tại chưa
             if (_context.TaiKhoans.Any(tk => tk.TenDangNhap == model.TenDangNhap))
                 return Conflict(new { message = "Tên đăng nhập đã tồn tại" });
-            if(_context.TaiKhoans.Any(tk => tk.Email == model.Email))
+            if(_context.NguoiDungs.Any(tk => tk.Email == model.Email))
                 return Conflict(new { message = "Email đã tồn tại" });
-            if(_context.TaiKhoans.Any(tk => tk.SoDienThoai == model.SoDienThoai))
+            if(_context.NguoiDungs.Any(tk => tk.SoDienThoai == model.SoDienThoai))
                 return Conflict(new { message = "Số điện thoại đã tồn tại" });
 
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -151,9 +207,7 @@ namespace TaiKhoan1.ControllersAPI
                 var newTaiKhoan = new TaiKhoan
                 {
                     TenDangNhap = model.TenDangNhap,
-                    MatKhauHash = SecurityHelper.Encrypt(model.MatKhau),
-                    Email = model.Email,
-                    SoDienThoai = model.SoDienThoai,
+                    MatKhauHash = SecurityHelper.Encrypt(model.MatKhau),                   
                     HoatDong = true
                 };
 
@@ -166,8 +220,7 @@ namespace TaiKhoan1.ControllersAPI
                 var newNguoiDung = new NguoiDung
                 {
                     MaNguoiDung = newTaiKhoan.MaNguoiDung,
-                    HoTenNhanVien = model.HoTenNhanVien,
-                   
+                    HoTenNhanVien = model.HoTenNhanVien,                  
                     Email = model.Email,
                     SoDienThoai = model.SoDienThoai,
                     MaChucVu = model.MaChucVu,
@@ -490,93 +543,7 @@ namespace TaiKhoan1.ControllersAPI
         }
 
 
-        //3. api phía android
-        [HttpGet("thongtinnguoidung")]
-        public async Task<IActionResult> ThongTinNguoiDung()
-        {
-            var userId = GetCurrentUserId();
-            if (!userId.HasValue) return Unauthorized(new { message = "Bạn cần đăng nhập." });
-
-            string cacheKey = $"UserInfo_{userId.Value}";
-            if (_cache.TryGetValue(cacheKey, out NguoiDungModel thongtin)) return Ok(thongtin);
-
-            try
-            {
-                var taiKhoan = await _context.TaiKhoans
-                    .Where(tk => tk.MaNguoiDung == userId.Value)
-                    .Include(tk => tk.NguoiDung)
-                    .ThenInclude(nd => nd.MaChucVuNavigation)
-                    .FirstOrDefaultAsync();
-
-                if (taiKhoan?.NguoiDung == null)
-                    return NotFound(new { message = "Thông tin cá nhân chưa được tạo." });
-
-                var nd = taiKhoan.NguoiDung;
-                thongtin = new NguoiDungModel
-                {
-                    MaNguoiDung = taiKhoan.MaNguoiDung,
-                    HoTenNhanVien = nd.HoTenNhanVien,                   
-                    Email = taiKhoan.Email,
-                    SoDienThoai = taiKhoan.SoDienThoai,
-                    NgaySinh = nd.NgaySinh,
-                    GioiTinh = nd.GioiTinh,
-                    TenChucVu = nd.MaChucVuNavigation?.TenChucVu,
-                    NoiSinh = nd.NoiSinh,
-                    // Giải mã an toàn: Nếu NULL thì trả về rỗng, tránh lỗi 500
-                    SoCccd = !string.IsNullOrEmpty(nd.SoCccd) ? SecurityHelper.Decrypt(nd.SoCccd) : "",
-                    BaoHiemXaHoi = !string.IsNullOrEmpty(nd.BaoHiemXaHoi) ? SecurityHelper.Decrypt(nd.BaoHiemXaHoi) : "",
-                    SoTaiKhoan = !string.IsNullOrEmpty(nd.SoTaiKhoan) ? SecurityHelper.Decrypt(nd.SoTaiKhoan) : "",
-                    TenNganHang = nd.TenNganHang,
-                    DonViLamViec = nd.DonViLamViec
-                };
-
-                _cache.Set(cacheKey, thongtin, TimeSpan.FromMinutes(10));
-                return Ok(thongtin);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi lấy thông tin ID: {UserId}", userId);
-                return StatusCode(500, new { message = "Lỗi hệ thống khi đọc dữ liệu." });
-            }
-        }
-        [HttpPut("capnhatthongtin")]
-        public async Task<IActionResult> CapNhatThongTin([FromBody] NguoiDungModel model)
-        {
-            var userId = GetCurrentUserId();
-            if (!userId.HasValue) return Unauthorized();
-
-            try
-            {
-                var existing = await _context.NguoiDungs.FirstOrDefaultAsync(nd => nd.MaNguoiDung == userId);
-                if (existing == null) return NotFound(new { message = "Dữ liệu không tồn tại để cập nhật." });
-                existing.HoTenNhanVien = model.HoTenNhanVien;
-                existing.DonViLamViec = model.DonViLamViec;
-                existing.SoDienThoai = model.SoDienThoai;
-                existing.Email = model.Email;
-                existing.NgaySinh = model.NgaySinh;
-                existing.GioiTinh = model.GioiTinh;
-                existing.NoiSinh = model.NoiSinh;
-                existing.DonViLamViec = model.DonViLamViec;
-                existing.MaChucVu = model.MaChucVu;
-                existing.TenNganHang = model.TenNganHang;
-                existing.SoCccd = SecurityHelper.Encrypt(model.SoCccd);
-                existing.SoTaiKhoan = SecurityHelper.Encrypt(model.SoTaiKhoan);
-                existing.BaoHiemXaHoi = SecurityHelper.Encrypt(model.BaoHiemXaHoi);
-
-                _context.NguoiDungs.Update(existing);
-                await _context.SaveChangesAsync();
-
-                _cache.Remove($"UserInfo_{userId}");
-                return Ok(new { message = "Cập nhật dữ liệu thành công!" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi cập nhật ID: {UserId}", userId);
-                return StatusCode(500, new { message = "Lỗi hệ thống khi cập nhật." });
-            }
-        }
-
-        //3. api chung
+        
        
     }
 }
