@@ -18,6 +18,7 @@
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="OfficeOpenXml.Core.ExcelPackage" Version="1.0.0" />
+    <PackageReference Include="RabbitMQ.Client" Version="7.2.1" />
   </ItemGroup>
 
   <ItemGroup>

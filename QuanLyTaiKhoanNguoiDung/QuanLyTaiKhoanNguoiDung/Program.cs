@@ -1,7 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
-using QuanLyTaiKhoanNguoiDung.Models12._1234;
 using OfficeOpenXml;
+using QuanLyTaiKhoanNguoiDung.BackgroundTasks;
+using QuanLyTaiKhoanNguoiDung.Models12._1234;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyLichLamViec;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong;
 
 namespace QuanLyTaiKhoanNguoiDung
 {
@@ -48,6 +51,7 @@ namespace QuanLyTaiKhoanNguoiDung
                                .AllowAnyHeader()
                                .AllowAnyMethod()
                                .AllowCredentials();
+
                 });
             });
 
@@ -67,7 +71,8 @@ namespace QuanLyTaiKhoanNguoiDung
 
             builder.Services.AddScoped<IEmailService, EmailService>();
             builder.Services.AddHostedService<LicenseExpiryWorker>();
-
+            builder.Services.AddHostedService<AutoApprovalService>();
+            builder.Services.AddScoped<RabbitMQClient>();
             OfficeOpenXml.ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
 
             var app = builder.Build();

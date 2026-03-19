@@ -20,7 +20,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
             _logger = logger;
         }
 
-        public async Task<IActionResult> DanhSachLichLamViec(DateOnly? thoigian, int? maKho, int page = 1)
+        public async Task<IActionResult> DanhSachLichLamViec(DateOnly? thoigian, int? maKho =11,string? trangthai ="Đã duyệt", int page = 1)
         {
             // 1. Xử lý mặc định nếu ngày trống (Đồng bộ với logic API)
             DateOnly selectedDate = thoigian ?? DateOnly.FromDateTime(DateTime.Now);
@@ -28,7 +28,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
             ViewBag.CurrentThoiGian = selectedDate.ToString("yyyy-MM-dd");
             ViewBag.CurrentMaKho = maKho;
             ViewBag.CurrentPage = page < 1 ? 1 : page;
-
+            ViewBag.CurrentTrangThai = trangthai;
             var client = _httpClientFactory.CreateClient("BypassSSL");
 
             // 2. Lấy Token từ Cookie/Session (Nếu hệ thống của bạn dùng JWT để định danh người dùng)
@@ -39,7 +39,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
             }
 
             // 3. Xây dựng URL với định dạng ngày chuẩn ISO (yyyy-MM-dd)
-            string apiUrl = $"{apiBaseUrl}/danhsachlichlamviec?thoigian={selectedDate:yyyy-MM-dd}&maKho={maKho}&page={ViewBag.CurrentPage}";
+            string apiUrl = $"{apiBaseUrl}/danhsachlichlamviec?thoigian={selectedDate:yyyy-MM-dd}&maKho={maKho}&page={ViewBag.CurrentPage}&trangthai={ViewBag.CurrentTrangThai}";
 
             try
             {

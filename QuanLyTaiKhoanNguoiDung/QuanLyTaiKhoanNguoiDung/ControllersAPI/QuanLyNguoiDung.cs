@@ -33,8 +33,21 @@ namespace TaiKhoan1.ControllersAPI
 
         private int? GetCurrentUserId()
         {
+            // 1. Thử lấy từ Claims (Cookie Authentication)
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            return (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId)) ? userId : null;
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return userId;
+            }
+
+            // 2. Dự phòng: Thử lấy từ Session (Nếu Cookie bị lỗi nhưng Session còn)
+            var sessionUserId = HttpContext.Session.GetString("MaNguoiDung");
+            if (!string.IsNullOrEmpty(sessionUserId) && int.TryParse(sessionUserId, out int sUserId))
+            {
+                return sUserId;
+            }
+
+            return null;
         }
 
         // 1. api phía web quản lý 
