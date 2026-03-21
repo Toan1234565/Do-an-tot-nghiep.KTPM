@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi;
 using QuanLyTaiKhoanNguoiDung.Models12._1234;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyTaiKhoan;
 using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
 using System.Text;
@@ -22,7 +23,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
             _logger = logger;
             _emailService = emailService;
         }
-        private const string apiBaseUrl = "https://localhost:7022/api/quanlynguoidung";
+        private const string apiBaseUrl = "https://localhost:7022/api/quanlyphanquyen";
         private const string apiBaseTaiKhoan = "https://localhost:7022/api/quanlytaikhoan";
         public IActionResult Index()
         {

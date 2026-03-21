@@ -25,7 +25,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
             _logger = logger;
             _context = context;
         }
-        public async Task<IActionResult> DanhSachTaiXe(string? search, string? loaiBang, int? maKho, string? sortBy = "MaNguoiDung", bool isDescending = true, int page = 1, bool trangthai =true)
+        public async Task<IActionResult> DanhSachTaiXe(string? search, string? loaiBang, int? maKho, string? trangthaihoatdong, string? sortBy = "MaNguoiDung", bool isDescending = true, int page = 1, bool trangthai =true)
         {          
             ViewBag.CurrentSearch = search;
             ViewBag.CurrentLoaiBang = loaiBang;
@@ -33,13 +33,14 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
             ViewBag.CurrentMaKho = maKho;
             ViewBag.IsDescending = isDescending;
             ViewBag.CurrentTrangThai = trangthai;
+            ViewBag.CurrentTrangThaiHoatDong = trangthaihoatdong;
             var client = _httpClientFactory.CreateClient("BypassSSL");
 
 
             int pageIndex = page < 1 ? 1 : page;
 
 
-            var queryParams = $"{apiBaseUrl}/danhsachtaixe?search={search}&loaiBang={loaiBang}&maKho={maKho}&sortBy={sortBy}&isDescending={isDescending}&page={page}&trangthai={trangthai}";
+            var queryParams = $"{apiBaseUrl}/danhsachtaixe?search={search}&loaiBang={loaiBang}&maKho={maKho}&sortBy={sortBy}&isDescending={isDescending}&page={page}&trangthaihoatdong={trangthaihoatdong}&trangthai={trangthai}";
             //string apiUrl = $"{apiBaseUrl}/danhsachnguoidung?searchTerm={searchTerm}&maChucVu={maChucVu}&maKho={maKho}&page={pageIndex}";
 
             try

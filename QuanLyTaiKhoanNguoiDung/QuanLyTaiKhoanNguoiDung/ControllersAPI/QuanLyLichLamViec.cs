@@ -7,8 +7,10 @@ using Microsoft.Extensions.Primitives;
 using QuanLyTaiKhoanNguoiDung.Models;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyLichLamViec; // Đảm bảo đúng namespace của DBContext và Entities
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
 using QuanLyTaiKhoanNguoiDung.Services;
 using System.Net.Http;
+using System.Security;
 using System.Security.Claims;
 
 namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
@@ -25,8 +27,9 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
         private static CancellationTokenSource _resetCacheSignal = new CancellationTokenSource();
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly RabbitMQClient _rabbitMQ;
-
-        public QuanLyLichLamViecController(TmdtContext context, ILogger<QuanLyLichLamViecController> logger, IMemoryCache cache, IHttpClientFactory httpClientFactory, RabbitMQClient rabbitMQ)
+        private readonly PhanQuyenService _phanQuyen;
+        private readonly ISystemService _sys;
+        public QuanLyLichLamViecController(TmdtContext context, ILogger<QuanLyLichLamViecController> logger, IMemoryCache cache, IHttpClientFactory httpClientFactory, RabbitMQClient rabbitMQ, PhanQuyenService phanQuyen, ISystemService sys)
         {
             _context = context;
             _logger = logger;
@@ -34,6 +37,8 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
             _aiService = new AISchedulingService();
             _httpClientFactory = httpClientFactory;
             _rabbitMQ = rabbitMQ;
+            _phanQuyen = phanQuyen;
+            _sys = sys;
         }
 
         private int? GetCurrentUserId()
@@ -60,41 +65,17 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
         {
             try
             {
-                // 1. Lấy và kiểm tra ID người dùng hiện tại
-                var currentUserId = GetCurrentUserId();
-                if (currentUserId == null)
+                // 1. Sử dụng Service để kiểm tra quyền và thông tin người dùng
+                var permission = await _phanQuyen.GetUserPermissionAsync(GetCurrentUserId());
+
+                if (permission == null)
                     return Unauthorized(new { message = "Vui lòng đăng nhập." });
 
-                // Lấy thông tin người dùng đang thực hiện request để check Vai trò và Kho
-                var currentUser = await _context.NguoiDungs
-                    .Include(nd => nd.MaChucVuNavigation)
-                    .ThenInclude(cv => cv.MaVaiTroNavigation)
-                    .FirstOrDefaultAsync(nd => nd.MaNguoiDung == currentUserId);
-
-                if (currentUser == null)
-                    return Unauthorized(new { message = "Người dùng không tồn tại." });
-
-                string tenVaiTro = currentUser.MaChucVuNavigation?.TenChucVu ?? "";
-
-                // 2. Xác định quyền (Bạn có thể điều chỉnh chuỗi này cho khớp chính xác với DB của bạn)
-                bool isQuanLyTong = tenVaiTro.Contains("Quản lý tổng") || tenVaiTro.Contains("Admin");
-                bool isQuanLyKho = tenVaiTro.Contains("Quản lý chi nhánh") || tenVaiTro.Contains("Quản lý kho");
-
-                // Nếu không có cả 2 quyền trên thì từ chối truy cập (Forbidden)
-                if (!isQuanLyTong && !isQuanLyKho)
-                {
+                if (!permission.IsQuanLyTong && !permission.IsQuanLyKho)
                     return StatusCode(403, new { message = "Bạn không có quyền truy cập danh sách này." });
-                }
 
-                // 3. Xử lý logic lọc mã Kho
-                int? filterMaKho = maKho; // Mặc định dùng tham số từ client (dành cho quản lý tổng)
-
-                if (isQuanLyKho && !isQuanLyTong)
-                {
-                    // Nếu chỉ là quản lý kho, BẮT BUỘC ép mã kho thành mã kho của người đang đăng nhập
-                    // Ngăn chặn việc họ đổi tham số maKho trên URL để xem kho khác
-                    filterMaKho = currentUser.MaKho;
-                }
+                // 2. Xác định mã kho cần lọc (Admin dùng maKho từ client, Quản lý kho dùng MaKho của chính mình)
+                int? filterMaKho = permission.GetFinalMaKho(maKho);
 
                 // 4. Cache xử lý
                 var cacheKey = $"LichLamViec_{thoigian}_{filterMaKho}_{page}_{trangthai}";
@@ -165,55 +146,23 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
             }
         
         }
-        [HttpGet("check-auth")]
-        public IActionResult CheckAuth()
-        {
-            var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
-            return Ok(new
-            {
-                IsAuthenticated = User.Identity?.IsAuthenticated,
-                UserName = User.Identity?.Name,
-                UserIdFromFunction = GetCurrentUserId(),
-                AllClaims = claims
-            });
-        }
+        
         [HttpGet("thongke-dangky")]
         public async Task<IActionResult> GetThongKe([FromQuery] int? month, [FromQuery] int? year, [FromQuery] int? maKho)
         {
             try
             {
-                // 1. Lấy và kiểm tra ID người dùng hiện tại
-                var currentUserId = GetCurrentUserId();
-                if (currentUserId == null)
+                // 1.Lấy thông tin phân quyền từ Class Service đã tách
+               var permission = await _phanQuyen.GetUserPermissionAsync(GetCurrentUserId());
+
+                if (permission == null)
                     return Unauthorized(new { message = "Vui lòng đăng nhập." });
 
-                // Lấy thông tin người dùng đang thực hiện request để check Vai trò và Kho
-                var currentUser = await _context.NguoiDungs
-                    .Include(nd => nd.MaChucVuNavigation)
-                    .ThenInclude(cv => cv.MaVaiTroNavigation)
-                    .FirstOrDefaultAsync(nd => nd.MaNguoiDung == currentUserId);
+                if (!permission.IsQuanLyTong && !permission.IsQuanLyKho)
+                    return StatusCode(403, new { message = "Bạn không có quyền truy cập." });
 
-                if (currentUser == null)
-                    return Unauthorized(new { message = "Người dùng không tồn tại." });
-
-                string tenVaiTro = currentUser.MaChucVuNavigation?.TenChucVu ?? "";
-
-                // 2. Xác định quyền (Bạn có thể điều chỉnh chuỗi này cho khớp chính xác với DB của bạn)
-                bool isQuanLyTong = tenVaiTro.Contains("Quản lý tổng") || tenVaiTro.Contains("Admin");
-                bool isQuanLyKho = tenVaiTro.Contains("Quản lý chi nhánh") || tenVaiTro.Contains("Quản lý kho");
-
-                // --- PHÂN QUYỀN VÀ THIẾT LẬP MẶC ĐỊNH MÃ KHO ---
-                int? finalMaKho;
-                if (isQuanLyTong)
-                {
-                    // Nếu là Admin: Ưu tiên mã kho truyền vào, nếu không truyền (null) thì mặc định lấy kho 11
-                    finalMaKho = maKho ?? 11;
-                }
-                else
-                {
-                    // Nếu là Quản lý kho: Luôn lấy mã kho của chính họ
-                    finalMaKho = currentUser.MaKho;
-                }
+                // 2. Lấy mã kho dựa trên quyền (Logic đã nằm trong class UserPermission)
+                int? finalMaKho = permission.GetFinalMaKho(maKho);
 
                 // --- LOGIC THỐNG KÊ ---
                 int targetMonth = month ?? DateTime.Now.Month;
@@ -251,7 +200,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                 return Ok(new
                 {
                     success = true,
-                    isAdmin = isQuanLyTong,
+                    isAdmin = permission.IsQuanLyTong,
                     currentMaKho = finalMaKho,
                     targetTime = $"{targetMonth}/{targetYear}",
                     data = statistics
@@ -268,19 +217,17 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
         {
             try
             {
-                var currentUserId = GetCurrentUserId();
-                if (currentUserId == null) return Unauthorized(new { message = "Vui lòng đăng nhập." });
+                // 1. Sử dụng Service để kiểm tra quyền và thông tin người dùng
+                var permission = await _phanQuyen.GetUserPermissionAsync(GetCurrentUserId());
 
-                var currentUser = await _context.NguoiDungs
-                    .Include(nd => nd.MaChucVuNavigation)
-                    .FirstOrDefaultAsync(nd => nd.MaNguoiDung == currentUserId);
+                if (permission == null)
+                    return Unauthorized(new { message = "Vui lòng đăng nhập." });
 
-                if (currentUser == null) return Unauthorized(new { message = "Người dùng không tồn tại." });
+                if (!permission.IsQuanLyTong && !permission.IsQuanLyKho)
+                    return StatusCode(403, new { message = "Bạn không có quyền truy cập danh sách này." });
 
-                // Phân quyền
-                string tenVaiTro = currentUser.MaChucVuNavigation?.TenChucVu ?? "";
-                bool isQuanLyTong = tenVaiTro.Contains("Quản lý tổng") || tenVaiTro.Contains("Admin");
-                int? filterMaKho = isQuanLyTong ? maKho : currentUser.MaKho;
+                // 2. Xác định mã kho cần lọc (Admin dùng maKho từ client, Quản lý kho dùng MaKho của chính mình)
+                int? filterMaKho = permission.GetFinalMaKho(maKho);
 
                 // 3. Xác định khoảng thời gian 15 ngày
                 DateOnly ngayKetThuc = ngayCanXem.AddDays(14); // 15 ngày bao gồm cả ngày bắt đầu
@@ -330,9 +277,14 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                 return StatusCode(500, "Lỗi máy chủ.");
             }
         }
+
         [HttpPost("duyet-tat-ca-ai")]
         public async Task<IActionResult> ApproveAllByAI([FromBody] ApproveAIRequest request)
         {
+            // Kiểm tra tính hợp lệ của Request
+            if (request == null || request.NgayCanDuyet == default)
+                return BadRequest("Dữ liệu đầu vào không hợp lệ.");
+           
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
@@ -340,96 +292,109 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                 var currentUser = await _context.NguoiDungs
                     .Include(nd => nd.MaChucVuNavigation)
                     .FirstOrDefaultAsync(nd => nd.MaNguoiDung == currentUserId);
+                // 1. Sử dụng Service để kiểm tra quyền và thông tin người dùng
+                var permission = await _phanQuyen.GetUserPermissionAsync(GetCurrentUserId());
 
-                if (currentUser == null) return Unauthorized();
+                if (permission == null)
+                    return Unauthorized(new { message = "Vui lòng đăng nhập." });
 
-                string tenVaiTro = currentUser.MaChucVuNavigation?.TenChucVu ?? "";
-                bool isQuanLyTong = tenVaiTro.Contains("Quản lý tổng") || tenVaiTro.Contains("Admin");
-                int? filterMaKho = isQuanLyTong ? request.MaKho : currentUser.MaKho;
+                if (!permission.IsQuanLyTong && !permission.IsQuanLyKho)
+                    return StatusCode(403, new { message = "Bạn không có quyền truy cập danh sách này." });
 
-                const int SO_LUONG_DINH_MUC = 3;
+                // 2. Xác định mã kho cần lọc (Admin dùng maKho từ client, Quản lý kho dùng MaKho của chính mình)
+                int? filterMaKho = permission.GetFinalMaKho(request.MaKho);               
+                DateOnly start = request.NgayCanDuyet;
+                DateOnly end = request.NgayCanDuyet.AddDays(9);
+                DateOnly historyStart = start.AddDays(-7);
+
+                // 2. Truy vấn Database 1 lần duy nhất
+                // Bao gồm cả dữ liệu cũ (để tính điểm AI) và dữ liệu mới (đang chờ duyệt)
+                var allData = await _context.DangKyCaTrucs
+                    .Include(dk => dk.MaCaNavigation)
+                    .Include(dk => dk.MaNguoiDungNavigation)
+                    .Where(dk => dk.NgayTruc >= historyStart && dk.NgayTruc <= end)
+                    .Where(dk => !filterMaKho.HasValue || dk.MaNguoiDungNavigation.MaKho == filterMaKho)
+                    .ToListAsync();
+
                 var allApprovedIds = new List<int>();
-                int daysProcessed = 0;
 
-                // Vòng lặp duyệt cho 10 ngày tiếp theo
+                // 3. Vòng lặp xử lý logic AI cho 10 ngày
                 for (int i = 0; i < 10; i++)
                 {
-                    DateOnly currentTargetDate = request.NgayCanDuyet.AddDays(i);
+                    DateOnly currentTargetDate = start.AddDays(i);
 
-                    // 1. Lấy danh sách chờ duyệt của ngày hiện tại trong vòng lặp
-                    var query = _context.DangKyCaTrucs
-                        .Include(dk => dk.MaCaNavigation)
-                        .Include(dk => dk.MaNguoiDungNavigation)
-                        .Where(dk => dk.NgayTruc == currentTargetDate && dk.TrangThai == "Chờ duyệt");
+                    // Lấy danh sách đang chờ duyệt của ngày hiện tại
+                    var danhSachCho = allData
+                        .Where(dk => dk.NgayTruc == currentTargetDate && dk.TrangThai == "Chờ duyệt")
+                        .ToList();
 
-                    if (filterMaKho.HasValue)
-                        query = query.Where(dk => dk.MaNguoiDungNavigation.MaKho == filterMaKho);
-
-                    var danhSachCho = await query.ToListAsync();
-
-                    // Nếu ngày này không có dữ liệu, bỏ qua và sang ngày tiếp theo (theo yêu cầu của Toán)
                     if (!danhSachCho.Any()) continue;
 
-                    // 2. Lấy lịch sử 7 ngày TRƯỚC ngày đang xét để AI tính toán
-                    var listIds = danhSachCho.Select(x => x.MaNguoiDung).Distinct().ToList();
-                    var lichSu = await _context.DangKyCaTrucs
-                        .AsNoTracking()
-                        .Where(dk => listIds.Contains(dk.MaNguoiDung) &&
-                                     dk.NgayTruc >= currentTargetDate.AddDays(-7) &&
-                                     dk.NgayTruc < currentTargetDate)
-                        .ToListAsync();
+                    // Lấy lịch sử 7 ngày trước đó của ngày currentTargetDate (đã duyệt hoặc đã trực)
+                    var lichSu = allData
+                        .Where(dk => dk.NgayTruc < currentTargetDate && dk.NgayTruc >= currentTargetDate.AddDays(-7))
+                        .ToList();
 
-                    // 3. Phân nhóm theo ca và để AI chọn
+                    // Nhóm theo ca để duyệt theo định mức của từng ca
                     var groupedByCa = danhSachCho.GroupBy(x => x.MaCa);
                     foreach (var group in groupedByCa)
                     {
+                        // Giả sử mỗi ca lấy tối đa 3 người dựa trên điểm AI
                         var topCandidates = group.Select(dk => {
-                            var ls = lichSu.Where(l => l.MaNguoiDung == dk.MaNguoiDung).ToList();
-                            return _aiService.AnalyzeShift(dk, ls);
+                            var userHistory = lichSu.Where(l => l.MaNguoiDung == dk.MaNguoiDung).ToList();
+                            return _aiService.AnalyzeShift(dk, userHistory);
                         })
+                        .Where(r => r != null)
                         .OrderByDescending(r => r.AI_Score)
-                        .Take(SO_LUONG_DINH_MUC)
-                        .Select(r => r.MaDangKy)
-                        .ToList();
+                        .Take(3) // Có thể thay bằng biến cấu hình định mức
+                        .Select(r => r.MaDangKy);
 
                         allApprovedIds.AddRange(topCandidates);
                     }
-                    daysProcessed++;
                 }
 
-                if (!allApprovedIds.Any())
-                    return Ok(new { success = false, message = "Không tìm thấy dữ liệu chờ duyệt trong 10 ngày tới." });
-
-                // 4. Thực hiện cập nhật trạng thái hàng loạt
-                var recordsToApprove = await _context.DangKyCaTrucs
-                    .Where(x => allApprovedIds.Contains(x.MaDangKy))
-                    .ToListAsync();
-
-                foreach (var record in recordsToApprove)
+                // 4. Cập nhật trạng thái
+                var recordsToUpdate = allData.Where(x => allApprovedIds.Contains(x.MaDangKy)).ToList();
+                foreach (var r in recordsToUpdate)
                 {
-                    record.TrangThai = "Đã duyệt";
+                    r.TrangThai = "Đã duyệt";                    
                 }
 
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                if (recordsToUpdate.Any())
+                {
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
 
-                // 5. Reset Cache
-                _resetCacheSignal.Cancel();
-                _resetCacheSignal = new CancellationTokenSource();
-
+                }
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý lịch làm việc",
+                    "Duyệt lịch tự động bằng AI",
+                    "DangKyCaTruc",
+                    "0", // Chuyển thành chuỗi nếu tham số là string
+                         // 1. Dữ liệu cũ
+                    new Dictionary<string, object> {
+                        { "Trạng thái trước", "Chờ duyệt" },
+                        { "Tổng số bản ghi xử lý", recordsToUpdate.Count }
+                    }, // <-- Thêm dấu đóng ngoặc nhọn ở đây
+                       // 2. Dữ liệu mới
+                    new Dictionary<string, object> {
+                        { "Trạng thái sau", "Đã duyệt" },
+                        { "Danh sách ID được duyệt", string.Join(", ", allApprovedIds) },
+                        { "Phạm vi", $"10 ngày kể từ {start:dd/MM/yyyy}" }
+                    }
+                ); // <-- Thêm dấu đóng ngoặc đơn ở đây
                 return Ok(new
                 {
                     success = true,
-                    message = $"AI đã quét 10 ngày và duyệt thành công {recordsToApprove.Count} đơn tại {daysProcessed} ngày có dữ liệu.",
-                    totalApproved = recordsToApprove.Count,
-                    totalDaysWithData = daysProcessed
+                    message = $"Đã duyệt thành công {recordsToUpdate.Count} bản ghi bằng AI.",
+                    totalApproved = recordsToUpdate.Count
                 });
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, "Lỗi khi duyệt chuỗi 10 ngày bằng AI");
-                return StatusCode(500, new { success = false, message = "Lỗi hệ thống khi xử lý duyệt hàng loạt." });
+                // Log lỗi ở đây (ví dụ: _logger.LogError(e, "Lỗi khi duyệt AI"))
+                return StatusCode(500, $"Lỗi hệ thống: {e.Message}");
             }
         }
 
@@ -482,27 +447,20 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                 dangKy.TrangThai = request.TrangThai;
 
                 await _context.SaveChangesAsync();
-
-                var log = new LogMessage
-                {
-                    TenDichVu = "Quản lý lịch làm việc",
-                    LoaiThaoTac = "Cập nhật trạng thái lịch làm việc",
-                    TenBangLienQuan = "DangKyCaTruc",
-                    MaDoiTuong = maDangKy.ToString(),
-                    DuLieuCu = new { TrangThai = trangThaiCu },
-                    DuLieuMoi = new { TrangThai = request.TrangThai },
-                    NguoiThucHien = currentUser.HoTenNhanVien, // Tên người thực hiện (Admin/Quản lý)
-                    DiaChiIp = HttpContext.Connection.RemoteIpAddress?.ToString(),
-                    TrangThaiThaoTac = true
-                };
-
-                // Bắn thông tin sang RabbitMQ (Không dùng await nếu không muốn bắt người dùng chờ log xong)
-                // Nhưng tốt nhất nên dùng await để đảm bảo tính ổn định
-                await _rabbitMQ.SendLogAsync(log);
-                // 5. Xử lý Cache Signal (nếu có dùng)
-                _resetCacheSignal.Cancel();
-                _resetCacheSignal = new CancellationTokenSource();
-
+                var tenNhanVien = dangKy.MaNguoiDungNavigation.HoTenNhanVien;                
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý lịch làm việc",
+                    "Cập nhật trạng thái lịch của nhân viên" + tenNhanVien,
+                    "DangKyCaTruc",
+                    maDangKy.ToString(),
+                    // Dữ liệu cũ
+                    new Dictionary<string, object> { { "Trạng thái", trangThaiCu } },
+                    // Dữ liệu mới
+                    new Dictionary<string, object> {
+                        { "Trạng thái", request.TrangThai }
+                       
+                    }
+                );
                 return Ok(new
                 {
                     success = true,

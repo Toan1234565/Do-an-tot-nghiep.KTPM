@@ -8,6 +8,8 @@ using QuanLyTaiKhoanNguoiDung.Models;
 using QuanLyTaiKhoanNguoiDung.Models12.HamBam;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
 using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
 using System.Security.Claims;
 using static QuanLyTaiKhoanNguoiDung.Models12._1234.EmailService;
@@ -23,12 +25,15 @@ namespace TaiKhoan1.ControllersAPI
         private readonly ILogger<QuanLyNguoiDung> _logger;
         private readonly IMemoryCache _cache;
         private static CancellationTokenSource _resetCacheSignal = new CancellationTokenSource();
-
-        public QuanLyNguoiDung(TmdtContext context, ILogger<QuanLyNguoiDung> logger, IMemoryCache cache)
+        private readonly PhanQuyenService _phanQuyen;
+        private readonly ISystemService _sys;
+        public QuanLyNguoiDung(TmdtContext context, ILogger<QuanLyNguoiDung> logger, IMemoryCache cache, PhanQuyenService phanQuyen, ISystemService sys)
         {
             _context = context;
             _logger = logger;
             _cache = cache;
+            _phanQuyen = phanQuyen;
+            _sys = sys;
         }
 
         private int? GetCurrentUserId()
@@ -55,42 +60,18 @@ namespace TaiKhoan1.ControllersAPI
         [Authorize]
         public async Task<IActionResult> DanhSachNguoiDung([FromQuery] string? searchTerm, [FromQuery] int? maKho, [FromQuery] int? maChucVu, [FromQuery] int page = 1, [FromQuery] bool trangthai = true)
         {
-            // 1. Lấy và kiểm tra ID người dùng hiện tại
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId == null)
+            // 1. Sử dụng Service để kiểm tra quyền và thông tin người dùng
+            var permission = await _phanQuyen.GetUserPermissionAsync(GetCurrentUserId());
+
+            if (permission == null)
                 return Unauthorized(new { message = "Vui lòng đăng nhập." });
 
-            // Lấy thông tin người dùng đang thực hiện request để check Vai trò và Kho
-            var currentUser = await _context.NguoiDungs
-                .Include(nd => nd.MaChucVuNavigation)
-                .ThenInclude(cv => cv.MaVaiTroNavigation)
-                .FirstOrDefaultAsync(nd => nd.MaNguoiDung == currentUserId);
-
-            if (currentUser == null)
-                return Unauthorized(new { message = "Người dùng không tồn tại." });
-
-            string tenVaiTro = currentUser.MaChucVuNavigation?.TenChucVu ?? "";
-
-            // 2. Xác định quyền (Bạn có thể điều chỉnh chuỗi này cho khớp chính xác với DB của bạn)
-            bool isQuanLyTong = tenVaiTro.Contains("Quản lý tổng") || tenVaiTro.Contains("Admin");
-            bool isQuanLyKho = tenVaiTro.Contains("Quản lý chi nhánh") || tenVaiTro.Contains("Quản lý kho");
-
-            // Nếu không có cả 2 quyền trên thì từ chối truy cập (Forbidden)
-            if (!isQuanLyTong && !isQuanLyKho)
-            {
+            if (!permission.IsQuanLyTong && !permission.IsQuanLyKho)
                 return StatusCode(403, new { message = "Bạn không có quyền truy cập danh sách này." });
-            }
 
-            // 3. Xử lý logic lọc mã Kho
-            int? filterMaKho = maKho; // Mặc định dùng tham số từ client (dành cho quản lý tổng)
+            // 2. Xác định mã kho cần lọc (Admin dùng maKho từ client, Quản lý kho dùng MaKho của chính mình)
+            int? filterMaKho = permission.GetFinalMaKho(maKho);
 
-            if (isQuanLyKho && !isQuanLyTong)
-            {
-                // Nếu chỉ là quản lý kho, BẮT BUỘC ép mã kho thành mã kho của người đang đăng nhập
-                // Ngăn chặn việc họ đổi tham số maKho trên URL để xem kho khác
-                filterMaKho = currentUser.MaKho;
-            }
-            // Tạo key dựa trên tham số query
 
             string cacheKey = $"ListUser_S:{searchTerm}_K:{filterMaKho}_C:{maChucVu}_P:{page}_TT:{trangthai}";
 
@@ -273,83 +254,21 @@ namespace TaiKhoan1.ControllersAPI
                 return StatusCode(500, new { message = "Lỗi hệ thống: " + errorMessage });
             }
         }
-        //[HttpPost("themnhanvien")]
-        //public async Task<IActionResult> ThemNhanVien([FromBody] NguoiDungModel model, [FromServices] IEmailService emailService)
-        //{
-        //    if (_context.TaiKhoans.Any(tk => tk.TenDangNhap == model.TenDangNhap))
-        //        return Conflict(new { message = "Tên đăng nhập đã tồn tại" });
-
-        //    // TẠO MẬT KHẨU RANDOM 8 CHỮ SỐ
-        //    string randomPassword = new Random().Next(10000000, 99999999).ToString();
-
-        //    using var transaction = await _context.Database.BeginTransactionAsync();
-        //    try
-        //    {
-        //        var newTaiKhoan = new TaiKhoan
-        //        {
-        //            TenDangNhap = model.TenDangNhap,
-        //            // Mã hóa mật khẩu ngẫu nhiên để lưu vào DB
-        //            MatKhauHash = SecurityHelper.Encrypt(randomPassword),
-        //            Email = model.Email,
-        //            SoDienThoai = model.SoDienThoai,
-        //            HoatDong = true
-        //        };
-
-        //        _context.TaiKhoans.Add(newTaiKhoan);
-        //        await _context.SaveChangesAsync();
-
-        //        var newNguoiDung = new NguoiDung
-        //        {
-        //            MaNguoiDung = newTaiKhoan.MaNguoiDung,
-        //            HoTenNhanVien = model.HoTenNhanVien,
-        //            Email = model.Email,
-        //            SoDienThoai = model.SoDienThoai,
-        //            MaChucVu = model.MaChucVu,
-        //            NgaySinh = model.NgaySinh,
-        //            GioiTinh = model.GioiTinh,
-        //            NoiSinh = model.NoiSinh,
-        //            TenNganHang = model.TenNganHang,
-        //            MaKho = model.MaKho,
-        //            DonViLamViec = model.DonViLamViec,
-        //            SoCccd = SecurityHelper.Encrypt(model.SoCccd),
-        //            SoTaiKhoan = SecurityHelper.Encrypt(model.SoTaiKhoan),
-        //            BaoHiemXaHoi = SecurityHelper.Encrypt(model.BaoHiemXaHoi)
-        //        };
-
-        //        _context.NguoiDungs.Add(newNguoiDung);
-        //        await _context.SaveChangesAsync();
-        //        await transaction.CommitAsync();
-
-        //        // GỬI EMAIL CHỨA MẬT KHẨU GỐC (Chưa Encrypt)
-        //        try
-        //        {
-        //            await emailService.SendAccountInfoAsync(model.Email, model.HoTenNhanVien, model.TenDangNhap, randomPassword);
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            _logger.LogError($"Lỗi gửi mail: {ex.Message}");
-        //            // Không rollback transaction vì data đã lưu xong, chỉ là lỗi thông báo
-        //        }
-
-        //        _resetCacheSignal.Cancel();
-        //        _resetCacheSignal = new CancellationTokenSource();
-
-        //        return Ok(new { message = "Thêm thành công! Mật khẩu đã được gửi tới email nhân viên." });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        await transaction.RollbackAsync();
-        //        var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-        //        return StatusCode(500, new { message = "Lỗi hệ thống: " + errorMessage });
-        //    }
-        //}
+        // thực hiện sửa thong tin nhân viên một số thông tin cơ bản như tên, ngày sinh, chức vụ, đơn vị làm việc, bảo hiểm xã hội
         [HttpPut("capnhatnhanvien/{maNhanVien}")]
         public async Task<IActionResult> CapNhatNhanVien(int maNhanVien, [FromBody] NguoiDungUpdateModel model)
         {
             var existingNguoiDung = await _context.NguoiDungs.FirstOrDefaultAsync(nd => nd.MaNguoiDung == maNhanVien);
             if (existingNguoiDung == null) return NotFound(new { message = "Không tìm thấy nhân viên để cập nhật." });
             try
-            {               
+            {
+                // 2. Lưu lại dữ liệu cũ TRƯỚC khi gán giá trị mới để ghi Log
+                var dataCu = new Dictionary<string, object> {
+                    
+                    { "Họ tên", existingNguoiDung.HoTenNhanVien },
+                    { "Đơn vị", existingNguoiDung.DonViLamViec },
+                    { "Mã chức vụ", existingNguoiDung.MaChucVu }
+                };
                 existingNguoiDung.DonViLamViec = model.DonViLamViec;    
                 existingNguoiDung.MaChucVu = model.MaChucVu;
                 existingNguoiDung.HoTenNhanVien = model.HoTenNhanVien;
@@ -362,6 +281,22 @@ namespace TaiKhoan1.ControllersAPI
                 _cache.Remove($"UserDetail_{maNhanVien}");
                 _resetCacheSignal.Cancel();
                 _resetCacheSignal = new CancellationTokenSource();
+
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý nhân viên",
+                    "Cập nhật thông tin nhân viên" + model.HoTenNhanVien,
+                    "NguoiDung",
+                    "0", 
+                         // 1. Dữ liệu cũ
+                    dataCu,
+                    // 2. Dữ liệu mới
+                    new Dictionary<string, object> {
+                        { "Họ tên", model.HoTenNhanVien },
+                        { "Đơn vị", model.DonViLamViec },
+                        { "Mã chức vụ", model.MaChucVu }
+                    }
+                ); // <-- Thêm dấu đóng ngoặc đơn ở đây
+
                 return Ok(new { message = "Cập nhật nhân viên thành công!" });
             }
             catch (Exception ex)
@@ -370,159 +305,7 @@ namespace TaiKhoan1.ControllersAPI
                 return StatusCode(500, new { message = "Lỗi hệ thống khi cập nhật." });
             }
         }
-        [HttpGet("danhsachchucvu")]
-        public async Task<IActionResult> DanhSachChucVu()
-        {
-            string cacheKey = "List_ChucVu";
-            if (!_cache.TryGetValue(cacheKey, out var danhsach))
-            {
-                danhsach = await _context.ChucVus.Include(cacheKey => cacheKey.MaVaiTroNavigation)
-                    .Select(cv => new ChucVuModel
-                    {
-                        TenChucVu = cv.TenChucVu,
-                        MaChucVu = cv.MaChucVu,
-                        TenVaiTro = cv.MaVaiTroNavigation != null ? cv.MaVaiTroNavigation.TenVaiTro : null
-                    })
-                    .ToListAsync();
-
-                if (danhsach == null || ((dynamic)danhsach).Count == 0) return NotFound();
-
-                // Lưu vào cache 30 phút
-                var cacheOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(30));
-                _cache.Set(cacheKey, danhsach, cacheOptions);
-            }
-            return Ok(danhsach);
-        }
-        [HttpPost("themchucvu")]
-        public async Task<IActionResult> ThemChucVu([FromBody] ChucVuModel model)
-        {
-            if (_context.ChucVus.Any(cv => cv.TenChucVu == model.TenChucVu))
-            {
-                return Conflict(new { message = "Chức vụ này đã tồn tại." });
-            }
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                var newChucVu = new ChucVu
-                {
-                    TenChucVu = model.TenChucVu,
-                    MaVaiTro = model.MaVaiTro,
-
-                };
-                _context.ChucVus.Add(newChucVu);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-                _cache.Remove("List_ChucVu");
-                return Ok(new { message = "Thêm chức vụ thành công." });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
-            }
-
-        }
-        [HttpGet("danhsachvaitro")]
-        public async Task<IActionResult> DanhSachVaiTro()
-        {
-            try
-            {
-                var vaitro = await _context.VaiTros
-               .Select(vt => new { vt.MaVaiTro, vt.TenVaiTro })
-               .ToListAsync();
-                return Ok(vaitro);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi lấy danh sách vai trò");
-                return StatusCode(500, new { message = "Lỗi hệ thống khi lấy danh sách vai trò." });
-
-            }
-        }
-        // API: Lấy thông tin chi tiết của một chức vụ theo ID       
-        [HttpGet("chucvu/{id}")]
-        public async Task<IActionResult> GetChucVuChiTiet(int id)
-        {
-            try
-            {
-                // Tìm chức vụ trong cơ sở dữ liệu bao gồm cả thông tin Vai trò (nếu cần)
-                var chucVu = await _context.ChucVus
-                    .Select(cv => new
-                    {
-                        cv.MaChucVu,
-                        cv.TenChucVu,
-                        cv.MaVaiTro
-                    })
-                    .FirstOrDefaultAsync(cv => cv.MaChucVu == id);
-
-                if (chucVu == null)
-                {
-                    return NotFound(new { message = "Không tìm thấy chức vụ yêu cầu." });
-                }
-
-                return Ok(chucVu);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi lấy chi tiết chức vụ ID: {ChucVuId}", id);
-                return StatusCode(500, new { message = "Lỗi hệ thống khi lấy chi tiết chức vụ." });
-
-            }
-        }
-        // API SỬA CHỨC VỤ
-        [HttpPut("suachucvu/{id}")]
-        public async Task<IActionResult> SuaChucVu(int id, [FromBody] ChucVuModel model)
-        {
-            var chucVu = await _context.ChucVus.FindAsync(id);
-            if (chucVu == null) return NotFound(new { message = "Không tìm thấy chức vụ này." });
-
-            // Kiểm tra nếu tên chức vụ mới đã tồn tại ở bản ghi khác
-            if (_context.ChucVus.Any(cv => cv.TenChucVu == model.TenChucVu && cv.MaChucVu != id))
-            {
-                return Conflict(new { message = "Tên chức vụ này đã tồn tại." });
-            }
-
-            try
-            {
-                chucVu.TenChucVu = model.TenChucVu;
-                chucVu.MaVaiTro = model.MaVaiTro;
-
-                _context.ChucVus.Update(chucVu);
-                await _context.SaveChangesAsync();
-                _cache.Remove("List_ChucVu");
-                return Ok(new { message = "Cập nhật chức vụ thành công." });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
-            }
-        }
-        // API XÓA CHỨC VỤ
-        [HttpDelete("xoachucvu/{id}")]
-        public async Task<IActionResult> XoaChucVu(int id)
-        {
-            var chucVu = await _context.ChucVus.FindAsync(id);
-            if (chucVu == null) return NotFound(new { message = "Không tìm thấy chức vụ để xóa." });
-
-            // KIỂM TRA RÀNG BUỘC: Nếu có nhân viên đang giữ chức vụ này thì không cho xóa
-            bool dangDuocSuDung = await _context.NguoiDungs.AnyAsync(n => n.MaChucVu == id);
-            if (dangDuocSuDung)
-            {
-                return BadRequest(new { message = "Không thể xóa vì đang có nhân viên thuộc chức vụ này." });
-            }
-
-            try
-            {
-                _context.ChucVus.Remove(chucVu);
-                await _context.SaveChangesAsync();
-                _cache.Remove("List_ChucVu");
-                return Ok(new { message = "Xóa chức vụ thành công." });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
-            }
-        }
+        
         // API thực hiện tải danh sách nhân viên thuộc kho để thêm mới kho bãi(Nhân viên phụ trách quản lý kho mới này)
         [HttpGet("danhsachnhanvienkho")]
         public async Task<IActionResult> DanhSachNguoiDungKho()

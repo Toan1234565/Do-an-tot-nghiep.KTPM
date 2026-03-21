@@ -2,9 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using QuanLyTaiKhoanNguoiDung.BackgroundTasks;
+using QuanLyTaiKhoanNguoiDung.Models12;
 using QuanLyTaiKhoanNguoiDung.Models12._1234;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyLichLamViec;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
 
 namespace QuanLyTaiKhoanNguoiDung
 {
@@ -26,18 +28,18 @@ namespace QuanLyTaiKhoanNguoiDung
                     options.Cookie.Name = "TMDT_Auth";
                     options.LoginPath = "/QuanLyPhanQuyen/DangNhap";
                     options.AccessDeniedPath = "/Home/Error";
-                    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+                    options.ExpireTimeSpan = TimeSpan.FromHours(8);
                     options.SlidingExpiration = true;
                     options.Cookie.HttpOnly = true;
                     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                     options.Cookie.SameSite = SameSiteMode.Lax;
                 });
 
-            // 3. Cấu hình Session (SỬA LỖI TẠI ĐÂY)
+            // 3. Cấu hình Session 
             builder.Services.AddDistributedMemoryCache(); // Cần thiết cho Session
             builder.Services.AddSession(options =>
             {
-                options.IdleTimeout = TimeSpan.FromMinutes(30);
+                options.IdleTimeout = TimeSpan.FromHours(8);
                 options.Cookie.HttpOnly = true;
                 options.Cookie.IsEssential = true; // Bắt buộc để hoạt động
             });
@@ -47,7 +49,7 @@ namespace QuanLyTaiKhoanNguoiDung
             {
                 options.AddPolicy("AllowSpecificOrigins", corsBuilder =>
                 {
-                    corsBuilder.WithOrigins("https://localhost:7022", "https://localhost:7286", "https://localhost:7264", "https://localhost:7097")
+                    corsBuilder.WithOrigins("https://localhost:7022", "https://localhost:7286", "https://localhost:7264", "https://localhost:7097", "https://localhost:7088")
                                .AllowAnyHeader()
                                .AllowAnyMethod()
                                .AllowCredentials();
@@ -73,6 +75,10 @@ namespace QuanLyTaiKhoanNguoiDung
             builder.Services.AddHostedService<LicenseExpiryWorker>();
             builder.Services.AddHostedService<AutoApprovalService>();
             builder.Services.AddScoped<RabbitMQClient>();
+            builder.Services.AddScoped<PhanQuyenService>();
+            builder.Services.AddSingleton<CacheSignalService>();
+            builder.Services.AddHttpContextAccessor(); // Bắt buộc để lấy IP/User trong Service
+            builder.Services.AddScoped<ISystemService, SystemService>();
             OfficeOpenXml.ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
 
             var app = builder.Build();

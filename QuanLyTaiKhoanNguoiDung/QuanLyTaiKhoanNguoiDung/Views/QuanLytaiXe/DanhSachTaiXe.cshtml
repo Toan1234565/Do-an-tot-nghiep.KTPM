@@ -10,67 +10,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hệ Thống Quản Lý Tài Xế</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"> 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"> 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="~/css/giaodiendanhsach.css" asp-append-version="true" />
     <style>
-        :root {
-            --primary-color: #4361ee;
-            --danger-color: #ef4444;
-            --warning-color: #f59e0b;
-            --success-color: #10b981;
-            --bg-body: #f8f9fa;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-body);
-            color: #2b2d42;
-        }
-
-        .main-card {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            padding: 1.5rem;
-            margin: 20px auto;
-            max-width: 98%;
-        }
-
-        .custom-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0 10px;
-        }
-
-            .custom-table thead th {
-                color: #718096;
-                text-transform: uppercase;
-                font-size: 0.7rem;
-                font-weight: 700;
-                padding: 12px 20px;
-                border: none;
-            }
-
-            .custom-table tbody tr {
-                background: #fff;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-                border-radius: 12px;
-                transition: all 0.2s ease;
-            }
-
-                .custom-table tbody tr:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-                }
-
-            .custom-table tbody td {
-                padding: 15px 20px;
-                vertical-align: middle;
-                border: none;
-            }
-
+        
         .status-badge {
             padding: 6px 12px;
             border-radius: 8px;
@@ -112,7 +61,16 @@
             padding: 4px 8px;
             border-radius: 6px;
         }
-        
+        .btn-nhat-ky:hover {
+            background-color: #e9ecef !important;
+            transform: scale(1.1);
+        }
+
+        .btn-nhat-ky:hover i {
+            animation: ring 0.5s ease;
+        }
+
+       
     </style>
 </head>
 <body>
@@ -127,10 +85,26 @@
                 <h1 class="h4 fw-bold m-0 text-dark">
                     <i class="fa-solid fa-id-card me-2 text-primary"></i>Quản Lý Hồ Sơ Tài Xế
                 </h1>
+    
                 <div class="d-flex gap-3 align-items-center">
-                    <a href="@Url.Action("DanhSachTaiXe")" class="btn btn-light btn-sm border rounded-pill px-3">
+                    <a href="@Url.Action("DanhSachTaiXe")" class="btn btn-light btn-sm border rounded-pill px-3 shadow-sm">
                         <i class="fa-solid fa-arrows-rotate me-1 text-muted"></i> Làm mới
                     </a>
+
+                    <div class="position-relative">
+                        <button type="button" 
+                                class="btn btn-link text-dark position-relative p-2 bg-light rounded-circle border shadow-sm btn-nhat-ky" 
+                                style="width: 40px; height: 40px; transition: all 0.3s;"
+                                data-bs-toggle="modal" 
+                                data-bs-target="#detailModal" 
+                                data-service="Quản lý nhân viên"
+                                title="Xem nhật ký hoạt động">
+                            <i class="fa-solid fa-bell fs-5 text-primary"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                <span class="visually-hidden">New alerts</span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -158,6 +132,18 @@
                             <option value="true" selected="@(ViewBag.CurrentTrangThai == true)">Đang hoạt động</option>
                             <option value="false" selected="@(ViewBag.CurrentTrangThai == false)">Đã vô hiệu hóa</option>
                         </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6">
+                         <label class="form-label small fw-bold text-secondary">
+                             <i class="fas fa-toggle-on me-1"></i> Trạng thái hoạt động
+                         </label>
+                         <select name="trangthaihoatdong" class="form-select bg-light auto-submit" 
+                                 @(ViewBag.CurrentTrangThai == false ? "disabled" : "")>
+                             <option value="" selected="@(string.IsNullOrEmpty(ViewBag.CurrentTrangThaiHoatDong))">Tất cả</option>
+                             <option value="Đang hoạt động" selected="@(ViewBag.CurrentTrangThaiHoatDong == "Đang hoạt động")">Đang hoạt động</option>
+                             <option value="Sẵn sàng" selected="@(ViewBag.CurrentTrangThaiHoatDong == "Sẵn sàng")">Sẵn sàng</option>                           
+                             <option value="Bị khóa" selected="@(ViewBag.CurrentTrangThaiHoatDong == "Bị khóa")">Bị khóa</option>
+                         </select>
                     </div>
                     <div class="col-lg-2 col-md-4">
                         <label class="form-label small fw-bold text-secondary"><i class="fas fa-shuttle-van me-1"></i> Loại bằng</label>
@@ -188,7 +174,7 @@
                 </div>
             </form>
 
-            <div class="table-responsive">
+            <div >
                 <table class="custom-table">
                     <thead>
                         <tr>
@@ -317,11 +303,55 @@
                 </div>
             </div>
         </div>
+        <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nhật ký hệ thống</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modalBodyNhatKy">
+                    @await Html.PartialAsync("_NhatKyPartial")
+                </div>
+            </div>
+        </div>
+    </div>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
      <script src="~/js/quanlytaikhoan/kichhoat-vohieuhoa.js"></script>
     <script>
+       $(document).ready(function() {
+            // Hàm kiểm tra và xử lý trạng thái dropdown
+            function toggleTrangThaiHoatDong() {
+                var trangThaiTaiKhoan = $('select[name="trangthai"]').val();
+                var $selectHoatDong = $('select[name="trangthaihoatdong"]');
+
+                if (trangThaiTaiKhoan === "false") {
+                    // Nếu chọn Vô hiệu hóa: reset giá trị về "" và disable dropdown
+                    $selectHoatDong.val("").prop('disabled', true);
+                    // Thêm class để người dùng thấy rõ là bị khóa (tùy chọn)
+                    $selectHoatDong.addClass('bg-secondary-subtle');
+                } else {
+                    // Nếu chọn Đang hoạt động: cho phép chọn lại
+                    $selectHoatDong.prop('disabled', false);
+                    $selectHoatDong.removeClass('bg-secondary-subtle');
+                }
+            }
+
+            // Chạy ngay khi trang load để giữ đúng trạng thái sau khi Submit form
+            toggleTrangThaiHoatDong();
+
+            // Chạy khi người dùng thay đổi lựa chọn
+            $('select[name="trangthai"]').on('change', function() {
+                toggleTrangThaiHoatDong();
+        
+                // Nếu form của bạn có class auto-submit để tự load lại trang:
+                if ($(this).hasClass('auto-submit')) {
+                    $(this).closest('form').submit();
+                }
+            });
+        });
         document.addEventListener("DOMContentLoaded", function () {
             const filterForm = document.getElementById('filterForm');
             const autoSubmitElements = document.querySelectorAll('.auto-submit');

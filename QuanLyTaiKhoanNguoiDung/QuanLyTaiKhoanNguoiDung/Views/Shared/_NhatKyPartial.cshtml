@@ -1,0 +1,145 @@
+﻿<div class="card border-0 shadow-sm">
+    <style>
+        .table-log {
+            font-size: 0.875rem;
+        }
+
+        /* Cố định tiêu đề và cho phép cuộn nội dung */
+        .table-responsive {
+            max-height: 65vh; /* Chiều cao tối đa bằng 65% màn hình */
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .table-log thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #f8f9fa !important;
+            border-bottom: 2px solid #dee2e6;
+            box-shadow: inset 0 -1px 0 #dee2e6;
+        }
+
+        .log-row:hover {
+            background-color: #fcfcff !important;
+            transition: 0.2s;
+        }
+
+        .text-action {
+            font-weight: 500;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .change-detail-box {
+            background: #f8f9fa;
+            border-left: 3px solid #0dcaf0;
+            padding: 10px 15px;
+            margin-top: 8px;
+            border-radius: 6px;
+        }
+
+        .data-label {
+            font-weight: bold;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .data-text {
+            color: #444;
+            word-break: break-all;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+    </style>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle table-log mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 18%;">Thời gian</th>
+                    <th style="width: 82%;">Nội dung hoạt động & Chi tiết thay đổi</th>
+                </tr>
+            </thead>
+            <tbody id="logTableBody">
+                <tr>
+                    <td colspan="2" class="text-center py-4 text-muted">Bấm nút "Hoạt động" để tải dữ liệu nhật ký</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="logPagination" class="mt-3 d-flex justify-content-center pb-3"></div>
+</div>
+
+<script>
+    const BASE_API_URL = 'https://localhost:7088';
+
+    function formatLogData(data) {
+        if (!data || data === "null" || data === "") return '<span class="text-muted italic">Trống</span>';
+        try {
+            let obj = (typeof data === 'string') ? JSON.parse(data) : data;
+            if (typeof obj === 'object' && obj !== null) {
+                return Object.entries(obj)
+                    .map(([key, val]) => `<div class="mb-1"><span class="text-secondary">${key}:</span> <strong>${val ?? 'N/A'}</strong></div>`)
+                    .join('');
+            }
+            return data;
+        } catch (e) { return data; }
+    }
+
+    // Hàm load dữ liệu và xóa cache cùng lúc nếu cần
+    function loadNhatKy(page, tenDichVu, forceRefresh = false) {
+        const $body = $('#logTableBody');
+
+        if (forceRefresh) {
+            // Gọi API xóa cache trước khi load
+            $.post(`${BASE_API_URL}/api/nhatkyhethong/clear-cache`);
+        }
+
+        $body.html('<tr><td colspan="2" class="text-center py-5"><div class="spinner-border text-info"></div></td></tr>');
+
+        $.get(`${BASE_API_URL}/api/nhatkyhethong/getall-nhatky?page=${page}&pageSize=10&tendichvu=${encodeURIComponent(tenDichVu)}`, function (res) {
+            let html = '';
+            if (res.data && res.data.length > 0) {
+                res.data.forEach(item => {
+                    const date = item.thoiGianThucHien ? new Date(item.thoiGianThucHien).toLocaleString('vi-VN') : 'N/A';
+                    html += `
+                    <tr class="log-row">
+                        <td class="text-muted align-top pt-3"><small><i class="far fa-clock me-1"></i>${date}</small></td>
+                        <td>
+                            <div class="text-action">
+                               <span> ${item.nguoiThucHien} đã thực hiện ${item.loaiThaoTac}</span>
+                            </div>
+                            <div class="change-detail-box">
+                                <div class="row">
+                                    <div class="col-md-6 border-end">
+                                        <span class="data-label text-danger">Trước:</span>
+                                        <div class="data-text">${formatLogData(item.duLieuCu)}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <span class="data-label text-success">Sau:</span>
+                                        <div class="data-text">${formatLogData(item.duLieuMoi)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+                $body.html(html);
+                renderPagination(res.totalPages, res.currentPage, tenDichVu);
+            }
+        });
+    }
+
+    // CƠ CHẾ TỰ ĐỘNG CẬP NHẬT:
+    // Khi Toán nhấn nút "Duyệt" hoặc "Cập nhật" ở một chỗ khác, hãy gọi dòng này trong hàm success của AJAX:
+    // loadNhatKy(1, "Quản lý lịch làm việc", true);
+
+    $(document).ready(function () {
+        $(document).on('click', '.btn-nhat-ky', function () {
+            loadNhatKy(1, $(this).data('service'), true); // Force refresh khi chủ động bấm xem
+        });
+    });
+</script>

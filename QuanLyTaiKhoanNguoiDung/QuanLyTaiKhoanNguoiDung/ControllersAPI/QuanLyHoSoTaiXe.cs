@@ -10,11 +10,13 @@ using Microsoft.Extensions.Primitives;
 using MimeKit;
 using OfficeOpenXml;
 using QuanLyTaiKhoanNguoiDung.Models;
+using QuanLyTaiKhoanNguoiDung.Models12;
 using QuanLyTaiKhoanNguoiDung.Models12._1234;
 using QuanLyTaiKhoanNguoiDung.Models12.HamBam;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyLoTrinhTheoDoi;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyTaiXe;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
 using System.ComponentModel;
 using System.Security.Claims;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
@@ -31,16 +33,20 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
         private readonly IMemoryCache _cache;
         private readonly IEmailService _emailService; // Dùng Interface chuẩn
         private static CancellationTokenSource _resetCacheSignal = new CancellationTokenSource();
+        private readonly CacheSignalService _cacheSignal;
 
+        private readonly PhanQuyenService _phanQuyen;
         public QuanLyHoSoTaiXe(TmdtContext context,
                                ILogger<QuanLyHoSoTaiXe> logger,
                                IMemoryCache cache,
-                               IEmailService emailService)
+                               IEmailService emailService, PhanQuyenService phanQuyen, CacheSignalService cacheSignal)
         {
             _context = context;
             _logger = logger;
             _cache = cache;
             _emailService = emailService;
+            _phanQuyen = phanQuyen;
+            _cacheSignal = cacheSignal;
         }
         private int? GetCurrentUserId()
         {
@@ -67,6 +73,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
             [FromQuery] string? search,
             [FromQuery] string? loaiBang,
             [FromQuery] int? maKho,
+            [FromQuery] string? trangthaihoatdong,
             [FromQuery] string? sortBy,
             [FromQuery] bool isDescending = true,
             [FromQuery] int page = 1,
@@ -74,41 +81,20 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
         {
             try
             {
-                // 1. Lấy và kiểm tra ID người dùng hiện tại
-                var currentUserId = GetCurrentUserId();
-                if (currentUserId == null)
+                // 1. Sử dụng Service để kiểm tra quyền và thông tin người dùng
+                var permission = await _phanQuyen.GetUserPermissionAsync(GetCurrentUserId());
+
+                if (permission == null)
                     return Unauthorized(new { message = "Vui lòng đăng nhập." });
 
-                // Lấy thông tin người dùng đang thực hiện request để check Vai trò và Kho
-                var currentUser = await _context.NguoiDungs
-                    .Include(nd => nd.MaChucVuNavigation)
-                    .ThenInclude(cv => cv.MaVaiTroNavigation)
-                    .FirstOrDefaultAsync(nd => nd.MaNguoiDung == currentUserId);
-
-                if (currentUser == null)
-                    return Unauthorized(new { message = "Người dùng không tồn tại." });
-
-                string tenVaiTro = currentUser.MaChucVuNavigation?.TenChucVu ?? "";
-
-                // 2. Xác định quyền (Bạn có thể điều chỉnh chuỗi này cho khớp chính xác với DB của bạn)
-                bool isQuanLyTong = tenVaiTro.Contains("Quản lý tổng") || tenVaiTro.Contains("Admin");
-                bool isQuanLyKho = tenVaiTro.Contains("Quản lý chi nhánh") || tenVaiTro.Contains("Quản lý kho");
-
-                // Nếu không có cả 2 quyền trên thì từ chối truy cập (Forbidden)
-                if (!isQuanLyTong && !isQuanLyKho)
-                {
+                if (!permission.IsQuanLyTong && !permission.IsQuanLyKho)
                     return StatusCode(403, new { message = "Bạn không có quyền truy cập danh sách này." });
-                }
 
-                // 3. Xử lý logic lọc mã Kho
-                int? filterMaKho = maKho; // Mặc định dùng tham số từ client (dành cho quản lý tổng)
-                if (isQuanLyKho && !isQuanLyTong)
-                {
-                    filterMaKho = currentUser.MaKho;
-                }
+                // 2. Xác định mã kho cần lọc (Admin dùng maKho từ client, Quản lý kho dùng MaKho của chính mình)
+                int? filterMaKho = permission.GetFinalMaKho(maKho);
 
                 // 3. Quản lý Cache
-                var cacheKey = $"Drivers_K{filterMaKho ?? 0}_S{search}_B{loaiBang}_Sort{sortBy}_{isDescending}_P{page}_TT{trangthai}";
+                var cacheKey = $"Drivers_K{filterMaKho ?? 0}_S{search}_B{loaiBang}_Sort{sortBy}_{isDescending}_P{page}_TT{trangthai}_TTHD{trangthaihoatdong}";
 
                 if (!_cache.TryGetValue(cacheKey, out var cachedData))
                 {
@@ -130,9 +116,31 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                         string s = search.ToLower();
                         query = query.Where(tk => tk.NguoiDung.HoTenNhanVien.ToLower().Contains(s) || tk.NguoiDung.TaiXe.SoBangLai.Contains(s));
                     }
-                    if (!trangthai)
+                    
+                    // Lọc theo Trạng thái làm việc (Ready/Busy...)
+                    if (!string.IsNullOrEmpty(trangthaihoatdong))
                     {
-                        query = query.Where(tk => tk.HoatDong == trangthai);
+                        query = query.Where(tk => tk.NguoiDung.TaiXe.TrangThaiHoatDong == trangthaihoatdong);
+                    }
+                    // 1. Lọc theo Trạng thái tài khoản (Luôn áp dụng)
+                    query = query.Where(tk => tk.HoatDong == trangthai);
+
+                    // 2. Logic rẽ nhánh
+                    if (trangthai == true)
+                    {
+                        // Chỉ lọc theo Trạng thái làm việc nếu tài khoản đang mở
+                        if (!string.IsNullOrEmpty(trangthaihoatdong))
+                        {
+                            query = query.Where(tk => tk.NguoiDung.TaiXe.TrangThaiHoatDong == trangthaihoatdong);
+                        }
+                    }
+                    else
+                    {
+                        // Nếu tài khoản bị khóa (trangthai == false), 
+                        // chúng ta mặc định lấy tất cả những người có trạng thái là "Bị khóa" 
+                        // hoặc bất kỳ trạng thái nào của tài khoản bị vô hiệu hóa.
+                        query = query.Where(tk => tk.NguoiDung.TaiXe.TrangThaiHoatDong == "Bị khóa"
+                                               || tk.NguoiDung.TaiXe.TrangThaiHoatDong == null);
                     }
                     // Sắp xếp
                     query = sortBy?.ToLower() switch
@@ -150,8 +158,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                             MaNguoiDung = tk.MaNguoiDung,
                             
                             HoTenTaiXe = tk.NguoiDung.HoTenNhanVien,
-                            TrangThai = tk.HoatDong,
-                           
+                            TrangThai = tk.HoatDong,                         
                             SoBangLai = tk.NguoiDung.TaiXe != null ? tk.NguoiDung.TaiXe.SoBangLai : "",
                             LoaiBangLai = tk.NguoiDung.TaiXe != null ? tk.NguoiDung.TaiXe.LoaiBangLai : "",
                             KinhNghiemNam = tk.NguoiDung.TaiXe != null ? tk.NguoiDung.TaiXe.KinhNghiemNam : 0,
@@ -168,8 +175,9 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     };
 
                     var cacheOptions = new MemoryCacheEntryOptions()
-                     .SetAbsoluteExpiration(TimeSpan.FromMinutes(5))
-                     .AddExpirationToken(new CancellationChangeToken(_resetCacheSignal.Token)); // Thêm dòng này
+                        .SetAbsoluteExpiration(TimeSpan.FromMinutes(5))
+                        // Dùng đúng cái TokenSource đang sống trong Singleton
+                        .AddExpirationToken(new CancellationChangeToken(_cacheSignal.TokenSource.Token));
                     cachedData = result;
                     _cache.Set(cacheKey, cachedData, cacheOptions);
                     

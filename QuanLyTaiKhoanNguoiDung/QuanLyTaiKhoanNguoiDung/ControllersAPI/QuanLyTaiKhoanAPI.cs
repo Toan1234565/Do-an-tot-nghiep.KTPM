@@ -7,11 +7,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using QuanLyTaiKhoanNguoiDung;
+using QuanLyTaiKhoanNguoiDung.ControllersAPI;
 using QuanLyTaiKhoanNguoiDung.Models;
 using QuanLyTaiKhoanNguoiDung.Models12._1234;
 using QuanLyTaiKhoanNguoiDung.Models12.HamBam;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyTaiKhoan;
 using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
+using QuanLyTaiKhoanNguoiDung.Services;
 using System.Security.Claims; // Thư viện băm mật khẩu
 using System.Security.Cryptography; // Để dùng cho việc sinh chuỗi ngẫu nhiên an toàn hơn
 using System.Text;
@@ -23,15 +27,42 @@ namespace TaiKhoan1.ControllersAPI
     [ApiController]
     public class QuanLyTaiKhoanAPI : ControllerBase
     {
+
+        
         private readonly TmdtContext _context;
         private readonly ILogger<QuanLyTaiKhoanAPI> _logger;
         private readonly IEmailService _emailService;
+        private readonly RabbitMQClient _rabbitMQ;
+        private readonly PhanQuyenService _phanQuyen;
+        private readonly ISystemService _sys;
 
-        public QuanLyTaiKhoanAPI(TmdtContext context, ILogger<QuanLyTaiKhoanAPI> logger, IEmailService emailService)
+        private static CancellationTokenSource _resetCacheSignal = new CancellationTokenSource();
+        public QuanLyTaiKhoanAPI(TmdtContext context, ILogger<QuanLyTaiKhoanAPI> logger, IEmailService emailService, RabbitMQClient rabbitMQ, PhanQuyenService phanQuyen, ISystemService sys)
         {
             _context = context;
             _logger = logger;
             _emailService = emailService;
+            this._rabbitMQ = rabbitMQ;
+            _phanQuyen = phanQuyen;
+            _sys = sys;
+        }
+        private int? GetCurrentUserId()
+        {
+            // 1. Thử lấy từ Claims (Cookie Authentication)
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return userId;
+            }
+
+            // 2. Dự phòng: Thử lấy từ Session (Nếu Cookie bị lỗi nhưng Session còn)
+            var sessionUserId = HttpContext.Session.GetString("MaNguoiDung");
+            if (!string.IsNullOrEmpty(sessionUserId) && int.TryParse(sessionUserId, out int sUserId))
+            {
+                return sUserId;
+            }
+
+            return null;
         }
         [HttpPost("dangnhap")]
         public async Task<IActionResult> DangNhap([FromBody] DangNhapModel login)
@@ -172,6 +203,7 @@ namespace TaiKhoan1.ControllersAPI
             }
         }
 
+        // thực hiện cập nhật thông tin cá nhân (không bao gồm mật khẩu) cho người dùng
         [HttpPost("sua-thong-tin/{maNguoiDung}")]
         public async Task<IActionResult> SuaThongTin(int maNguoiDung, [FromBody] SuaThongTinCaNhanUpdate model)
         {
@@ -190,6 +222,7 @@ namespace TaiKhoan1.ControllersAPI
                 existingNguoiDung.SoTaiKhoan = model.SoTaiKhoan ?? existingNguoiDung.SoTaiKhoan;
                 await _context.SaveChangesAsync();
                 return Ok(new { message = "Cập nhật thông tin cá nhân thành công" });
+
             }
             catch (Exception ex)
             {
@@ -251,6 +284,7 @@ namespace TaiKhoan1.ControllersAPI
             // 1. Tối ưu: Lấy tài khoản kèm thông tin người dùng để gửi mail ngay
             var tk = await _context.TaiKhoans
                 .Include(t => t.NguoiDung)
+                   .ThenInclude(tx=>tx.TaiXe)
                 .FirstOrDefaultAsync(t => t.MaNguoiDung == id);
 
             if (tk == null) return NotFound(new { message = "Không tìm thấy tài khoản" });
@@ -258,7 +292,13 @@ namespace TaiKhoan1.ControllersAPI
 
             // 2. Cập nhật trạng thái
             tk.HoatDong = false;
+            if (tk.NguoiDung?.TaiXe != null)
+            {
+                // Cập nhật trạng thái làm việc (bảng TaiXe)
+                tk.NguoiDung.TaiXe.TrangThaiHoatDong = "Bị khóa";
+            }
 
+            var tenNhanVienBiKhoa = tk.NguoiDung?.HoTenNhanVien ?? tk.TenDangNhap;
             try
             {
                 await _context.SaveChangesAsync();
@@ -282,6 +322,19 @@ namespace TaiKhoan1.ControllersAPI
                     });
                 }
 
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý nhân viên",
+                    "Vô hiệu hóa tài khoản" + tenNhanVienBiKhoa,
+                    "TaiKhoan",
+                    id.ToString(),
+                    // Dữ liệu cũ
+                    new Dictionary<string, object> { { "Trạng thái", "Đang hoạt động" } },
+                    // Dữ liệu mới
+                    new Dictionary<string, object> {
+                        { "Trạng thái", "Đã bị khóa" },
+                        { "Lý do", request.LyDo }
+                    }
+                );
                 return Ok(new { message = "Vô hiệu hóa tài khoản thành công" });
             }
             catch (Exception ex)
@@ -300,12 +353,18 @@ namespace TaiKhoan1.ControllersAPI
             }
             var tk = await _context.TaiKhoans
                 .Include(t => t.NguoiDung)
+                .ThenInclude(tx=>tx.TaiXe)
                 .FirstOrDefaultAsync(t => t.MaNguoiDung == id);
 
             if (tk == null) return NotFound(new { message = "Không tìm thấy tài khoản" });
 
             tk.HoatDong = true;
-
+            if (tk.NguoiDung?.TaiXe != null)
+            {
+                // Cập nhật trạng thái làm việc (bảng TaiXe)
+                tk.NguoiDung.TaiXe.TrangThaiHoatDong = "Sẵn sàng";
+            }
+            var tenNhanVienBiKhoa = tk.NguoiDung?.HoTenNhanVien ?? tk.TenDangNhap;
             try
             {
                 await _context.SaveChangesAsync();
@@ -328,7 +387,19 @@ namespace TaiKhoan1.ControllersAPI
                         }
                     });
                 }
-
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý nhân viên",
+                    "Vô hiệu hóa tài khoản" + tenNhanVienBiKhoa,
+                    "TaiKhoan",
+                    id.ToString(),
+                    // Dữ liệu cũ
+                    new Dictionary<string, object> { { "Trạng thái", "Đã bị khóa" } },
+                    // Dữ liệu mới
+                    new Dictionary<string, object> {
+                        { "Trạng thái", "Đã hoạt động" }
+                        
+                    }
+                );
                 return Ok(new { message = "Mở khóa tài khoản thành công" });
             }
             catch (Exception ex)
@@ -336,12 +407,7 @@ namespace TaiKhoan1.ControllersAPI
                 return StatusCode(500, new { message = "Lỗi khi mở khóa", detail = ex.Message });
             }
         }
-
-        private int? GetCurrentUserId()
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            return (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId)) ? userId : null;
-        }
+       
         private async Task<bool> KiemTraQuyenQuanLy()
         {
             var currentUserId = GetCurrentUserId();

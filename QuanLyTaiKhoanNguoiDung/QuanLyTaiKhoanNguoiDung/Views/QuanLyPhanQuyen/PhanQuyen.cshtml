@@ -1,4 +1,4 @@
-﻿@model IEnumerable<QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan.ChucVuModel>
+﻿@model IEnumerable<QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen.ChucVuModel>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -6,95 +6,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="~/css/giaodiendanhsach.css" asp-append-version="true" />
     <style>
-        :root {
-            --primary-color: #4361ee;
-            --success-color: #2ec4b6;
-            --warning-color: #ff9f1c;
-            --danger-color: #e71d36;
-            --bg-body: #f8fafc;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-body);
-            color: #1e293b;
-        }
-
-        .product-table-container {
-            background: white;
-            padding: 2.5rem;
-            border-radius: 16px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-            margin: 30px auto;
-            max-width: 95%;
-            border: 1px solid #e2e8f0;
-        }
-
-        /* Tiêu đề hiện đại */
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            border-bottom: 2px solid #f1f5f9;
-            padding-bottom: 1.5rem;
-        }
-
-        h1 {
-            font-weight: 800;
-            font-size: 1.75rem;
-            color: #0f172a;
-            margin: 0;
-            display: flex;
-            align-items: center;
-        }
-
-            h1::before {
-                content: "";
-                width: 6px;
-                height: 32px;
-                background: var(--primary-color);
-                border-radius: 10px;
-                margin-right: 15px;
-            }
-
-        /* Table Styling */
-        .product-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-        }
-
-            .product-table thead th {
-                background-color: #f8fafc;
-                color: #64748b;
-                font-weight: 700;
-                text-transform: uppercase;
-                font-size: 0.75rem;
-                letter-spacing: 0.05em;
-                padding: 16px;
-                border-bottom: 2px solid #e2e8f0;
-            }
-
-            .product-table tbody tr {
-                transition: all 0.2s;
-            }
-
-                .product-table tbody tr:hover {
-                    background-color: #f1f5f9;
-                    transform: scale(1.002);
-                }
-
-            .product-table tbody td {
-                padding: 18px 16px;
-                border-bottom: 1px solid #f1f5f9;
-                vertical-align: middle;
-            }
-
+        
         /* Badge Styling */
         .status-badge {
             padding: 6px 14px;
@@ -187,17 +107,37 @@
     </style>
 </head>
 <body>
-    <main class="container-fluid">
-        <div class="product-table-container">
-            <div class="page-header">
-                <h1>Danh Sách Chức Vụ</h1>
-                <button class="btn btn-add" data-bs-toggle="modal" data-bs-target="#ThemChucVuModal">
-                    <i class="fas fa-plus-circle me-2"></i> Thêm chức vụ mới
-                </button>
+    <main class="container-fluid py-4">
+        <div class="main-card">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <h1 class="h3 mb-0 text-gray-800">Danh Sách Chức Vụ</h1>
+
+                <div class="d-flex align-items-center gap-3">
+                    <div class="position-relative">
+                        <button type="button"
+                                class="btn btn-light rounded-circle shadow-sm btn-nhat-ky d-flex align-items-center justify-content-center"
+                                style="width: 42px; height: 42px; border: 1px solid #dee2e6;"
+                                data-bs-toggle="modal"
+                                data-bs-target="#detailModal"
+                                data-service="Quản lý phân quyền"
+                                title="Xem nhật ký hoạt động">
+                            <i class="fa-solid fa-bell text-primary fs-5"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                <span class="visually-hidden">Hoạt động mới</span>
+                            </span>
+                        </button>
+                    </div>
+
+                    <button class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#ThemChucVuModal">
+                        <i class="fas fa-plus-circle me-2"></i> Thêm chức vụ mới
+                    </button>
+                </div>
             </div>
 
-            <div class="table-responsive">
-                <table class="product-table">
+
+
+            <div>
+                <table class="custom-table">
                     <thead>
                         <tr>
                             <th class="text-center" style="width: 80px;">STT</th>
@@ -213,18 +153,18 @@
                             foreach (var item in Model)
                             {
                                 <tr>
-                                    <td class="text-center text-muted fw-medium">@stt.ToString("D2")</td>
+                                    <td class="text-muted fw-medium">@stt.ToString("D2")</td>
                                     <td>
                                         <div class="fw-bold text-dark">@item.TenChucVu</div>
                                         <small class="text-muted">Mã: #@item.MaChucVu</small>
                                     </td>
-                                    <td class="text-center">
+                                    <td>
                                         <span class="status-badge badge-info">
                                             <i class="fas fa-user-shield me-2" style="font-size: 0.7rem;"></i>
                                             @item.TenVaiTro
                                         </span>
                                     </td>
-                                    <td class="text-center">
+                                    <td>
                                         <button class="action-btn btn-edit" title="Sửa" onclick="openEditModal(@item.MaChucVu)">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -250,68 +190,79 @@
                     </tbody>
                 </table>
             </div>
-        </div>
-    </main>
-
-    <div class="modal fade" id="ThemChucVuModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content shadow-lg">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2"></i>Thêm Chức Vụ Mới</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal fade" id="ThemChucVuModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content shadow-lg">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2"></i>Thêm Chức Vụ Mới</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form id="formThemChucVu">
+                            <div class="modal-body p-4">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-secondary small">TÊN CHỨC VỤ</label>
+                                    <input type="text" class="form-control" name="TenChucVu" placeholder="Ví dụ: Trưởng phòng kinh doanh" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label fw-bold text-secondary small">VAI TRÒ HỆ THỐNG</label>
+                                    <select class="form-select select-vaitro-data" id="selectVaiTro" name="MaVaiTro" required>
+                                        <option value="">-- Chọn vai trò --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer bg-light">
+                                <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal">Hủy</button>
+                                <button type="submit" class="btn btn-primary px-4 rounded-3">Lưu thông tin</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-                <form id="formThemChucVu">
-                    <div class="modal-body p-4">
-                        <div class="mb-4">
-                            <label class="form-label fw-bold text-secondary small">TÊN CHỨC VỤ</label>
-                            <input type="text" class="form-control" name="TenChucVu" placeholder="Ví dụ: Trưởng phòng kinh doanh" required>
+            </div>
+
+            <div class="modal fade" id="SuaChucVuModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content shadow-lg">
+                        <div class="modal-header bg-warning text-dark">
+                            <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>Cập Nhật Chức Vụ</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label fw-bold text-secondary small">VAI TRÒ HỆ THỐNG</label>
-                            <select class="form-select select-vaitro-data" id="selectVaiTro" name="MaVaiTro" required>
-                                <option value="">-- Chọn vai trò --</option>
-                            </select>
+                        <form id="formSuaChucVu">
+                            <input type="hidden" id="editMaChucVu" name="MaChucVu">
+                            <div class="modal-body p-4">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-secondary small">TÊN CHỨC VỤ</label>
+                                    <input type="text" class="form-control" id="editTenChucVu" name="TenChucVu" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label fw-bold text-secondary small">VAI TRÒ HỆ THỐNG</label>
+                                    <select class="form-select select-vaitro-data" id="editSelectVaiTro" name="MaVaiTro" required>
+                                        <option value="">-- Chọn vai trò --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer bg-light">
+                                <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal">Hủy</button>
+                                <button type="submit" class="btn btn-warning px-4 rounded-3 fw-bold">Cập nhật ngay</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Nhật ký hệ thống</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body" id="modalBodyNhatKy">
+                            @await Html.PartialAsync("_NhatKyPartial")
                         </div>
                     </div>
-                    <div class="modal-footer bg-light">
-                        <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal">Hủy</button>
-                        <button type="submit" class="btn btn-primary px-4 rounded-3">Lưu thông tin</button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
-    </div>
-
-    <div class="modal fade" id="SuaChucVuModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content shadow-lg">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>Cập Nhật Chức Vụ</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form id="formSuaChucVu">
-                    <input type="hidden" id="editMaChucVu" name="MaChucVu">
-                    <div class="modal-body p-4">
-                        <div class="mb-4">
-                            <label class="form-label fw-bold text-secondary small">TÊN CHỨC VỤ</label>
-                            <input type="text" class="form-control" id="editTenChucVu" name="TenChucVu" required>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label fw-bold text-secondary small">VAI TRÒ HỆ THỐNG</label>
-                            <select class="form-select select-vaitro-data" id="editSelectVaiTro" name="MaVaiTro" required>
-                                <option value="">-- Chọn vai trò --</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-footer bg-light">
-                        <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal">Hủy</button>
-                        <button type="submit" class="btn btn-warning px-4 rounded-3 fw-bold">Cập nhật ngay</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
+    </main>  
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -327,7 +278,7 @@
                     await loadVaiTroIntoSelect('editSelectVaiTro');
                 }
 
-                const response = await fetch(`/api/quanlynguoidung/chucvu/${id}`);
+                const response = await fetch(`/api/quanlyphanquyen/chucvu/${id}`);
                 if (!response.ok) throw new Error();
                 const data = await response.json();
 
@@ -354,7 +305,7 @@
 
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(`/api/quanlynguoidung/xoachucvu/${id}`, { method: 'DELETE' });
+                    const res = await fetch(`/api/quanlyphanquyen/xoachucvu/${id}`, { method: 'DELETE' });
                     const data = await res.json();
                     if (res.ok) {
                         Swal.fire('Thành công', data.message, 'success').then(() => location.reload());
@@ -370,7 +321,7 @@
         async function loadVaiTroIntoSelect(elementId) {
             const select = document.getElementById(elementId);
             try {
-                const response = await fetch('/api/quanlynguoidung/danhsachvaitro');
+                const response = await fetch('/api/quanlyphanquyen/danhsachvaitro');
                 const data = await response.json();
                 select.innerHTML = '<option value="">-- Chọn vai trò --</option>';
                 data.forEach(item => {
@@ -387,7 +338,7 @@
             document.getElementById('formThemChucVu')?.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const payload = Object.fromEntries(new FormData(this));
-                sendRequest('/api/quanlynguoidung/themchucvu', 'POST', payload);
+                sendRequest('/api/quanlyphanquyen/themchucvu', 'POST', payload);
             });
 
             // Xử lý Form Sửa
@@ -395,7 +346,7 @@
                 e.preventDefault();
                 const id = document.getElementById('editMaChucVu').value;
                 const payload = Object.fromEntries(new FormData(this));
-                sendRequest(`/api/quanlynguoidung/suachucvu/${id}`, 'PUT', payload);
+                sendRequest(`/api/quanlyphanquyen/suachucvu/${id}`, 'PUT', payload);
             });
         });
 

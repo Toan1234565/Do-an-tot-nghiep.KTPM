@@ -14,89 +14,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+    <link rel="stylesheet" href="~/css/giaodiendanhsach.css" asp-append-version="true" />
     <style>
-        :root {
-            --primary-color: #4361ee;
-            --secondary-color: #3f37c9;
-            --success-color: #2ec4b6;
-            --warning-color: #ff9f1c;
-            --danger-color: #e71d36;
-            --bg-body: #f8f9fa;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-body);
-            color: #2b2d42;
-        }
-
-        .main-card {
-            background: white;
-            border: none;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            padding: 2rem;
-            margin: 20px auto;
-            max-width: 98%;
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        h1 {
-            font-weight: 700;
-            font-size: 1.6rem;
-            color: #1a202c;
-            margin: 0;
-        }
-
-        /* Table Design */
-        .custom-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0 12px;
-        }
-
-            .custom-table thead th {
-                color: #718096;
-                text-transform: uppercase;
-                font-size: 0.75rem;
-                font-weight: 700;
-                padding: 10px 20px;
-                border: none;
-            }
-
-            .custom-table tbody tr {
-                background: #fff;
-                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-                border-radius: 12px;
-                transition: all 0.3s ease;
-            }
-
-                .custom-table tbody tr:hover {
-                    transform: scale(1.005);
-                    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-                }
-
-            .custom-table tbody td {
-                padding: 18px 20px;
-                border: none;
-                vertical-align: middle;
-            }
-
-                .custom-table tbody td:first-child {
-                    border-radius: 12px 0 0 12px;
-                }
-
-                .custom-table tbody td:last-child {
-                    border-radius: 0 12px 12px 0;
-                }
-
+        
         /* Badges */
         .status-badge {
             padding: 6px 14px;

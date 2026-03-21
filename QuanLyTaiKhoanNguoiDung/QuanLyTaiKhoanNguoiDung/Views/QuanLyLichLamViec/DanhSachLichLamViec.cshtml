@@ -7,104 +7,14 @@
 
 <head>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --primary-color: #4361ee;
-            --secondary-color: #3f37c9;
-            --bg-body: #f8f9fa;
-        }
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-body);
-            color: #2b2d42;
-        }
-
-        .main-card {
-            background: white;
-            border: none;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            padding: 1.5rem;
-            margin: 20px auto;
-            max-width: 98%;
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #edf2f7;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        h1 {
-            font-weight: 700;
-            font-size: 1.5rem;
-            color: #1a202c;
-            margin: 0;
-        }
-
-        .btn-add-new {
-            background-color: var(--primary-color);
-            color: white;
-            border-radius: 10px;
-            padding: 10px 20px;
-            font-weight: 600;
-            border: none;
-            transition: 0.3s;
-        }
-
-            .btn-add-new:hover {
-                background-color: var(--secondary-color);
-                color: white;
-                box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
-            }
-
-        /* Table Styling */
-        .custom-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0 8px;
-        }
-
-            .custom-table thead th {
-                color: #718096;
-                text-transform: uppercase;
-                font-size: 0.75rem;
-                font-weight: 700;
-                padding: 12px 20px;
-                border: none;
-            }
-
-            .custom-table tbody tr {
-                background: #fff;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-                transition: all 0.2s ease;
-            }
-
-                .custom-table tbody tr:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-                }
-
-            .custom-table tbody td {
-                padding: 15px 20px;
-                vertical-align: middle;
-                border: none;
-            }
-
-            .custom-table tbody tr td:first-child {
-                border-radius: 12px 0 0 12px;
-            }
-
-            .custom-table tbody tr td:last-child {
-                border-radius: 0 12px 12px 0;
-            }
-
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="~/css/giaodiendanhsach.css" asp-append-version="true" />
+    <style>      
         /* Modal Custom Styling */
         .modal-content {
             border-radius: 20px;
@@ -136,6 +46,16 @@
                 z-index: 2;
                 padding: 0.4em 0.6em;
             }
+
+        .btn-nhat-ky:hover {
+            background-color: #e9ecef !important;
+            transform: scale(1.1);
+        }
+
+            .btn-nhat-ky:hover i {
+                animation: ring 0.5s ease;
+            }
+
     </style>
 </head>
 
@@ -147,12 +67,7 @@
                     <h1><i class="fa-solid fa-calendar-check me-2 text-primary"></i>Quản lý lịch làm việc</h1>
                 </div>
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-primary shadow-sm btn-nhat-ky"
-                            data-bs-toggle="modal"
-                            data-bs-target="#detailModal"
-                            data-service="Quản lý lịch làm việc">
-                        <i class="fas fa-bell me-2"></i>Hoạt động
-                    </button>
+                    
                     <button type="button" id="btnShowChart" class="btn btn-info text-white shadow-sm">
                         <i class="fas fa-chart-bar me-2"></i>Biểu đồ tổng quan
                     </button>
@@ -173,6 +88,18 @@
                                 </span>
                             }
                         }
+                    </button>
+                    <button type="button"
+                            class="btn btn-light rounded-circle shadow-sm btn-nhat-ky d-flex align-items-center justify-content-center"
+                            style="width: 42px; height: 42px; border: 1px solid #dee2e6;"
+                            data-bs-toggle="modal"
+                            data-bs-target="#detailModal"
+                            data-service="Quản lý lịch làm việc"
+                            title="Xem nhật ký hoạt động">
+                        <i class="fa-solid fa-bell text-primary fs-5"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                            <span class="visually-hidden">Hoạt động mới</span>
+                        </span>
                     </button>
                 </div>
             </div>
@@ -219,7 +146,7 @@
                 </div>
             </div>
 
-            <div class="table-responsive">
+            <div>
                 <table class="custom-table">
                     <thead>
                         <tr>
@@ -381,44 +308,19 @@
     <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="fas fa-bell me-2"></i>Nhật ký hoạt động hệ thống</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="modal-header">
+                    <h5 class="modal-title">Nhật ký hệ thống</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" id="modalBodyNhatKy">
-                    <div class="text-center">
-                        <div class="spinner-border text-primary" role="status"></div>
-                        <p>Đang tải dữ liệu...</p>
-                    </div>
+                    @await Html.PartialAsync("_NhatKyPartial")
                 </div>
             </div>
         </div>
     </div>
-    <script>
-        $('.btn-nhat-ky').click(function () {
-            var tenDichVu = $(this).data('service');
-            var modalBody = $('#modalBodyNhatKy');
-
-            // Hiển thị loading
-            modalBody.html('<div class="text-center"><div class="spinner-border text-primary"></div><p>Đang tải dữ liệu...</p></div>');
-
-            // Quan trọng: Dùng encodeURIComponent để xử lý tiếng Việt và khoảng trắng
-            var url = '/DanhSachNhatKyHeThong/_NhatKyPartial?tendichvu=Quản lý lịch làm việc';
-
-            $.get(url, function (data) {
-                if (data.trim() === "") {
-                    modalBody.html('<p class="text-center text-muted">Không có nhật ký nào.</p>');
-                } else {
-                    modalBody.html(data);
-                }
-            }).fail(function () {
-                modalBody.html('<p class="text-center text-danger">Lỗi khi tải dữ liệu nhật ký!</p>');
-            });
-        });
-    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+  
     <script>
         let myChart = null;
 
@@ -473,7 +375,7 @@
             }
         });
 
-                async function loadChartData() {
+        async function loadChartData() {
             try {
                 // Lấy giá trị từ bộ lọc (filter) trên giao diện
                 const dateInput = document.querySelector('input[name="thoigian"]').value; // yyyy-MM-dd
@@ -517,7 +419,7 @@
             }
         }
 
-                function renderChart(labels, datasets) {
+        function renderChart(labels, datasets) {
             const ctx = document.getElementById('workingChart').getContext('2d');
 
             if (myChart) {
@@ -663,13 +565,16 @@
 
                 try {
                     // 2. Gọi API duyet-tat-ca-ai (khớp với route Backend bạn vừa sửa)
+                            // Trong hàm approveAllByAI(ngay, maKho)
+                    const payload = {
+                        ngayCanDuyet: ngay, // Phải là chuỗi "2026-03-20"
+                        maKho: (maKho && maKho !== "11" && maKho !== "") ? parseInt(maKho) : null
+                    };
+
                     const response = await fetch('/api/quanlylichlamviec/duyet-tat-ca-ai', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            ngayCanDuyet: ngay, // Ngày bắt đầu (ví dụ: 2026-03-19)
-                            maKho: maKho        // Mã kho hiện tại
-                        })
+                        body: JSON.stringify(payload)
                     });
 
                     const data = await response.json();
@@ -764,8 +669,6 @@
             } catch (e) {
                 Swal.fire('Lỗi', 'Lỗi kết nối', 'error');
             }
-        }
-
-    
-    </script>
+        }    
+    </script> 
 </body>
