@@ -23,5 +23,5 @@ public partial class HopDongVanChuyen
 
     public string? TenFileGoc { get; set; }
 
-    public virtual KhachHang MaKhachHangNavigation { get; set; } = null!;
+    public virtual KhachHang? MaKhachHangNavigation { get; set; } 
 }

@@ -25,6 +25,8 @@ public partial class KhoBai
 
     public int? MaLoaiKho { get; set; }
 
+    public string? MaVungH3 { get; set; }
+
     public virtual LoaiKho? MaLoaiKhoNavigation { get; set; }
 
     public virtual ICollection<PhuongTien> PhuongTiens { get; set; } = new List<PhuongTien>();

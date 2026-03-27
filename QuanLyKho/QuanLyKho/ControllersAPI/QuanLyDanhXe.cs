@@ -7,8 +7,10 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
 using OfficeOpenXml;
 using QuanLyKho.Models;
+using QuanLyKho.Models1;
 using QuanLyKho.Models1.QuanLyXe;
 using System.ComponentModel;
+using Tmdt.Shared.Services;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using LicenseContext = OfficeOpenXml.LicenseContext;
 
@@ -26,11 +28,14 @@ namespace QuanLyKho.ControllersAPI
         private readonly IMemoryCache _cacheKey;
         // Thêm biến này vào Class Controller
         private static CancellationTokenSource _resetCacheToken = new CancellationTokenSource();
-        public QuanLyDanhXe(TmdtContext context, ILogger<QuanLyDanhXe> logger, IMemoryCache cache)
+
+        private readonly ISystemService _sys;
+        public QuanLyDanhXe(TmdtContext context, ILogger<QuanLyDanhXe> logger, IMemoryCache cache, ISystemService sys)
         {
             _context = context;
             _logger = logger;
             _cacheKey = cache;
+            _sys = sys;
         }
         [HttpGet("danhsachxe")]
         public async Task<IActionResult> GetDanhSachXe([FromQuery] string? seaechTerm, [FromQuery] int page, [FromQuery] int? maLoaiXe, [FromQuery] string? status, [FromQuery] string? trangthaidangkiem)
@@ -249,7 +254,24 @@ namespace QuanLyKho.ControllersAPI
                     MaKho = model.MaKho
                 };
                 _context.PhuongTiens.Add(newXe);
+                
                 await _context.SaveChangesAsync();
+
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý phương tiện",
+                    "Thêm mới phương tiện " + model.BienSo,
+                    "PhuongTien",
+                    "",
+                    new Dictionary<string, object>(),
+                    new Dictionary<string, object>
+                    {
+                        {"Biển số", model.BienSo },
+                        {"Loại xe", model.MaLoaiXe },                      
+                        {"Trạng thái", model.TrangThai },
+                        {"Kho", model.MaKho }
+                    }
+                );
+
                 return Ok(new { Message = "Thêm xe mới thành công", MaPhuongTien = newXe.MaPhuongTien });
             }
             catch (Exception ex)
@@ -363,6 +385,18 @@ namespace QuanLyKho.ControllersAPI
                 // Khởi tạo token mới cho các lượt cache tiếp theo
                 _resetCacheToken = new CancellationTokenSource();
 
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý phương tiện",
+                    "Thêm loại xe",
+                    "LoaiXe",
+                    "",
+                    new Dictionary<string, object>(),
+                    new Dictionary<string, object>
+                    {
+                        {"Tên loại xe", model.TenLoai }
+                    }
+                );
+
                 return Ok(new { Message = "Thêm loại xe mới thành công", MaLoaiXe = newLoaiXe.MaLoaiXe });
             }
             catch (Exception ex)
@@ -381,6 +415,18 @@ namespace QuanLyKho.ControllersAPI
                 {
                     return NotFound("Xe không tồn tại");
                 }
+
+                var datacu = new Dictionary<string, object>
+                {
+                    {"Biển số", existingXe.BienSo },
+                    {"Loại xe", existingXe.MaLoaiXe },
+                    {"Tai trọng tối đa (kg)", existingXe.TaiTrongToiDaKg },
+                    {"Thể tích tối đa (m3)", existingXe.TheTichToiDaM3 },
+                    {"Mức tiêu hao nhiên liệu", existingXe.MucTieuHaoNhienLieu },
+                    {"Trạng thái", existingXe.TrangThai },
+                    {"Kho", existingXe.MaKho }
+                };
+
                 existingXe.BienSo = model.BienSo;
                 existingXe.MaLoaiXe = model.MaLoaiXe;
                 existingXe.TaiTrongToiDaKg = model.TaiTrongToiDaKg;
@@ -389,6 +435,33 @@ namespace QuanLyKho.ControllersAPI
                 existingXe.TrangThai = model.TrangThai;
                 existingXe.MaKho = model.MaKho;
                 await _context.SaveChangesAsync();
+
+                var datamoi = new Dictionary<string, object>
+                {
+                    {"Biển số", existingXe.BienSo },
+                    {"Loại xe", existingXe.MaLoaiXe },
+                    {"Tai trọng tối đa (kg)", existingXe.TaiTrongToiDaKg },
+                    {"Thể tích tối đa (m3)", existingXe.TheTichToiDaM3 },
+                    {"Mức tiêu hao nhiên liệu", existingXe.MucTieuHaoNhienLieu },
+                    {"Trạng thái", existingXe.TrangThai },
+                    {"Kho", existingXe.MaKho }
+                };
+
+                var (diffCu, diffMoi) = LocThayDoi.GetChanges(datacu, datamoi);
+
+                if (diffMoi.Count > 0)
+                {
+                    
+                    await _sys.GhiLogVaResetCacheAsync(
+                        "Quản lý phương tiện",
+                        $"Cập nhật thay đổi phương tiện: {existingXe.BienSo}",
+                        "PhuongTien",
+                        "",
+                        diffCu,
+                        diffMoi
+                    );
+                }
+
                 return Ok(new { Message = "Cập nhật xe thành công" });
             }
             catch (Exception ex)
@@ -503,9 +576,26 @@ namespace QuanLyKho.ControllersAPI
                         TrangThai = xeFromDb.TrangThai,
                         TenKho = xeFromDb.MaKhoNavigation != null ? xeFromDb.MaKhoNavigation.TenKhoBai : "Chưa xác định",
                         SoKmHienTai = xeFromDb.SoKmHienTai,
-
+                        MaKho = (int)xeFromDb.MaKho,
+                        DangKiems = xeFromDb.DangKiems.Select(dk => new DangKiemModel
+                            {
+                                IdDangKiem = dk.IdDangKiem,
+                                MaPhuongTien = dk.MaPhuongTien,
+                                SoSeriGiayPhep = dk.SoSeriGiayPhep,
+                                SoTemKiemDinh = dk.SoTemKiemDinh,
+                                NgayKiemDinh = dk.NgayKiemDinh,
+                                NgayHetHan = dk.NgayHetHan,
+                                DonViKiemDinh = dk.DonViKiemDinh,
+                                PhiDuongBoDenNgay = dk.PhiDuongBoDenNgay,
+                                GhiChu = dk.GhiChu,
+                                NgayTao = dk.NgayTao,
+                                HinhAnhDangKiem = dk.HinhAnhDangKiem
+                            })
+                            .OrderByDescending(dk => dk.NgayHetHan) // Sắp xếp đăng kiểm mới nhất lên đầu
+                            .ToList(),
                         LichSuBaoTris = xeFromDb.LichSuBaoTris.Select(ls => new LichSuBaoTriModels
                         {
+                            
                             Ngay = ls.Ngay,
                             ChiPhi = ls.ChiPhi,
                             SoKmThucTe = ls.SoKmThucTe,
@@ -573,6 +663,7 @@ namespace QuanLyKho.ControllersAPI
 
                             model.DanhSachCanBaoTri.Add(new CanhBaoBaoTriModel
                             {
+                                MaDinhMuc = dinhMuc.MaDinhMuc,
                                 TenHangMuc = dinhMuc.TenHangMuc ?? "N/A",
                                 LyDo = lyDo,
                                 TrangThai = (lyDo.Contains("Quá") || lastService == null) ? "Nguy cấp" : "Cần lưu ý",
@@ -607,6 +698,18 @@ namespace QuanLyKho.ControllersAPI
                 var existingDk = await _context.DangKiems.FindAsync(id);
                 if (existingDk == null) return NotFound("Không tìm thấy bản ghi đăng kiểm");
 
+                var datacu = new Dictionary<string, object>
+                {
+                    {"Số seri giấy phép", existingDk.SoSeriGiayPhep },
+                    {"Số tem kiểm định", existingDk.SoTemKiemDinh },
+                    {"Ngày kiểm định", existingDk.NgayKiemDinh },
+                    {"Ngày hết hạn", existingDk.NgayHetHan },
+                    {"Đơn vị kiểm định", existingDk.DonViKiemDinh },
+                    {"Phí đường bộ đến ngày", existingDk.PhiDuongBoDenNgay },
+                    {"Ghi chú", existingDk.GhiChu },
+                    {"Hình ảnh đăng kiểm", existingDk.HinhAnhDangKiem }
+                };
+
                 existingDk.SoSeriGiayPhep = model.SoSeriGiayPhep;
                 existingDk.SoTemKiemDinh = model.SoTemKiemDinh;
                 existingDk.NgayKiemDinh = model.NgayKiemDinh;
@@ -614,6 +717,18 @@ namespace QuanLyKho.ControllersAPI
                 existingDk.DonViKiemDinh = model.DonViKiemDinh;
                 existingDk.PhiDuongBoDenNgay = model.PhiDuongBoDenNgay;
                 existingDk.GhiChu = model.GhiChu;
+
+                var datamoi = new Dictionary<string, object>
+                {
+                    {"Số seri giấy phép", existingDk.SoSeriGiayPhep },
+                    {"Số tem kiểm định", existingDk.SoTemKiemDinh },
+                    {"Ngày kiểm định", existingDk.NgayKiemDinh },
+                    {"Ngày hết hạn", existingDk.NgayHetHan },
+                    {"Đơn vị kiểm định", existingDk.DonViKiemDinh },
+                    {"Phí đường bộ đến ngày", existingDk.PhiDuongBoDenNgay },
+                    {"Ghi chú", existingDk.GhiChu },
+                    {"Hình ảnh đăng kiểm", existingDk.HinhAnhDangKiem }
+                };
 
                 if (hinhAnh != null && hinhAnh.Length > 0)
                 {
@@ -637,6 +752,23 @@ namespace QuanLyKho.ControllersAPI
 
                 // Clear cache
                 _cacheKey.Remove($"chitietphuongtien_{existingDk.MaPhuongTien}");
+
+                var (diffCu, diffMoi) = LocThayDoi.GetChanges(datacu, datamoi);
+
+                // --- BƯỚC 5: GHI LOG VÀ RESET CACHE ---
+                if (diffMoi.Count > 0)
+                {
+                   
+
+                    await _sys.GhiLogVaResetCacheAsync(
+                        "Quản lý phương tiện",
+                        $"Cập nhật thay đăng kiểm xe ",
+                        "QuanLyPhuongTien",
+                        "",
+                        diffCu,
+                        diffMoi
+                    );
+                }
 
                 return Ok(new { Message = "Cập nhật đăng kiểm thành công" });
             }
@@ -917,6 +1049,14 @@ namespace QuanLyKho.ControllersAPI
                             }
                         }
                     }
+                    await _sys.GhiLogVaResetCacheAsync(
+                        "Quản lý phương tiện",
+                        $"Xuất báo cáo bảo trì xe",
+                        "QuanLyPhuongTien",
+                        "",
+                        new Dictionary<string, object>(),
+                        new Dictionary<string, object>()
+                    );
                 }
                 else if (loaiBaoCao == "dang-kiem" || loaiBaoCao == "phi-duong-bo")
                 {
@@ -943,6 +1083,14 @@ namespace QuanLyKho.ControllersAPI
                             });
                         }
                     }
+                    await _sys.GhiLogVaResetCacheAsync(
+                       "Quản lý phương tiện",
+                       $"Xuất báo cáo đăng kiểm",
+                       "QuanLyPhuongTien",
+                       "",
+                       new Dictionary<string, object>(),
+                       new Dictionary<string, object>()
+                   );
                 }
 
                 // 4. Tạo File Excel
@@ -1015,6 +1163,262 @@ namespace QuanLyKho.ControllersAPI
             }
         }
 
+        [HttpPost("import-bao-tri-dang-kiem")]
+        public async Task<IActionResult> ImportThongTinXe(IFormFile file)
+        {
+            // 1. Kiểm tra file đầu vào
+            if (file == null || file.Length == 0)
+                return BadRequest("Vui lòng chọn file Excel để tải lên.");
+
+            if (!Path.GetExtension(file.FileName).Contains(".xls"))
+                return BadRequest("Chỉ hỗ trợ định dạng file Excel (.xls, .xlsx).");
+
+            var errors = new List<string>();
+            int successCount = 0;
+
+            try
+            {
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+                // --- TỐI ƯU HIỆU NĂNG: CACHING DỮ LIỆU ---
+                // Lấy toàn bộ xe và định mức bảo trì vào bộ nhớ một lần duy nhất
+                var allPhuongTien = await _context.PhuongTiens
+                    .Include(x => x.MaLoaiXeNavigation)
+                        .ThenInclude(lx => lx.DinhMucBaoTris)
+                    .ToListAsync();
+
+                using (var stream = new MemoryStream())
+                {
+                    await file.CopyToAsync(stream);
+                    using (var package = new ExcelPackage(stream))
+                    {
+                        var ws = package.Workbook.Worksheets.FirstOrDefault();
+                        if (ws == null || ws.Dimension == null) return BadRequest("File Excel không có dữ liệu.");
+
+                        int rowCount = ws.Dimension.Rows;
+                        int colCount = ws.Dimension.Columns;
+
+                        // 2. NHẬN DIỆN CỘT ĐỘNG (Dynamic Mapping)
+                        var columnMap = new Dictionary<string, int>();
+                        for (int col = 1; col <= colCount; col++)
+                        {
+                            string header = ws.Cells[1, col].Text.Trim().ToLower();
+                            if (!string.IsNullOrEmpty(header)) columnMap[header] = col;
+                        }
+
+                        // Helper để lấy dữ liệu theo từ khóa
+                        string GetValue(int r, params string[] keywords)
+                        {
+                            foreach (var kw in keywords)
+                            {
+                                var matchedKey = columnMap.Keys.FirstOrDefault(k => k.Contains(kw.ToLower()));
+                                if (matchedKey != null) return ws.Cells[r, columnMap[matchedKey]].Text.Trim();
+                            }
+                            return string.Empty;
+                        }
+
+                        // 3. VÒNG LẶP XỬ LÝ DỮ LIỆU
+                        for (int row = 2; row <= rowCount; row++)
+                        {
+                            string bienSo = GetValue(row, "biển số", "bks", "bien so");
+                            string loaiThongTin = GetValue(row, "loại thông tin", "phân loại").ToLower();
+                            string ngayThucHienStr = GetValue(row, "ngày thực hiện", "ngày làm");
+                            string ngayHetHanStr = GetValue(row, "ngày hết hạn", "hạn kiểm định", "đến ngày");
+                            string tenHangMuc = GetValue(row, "tên hạng mục", "hạng mục");
+                            string soKmStr = GetValue(row, "số km", "kilometer");
+                            string chiPhiStr = GetValue(row, "chi phí", "giá tiền", "số tiền");
+
+                            if (string.IsNullOrEmpty(bienSo)) continue;
+
+                            // Tìm xe từ Cache thay vì DB
+                            var xe = allPhuongTien.FirstOrDefault(x => x.BienSo?.Replace("-", "").Replace(".", "") == bienSo.Replace("-", "").Replace(".", ""));
+                            if (xe == null)
+                            {
+                                errors.Add($"Dòng {row}: Không tìm thấy xe '{bienSo}' trong hệ thống.");
+                                continue;
+                            }
+
+                            // Parse ngày tháng (Hỗ trợ đa định dạng)
+                            DateTime tempDate;
+                            DateOnly? ngayThucHien = DateTime.TryParse(ngayThucHienStr, out tempDate) ? DateOnly.FromDateTime(tempDate) : null;
+                            DateOnly? ngayHetHan = DateTime.TryParse(ngayHetHanStr, out tempDate) ? DateOnly.FromDateTime(tempDate) : null;
+
+                            if (ngayThucHien == null)
+                            {
+                                errors.Add($"Dòng {row}: Ngày thực hiện '{ngayThucHienStr}' không hợp lệ.");
+                                continue;
+                            }
+
+                            // --- PHÂN NHÁNH XỬ LÝ ---
+
+                            // A. XỬ LÝ BẢO TRÌ
+                            if (loaiThongTin.Contains("bảo trì"))
+                            {
+                                var dinhMuc = xe.MaLoaiXeNavigation?.DinhMucBaoTris
+                                    .FirstOrDefault(dm => dm.TenHangMuc?.Trim().ToLower() == tenHangMuc.Trim().ToLower());
+
+                                if (dinhMuc == null)
+                                {
+                                    errors.Add($"Dòng {row}: Hạng mục '{tenHangMuc}' không thuộc định mức của loại xe {xe.MaLoaiXeNavigation?.TenLoai}.");
+                                    continue;
+                                }
+
+                                decimal.TryParse(chiPhiStr, out decimal chiPhi);
+                                double.TryParse(soKmStr, out double soKm);
+
+                                var newLichSu = new LichSuBaoTri
+                                {
+                                    MaPhuongTien = xe.MaPhuongTien,
+                                    MaDinhMuc = dinhMuc.MaDinhMuc,
+                                    Ngay = ngayThucHien,
+                                    SoKmThucTe = soKm > 0 ? soKm : (double?)null,
+                                    ChiPhi = chiPhi > 0 ? chiPhi : (decimal?)null
+                                };
+                                _context.LichSuBaoTris.Add(newLichSu);
+
+                                // Cập nhật số Km hiện tại cho xe nếu số mới lớn hơn
+                                if (soKm > (xe.SoKmHienTai ?? 0)) xe.SoKmHienTai = soKm;
+                            }
+
+                            // B. XỬ LÝ ĐĂNG KIỂM / PHÍ ĐƯỜNG BỘ
+                            else if (loaiThongTin.Contains("đăng kiểm") || loaiThongTin.Contains("đường bộ"))
+                            {
+                                if (ngayHetHan == null)
+                                {
+                                    errors.Add($"Dòng {row}: Loại '{loaiThongTin}' yêu cầu phải có 'Ngày hết hạn'.");
+                                    continue;
+                                }
+
+                                // Tìm bản ghi đăng kiểm trùng ngày hoặc tạo mới
+                                var dangKiem = await _context.DangKiems
+                                    .FirstOrDefaultAsync(dk => dk.MaPhuongTien == xe.MaPhuongTien && dk.NgayKiemDinh == ngayThucHien);
+
+                                if (dangKiem == null)
+                                {
+                                    dangKiem = new DangKiem
+                                    {
+                                        MaPhuongTien = xe.MaPhuongTien,
+                                        NgayKiemDinh = ngayThucHien.Value,
+                                        SoSeriGiayPhep = "AUTO-" + DateTime.Now.Ticks, // Tránh lỗi null DB
+                                        NgayTao = DateTime.Now
+                                    };
+                                    _context.DangKiems.Add(dangKiem);
+                                }
+
+                                if (loaiThongTin.Contains("đăng kiểm"))
+                                    dangKiem.NgayHetHan = ngayHetHan.Value;
+                                else
+                                    dangKiem.PhiDuongBoDenNgay = ngayHetHan;
+                            }
+                            else
+                            {
+                                errors.Add($"Dòng {row}: Không xác định được loại thông tin '{loaiThongTin}'.");
+                                continue;
+                            }
+
+                            successCount++;
+                        }
+
+                        // 4. LƯU DATABASE & GHI LOG
+                        if (successCount > 0)
+                        {
+                            await _context.SaveChangesAsync();
+
+                            await _sys.GhiLogVaResetCacheAsync(
+                                "Quản lý phương tiện",
+                                $"Import thành công {successCount} dòng bảo trì/đăng kiểm",
+                                "PhuongTien", "", new Dictionary<string, object>(), new Dictionary<string, object>()
+                            );
+                        }
+
+                        return Ok(new
+                        {
+                            Message = "Hoàn tất xử lý file.",
+                            SuccessCount = successCount,
+                            ErrorCount = errors.Count,
+                            Errors = errors
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi hệ thống: {ex.Message}");
+            }
+        }
+        [HttpPost("hoan-thanh-bao-tri")]
+        public async Task<IActionResult> HoanThanhBaoTri([FromBody] HoanThanhBaoTriRequest request)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var xe = await _context.PhuongTiens.FindAsync(request.MaPhuongTien);
+                if (xe == null) return NotFound();
+
+                // 1. Lưu chi tiết vào bảng lịch sử
+                foreach (var item in request.ChiPhiChiTiet)
+                {
+                    var lichSu = new LichSuBaoTri
+                    {
+                        MaPhuongTien = request.MaPhuongTien,
+                        MaDinhMuc = item.MaDinhMuc,
+                        Ngay = DateOnly.FromDateTime(request.NgayBaoTri),
+                        SoKmThucTe = request.SoKmThucTe,
+                        ChiPhi = item.ChiPhi
+                    };
+                    _context.LichSuBaoTris.Add(lichSu);
+                }
+
+                // 2. Cập nhật Odometer và trạng thái xe
+                xe.SoKmHienTai = (double)Math.Max(xe.SoKmHienTai ?? 0, request.SoKmThucTe);
+                xe.TrangThai = "Đang hoạt động";
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                _cacheKey.Remove($"chitietphuongtien_{request.MaPhuongTien}");
+                // 3. Ghi Log chi tiết hạng mục đã bảo trì
+                // Tạo một chuỗi mô tả danh sách ID hạng mục và số tiền tương ứng
+                // 1. Lấy danh sách ID từ request
+                var listMaDinhMuc = request.ChiPhiChiTiet.Select(x => x.MaDinhMuc).ToList();
+
+                // 2. Truy vấn tên hạng mục từ DB (chỉ lấy những cột cần thiết để tối ưu hiệu năng)
+                var danhMucNames = await _context.DinhMucBaoTris // Giả sử bảng của bạn tên là DinhMucBaoTris
+                    .Where(dm => listMaDinhMuc.Contains(dm.MaDinhMuc))
+                    .Select(dm => new { dm.MaDinhMuc, dm.TenHangMuc }) // Lấy cặp ID và Tên
+                    .ToListAsync();
+
+                // 3. Kết hợp dữ liệu để tạo chuỗi Log có Tên hạng mục
+                var chiTietLog = request.ChiPhiChiTiet
+                    .Select(item => {
+                        var tenHangMuc = danhMucNames.FirstOrDefault(d => d.MaDinhMuc == item.MaDinhMuc)?.TenHangMuc ?? "N/A";
+                        return $"{tenHangMuc} ({item.ChiPhi:N0}đ)";
+                    })
+                    .ToList();
+
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý phương tiện",
+                    $"Hoàn thành bảo trì xe {xe.BienSo} - Tổng {request.ChiPhiChiTiet.Count} hạng mục",
+                    "QuanLyPhuongTien",
+                    "Update", // Thêm hành động cụ thể nếu hàm yêu cầu
+                    new Dictionary<string, object>
+                    {
+                        { "Biển số", xe.BienSo },
+                        
+                        { "Danh sách hạng mục", string.Join(", ", chiTietLog) }, // Lưu vết danh sách hạng mục
+                        { "Tổng chi phí", request.ChiPhiChiTiet.Sum(x => x.ChiPhi) },
+                        { "SoKmCapNhat", request.SoKmThucTe }
+                    },
+                    new Dictionary<string, object>()
+                );
+
+                return Ok(new { message = "Thành công" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest(ex.Message);
+            }
+        }
 
         [HttpGet("xe-san-sang-dieu-phoi")]
         public async Task<IActionResult> GetXeSanSang([FromQuery] double khoiLuongHang, [FromQuery] int maKho)

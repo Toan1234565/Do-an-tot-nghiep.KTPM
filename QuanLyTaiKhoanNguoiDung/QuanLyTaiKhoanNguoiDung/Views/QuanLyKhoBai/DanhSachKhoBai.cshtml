@@ -9,10 +9,13 @@
     <title>Hệ Thống Quản Lý Kho Bãi</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <link rel="stylesheet" href="~/css/giaodiendanhsach.css" asp-append-version="true" />
     <style>
         
@@ -88,7 +91,20 @@
                     </button>
 
                     <div id="map"></div>
-                    
+                    <div class="position-relative">
+                        <button type="button"
+                                class="btn btn-light position-relative p-0 d-flex align-items-center justify-content-center rounded-circle border shadow-sm btn-nhat-ky"
+                                style="width: 42px; height: 42px; transition: all 0.3s;"
+                                data-bs-toggle="modal"
+                                data-bs-target="#detailModal"
+                                data-service="Quản lý kho bãi"
+                                title="Xem nhật ký hoạt động">
+                            <i class="fa-solid fa-bell fs-5 text-primary"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                <span class="visually-hidden">New alerts</span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -127,7 +143,7 @@
                 </div>
             </form>
 
-            <div class="table-responsive">
+            <div>
                 <table class="custom-table">
                     <thead>
                         <tr>
@@ -137,6 +153,7 @@
                             <th class="text-center">Diện tích & Dung tích</th>
                             <th class="text-center">Trạng thái</th>
                             <th class="text-center">Liên hệ</th>
+                            <th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -184,6 +201,14 @@
                                     <td>
                                         <div class="fw-bold text-secondary">@item.SoDienThoaiKho</div>
                                         <div class="small text-muted">ID: @item.MaKho</div>
+                                    </td>
+                                    <td class="text-center" onclick="event.stopPropagation();">
+                                        <button type="button"
+                                                onclick="openEditModal('@item.MaKho')"
+                                                class="btn btn-sm btn-outline-primary border-0 shadow-sm"
+                                                title="Chỉnh sửa thông tin">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
                                     </td>
                                 </tr>
                                 stt++;
@@ -332,7 +357,95 @@
                 </div>
             </div>
         </div>
-       
+        <div class="modal fade" id="SuaKhoBai" data-bs-backdrop="static">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header bg-primary bg-opacity-10">
+                        <h5 class="modal-title fw-bold text-primary"><i class="fas fa-edit me-2"></i>Cập Nhật Thông Tin Kho Bãi</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <form id="formSuaKhoBai">
+                            <input type="hidden" name="MaKho" id="edit_MaKho">
+                            <input type="hidden" name="MaDiaChi" id="edit_MaDiaChi">
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold small">Người quản lý kho *</label>
+                                    <select class="form-select" name="MaQuanLy" id="edit_MaQuanLy">
+                                        <option value="">-- Chọn nhân viên --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <label class="form-label fw-bold small">Tên kho bãi *</label>
+                                    <input type="text" class="form-control" name="TenKhoBai" id="edit_TenKhoBai" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Số điện thoại</label>
+                                    <input type="text" class="form-control" name="SoDienThoaiKho" id="edit_SoDienThoaiKho">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Loại kho *</label>
+                                    <select class="form-select" name="MaLoaiKho" id="edit_MaLoaiKho" required>
+                                        <option value="">-- Chọn loại kho --</option>
+                                        @foreach (var loai in (List<LoaiKhoModel>)ViewBag.LoaiKhoList)
+                                        {
+                                            <option value="@loai.MaLoaiKho">@loai.TenLoaiKho</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Trạng thái</label>
+                                    <select class="form-select" name="TrangThai" id="edit_TrangThai">
+                                        <option value="Hoạt động">Hoạt động</option>
+                                        <option value="Ngừng hoạt động">Ngừng hoạt động</option>
+                                        <option value="Bảo trì">Bảo trì</option>
+                                        <option value="Đang đầy">Đang đầy</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Diện tích (m²)</label>
+                                    <input type="number" step="0.01" class="form-control" name="DienTichM2" id="edit_DienTichM2">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Dung tích (m³)</label>
+                                    <input type="number" step="0.01" class="form-control" name="DungTichM3" id="edit_DungTichM3">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small">Sức chứa</label>
+                                    <input type="number" step="0.1" class="form-control" name="SucChua" id="edit_SucChua">
+                                </div>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-top text-end">
+                                <button type="button" class="btn btn-light px-4 me-2" data-bs-dismiss="modal">Hủy</button>
+                                <button type="submit" class="btn btn-primary px-5 fw-bold">Cập nhật thay đổi</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Nhật ký hệ thống</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="modalBodyNhatKy">
+                        @await Html.PartialAsync("_NhatKyPartial")
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -407,61 +520,64 @@
             }
         });
     </script>
-    <script>
-        async function loadNhanVienKho() {
-            const selectElement = document.getElementById('selectNhanVien');
-            const apiUrl = 'https://localhost:7022/api/quanlynguoidung/danhsachnhanvienkho'; // Thay 'ControllerName' bằng tên Controller của bạn
+   <script>
+         /**
+         * 1. TẢI DANH SÁCH NHÂN VIÊN KHO (Dùng chung cho cả Thêm và Sửa)
+         */
+         async function loadNhanVienKho() {
+            const selectAdd = document.getElementById('selectNhanVien');
+            const selectEdit = document.getElementById('edit_MaQuanLy');
+
+            // Nếu cả hai đều đã có dữ liệu (số lượng option > 1) thì không cần load lại
+            if (selectEdit && selectEdit.options.length > 1) return;
+
+            const apiUrl = 'https://localhost:7022/api/quanlynguoidung/danhsachnhanvienkho';
 
             try {
-                const response = await fetch(apiUrl);
-
-                if (!response.ok) {
-                    throw new Error('Không thể tải danh sách nhân viên');
-                }
+                const response = await fetch(apiUrl, { credentials: 'include' });
+                if (!response.ok) throw new Error('Không thể tải nhân viên');
 
                 const data = await response.json();
+                const optionsHtml = data.map(nv =>
+                    `<option value="${nv.maNguoiDung}">${nv.hoTenNhanVien} (${nv.tenChucVu})</option>`
+                ).join('');
 
-                // Xóa các option cũ (trừ option mặc định đầu tiên)
-                selectElement.innerHTML = '<option value="">-- Chọn nhân viên --</option>';
+                const defaultOption = '<option value="">-- Chọn nhân viên --</option>';
 
-                // Duyệt qua danh sách và thêm vào select
-                data.forEach(nv => {
-                    const option = document.createElement('option');
-                    option.value = nv.maNguoiDung; // Giá trị gửi về Server khi Submit
-                    option.textContent = `${nv.hoTenNhanVien} (${nv.tenChucVu})`; // Hiển thị tên và chức vụ
-                    selectElement.appendChild(option);
-                });
+                if (selectAdd) selectAdd.innerHTML = defaultOption + optionsHtml;
+                if (selectEdit) selectEdit.innerHTML = defaultOption + optionsHtml;
 
+                console.log("Đã tải xong danh sách nhân viên vào Select");
             } catch (error) {
-                console.error('Lỗi khi gọi API:', error);
-                alert('Có lỗi xảy ra khi tải danh sách nhân viên!');
+                console.error('Lỗi loadNhanVienKho:', error);
             }
         }
+       
 
-        // Gọi hàm khi trang web đã sẵn sàng
-        document.addEventListener('DOMContentLoaded', loadNhanVienKho);
-    </script>
-           
-    <script>
+        /**
+         * 2. XỬ LÝ THÊM MỚI KHO BÃI (GỒM 2 BƯỚC: ĐỊA CHỈ -> KHO BÃI)
+         */
         document.addEventListener("DOMContentLoaded", function () {
+            loadNhanVienKho(); // Gọi tải nhân viên khi trang sẵn sàng
+
             const form = document.getElementById('formThemKhoBai');
+            if (!form) return;
 
             form.addEventListener('submit', async function (e) {
                 e.preventDefault();
 
                 Swal.fire({
                     title: 'Đang xử lý dữ liệu...',
-                    text: 'Vui lòng chờ trong giây lát',
                     allowOutsideClick: false,
                     didOpen: () => { Swal.showLoading(); }
                 });
 
                 try {
-                    // --- BƯỚC 1: LƯU ĐỊA CHỈ TRƯỚC ---
+                    // --- BƯỚC 1: LƯU ĐỊA CHỈ (PORT 7149) ---
                     const addressPayload = {
                         Duong: form.querySelector('[name="Duong"]').value,
-                        Phuong: form.querySelector('[name="Phuong"]').value, // Giá trị từ select Phường
-                        ThanhPho: form.querySelector('[name="ThanhPho"]').value, // Giá trị từ select Tỉnh
+                        Phuong: form.querySelector('[name="Phuong"]').value,
+                        ThanhPho: form.querySelector('[name="ThanhPho"]').value,
                         MaBuuDien: "70000",
                         ViDo: parseFloat(document.getElementById('ViDo').value) || 0,
                         KinhDo: parseFloat(document.getElementById('KinhDo').value) || 0
@@ -470,119 +586,174 @@
                     const addressResponse = await fetch('https://localhost:7149/api/quanlydiachi/themdiachi', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
                         body: JSON.stringify(addressPayload)
                     });
 
-                    if (!addressResponse.ok) {
-                        throw new Error("Lỗi khi lưu địa chỉ. Vui lòng kiểm tra lại.");
-                    }
-
+                    if (!addressResponse.ok) throw new Error("Lỗi khi lưu địa chỉ.");
                     const addressResult = await addressResponse.json();
-                    // Lấy MaDiaChi vừa được sinh ra tự động từ database
-                    const newMaDiaChi = addressResult.maDiaChi;
 
-                    // --- BƯỚC 2: LƯU KHO BÃI VỚI MÃ ĐỊA CHỈ VỪA LẤY ---
+                    // --- BƯỚC 2: LƯU KHO BÃI (PORT 7286) ---
                     const warehousePayload = {
                         TenKhoBai: form.querySelector('[name="TenKhoBai"]').value,
                         SoDienThoaiKho: form.querySelector('[name="SoDienThoaiKho"]').value,
                         MaLoaiKho: parseInt(form.querySelector('[name="MaLoaiKho"]').value),
-                        MaDiaChi: newMaDiaChi, // Sử dụng ID từ bước 1
+                        MaDiaChi: addressResult.maDiaChi,
                         DienTichM2: parseFloat(form.querySelector('[name="DienTichM2"]').value) || 0,
                         DungTichM3: parseFloat(form.querySelector('[name="DungTichM3"]').value) || 0,
                         SucChua: parseFloat(form.querySelector('[name="SucChua"]').value) || 0,
                         TrangThai: form.querySelector('[name="TrangThai"]').value,
-                        MaQuanLy: form.querySelector('[name="MaQuanLy"]') && form.querySelector('[name="MaQuanLy"]').value
-                                  ? parseInt(form.querySelector('[name="MaQuanLy"]').value)
-                                  : null
+                        MaQuanLy: form.querySelector('[name="MaQuanLy"]')?.value ? parseInt(form.querySelector('[name="MaQuanLy"]').value) : null
                     };
 
                     const warehouseResponse = await fetch('https://localhost:7286/api/quanlykhobai/themkhomoi', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
                         body: JSON.stringify(warehousePayload)
                     });
 
-                    const warehouseResult = await warehouseResponse.json();
+                    if (!warehouseResponse.ok) throw new Error("Lỗi khi lưu kho bãi.");
 
-                    if (warehouseResponse.ok) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Thành công!',
-                            text: 'Địa chỉ và Kho bãi đã được lưu với đầy đủ tọa độ.',
-                            timer: 2000,
-                            showConfirmButton: false
-                        }).then(() => {
-                            location.reload();
-                        });
-                    } else {
-                        throw new Error(warehouseResult.message || "Lỗi khi lưu kho bãi.");
-                    }
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công!',
+                        text: 'Dữ liệu đã được đồng bộ hóa.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => location.reload());
 
                 } catch (error) {
-                    console.error("Error details:", error);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Thất bại',
-                        text: error.message
-                    });
+                    Swal.fire({ icon: 'error', title: 'Thất bại', text: error.message });
                 }
             });
         });
-    </script>
-    <script>
+
+        /**
+         * 3. THÊM MỚI LOẠI KHO (SỬ DỤNG JQUERY AJAX)
+         */
         function themMoiLoaiKho() {
             Swal.fire({
                 title: 'Thêm loại kho mới',
                 html: `
                     <div class="text-start">
                         <label class="form-label small fw-bold">Tên loại kho *</label>
-                        <input id="swal-input1" class="swal2-input m-0 w-100" placeholder="VD: Kho Lạnh, Kho Ngoại Quan...">
-
-                        <label class="form-label small fw-bold mt-3">Ghi chú (Nếu có)</label>
-                        <textarea id="swal-input2" class="swal2-textarea m-0 w-100" placeholder="Nhập ghi chú chi tiết về loại kho này..."></textarea>
-                    </div>
-                `,
-                focusConfirm: false,
+                        <input id="swal-input1" class="swal2-input m-0 w-100">
+                        <label class="form-label small fw-bold mt-3">Ghi chú</label>
+                        <textarea id="swal-input2" class="swal2-textarea m-0 w-100"></textarea>
+                    </div>`,
                 showCancelButton: true,
-                confirmButtonText: 'Lưu lại',
-                cancelButtonText: 'Hủy',
                 preConfirm: () => {
-                    const tenLoaiKho = document.getElementById('swal-input1').value;
-                    const ghiChu = document.getElementById('swal-input2').value;
-
-                    if (!tenLoaiKho) {
-                        Swal.showValidationMessage('Vui lòng nhập tên loại kho!');
-                        return false;
-                    }
-                    return { TenLoaiKho: tenLoaiKho, GhiChu: ghiChu };
+                    const ten = document.getElementById('swal-input1').value;
+                    if (!ten) return Swal.showValidationMessage('Vui lòng nhập tên loại kho!');
+                    return { TenLoaiKho: ten, GhiChu: document.getElementById('swal-input2').value };
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Hiển thị loading khi đang gọi API
                     Swal.fire({ title: 'Đang lưu...', didOpen: () => Swal.showLoading() });
 
                     $.ajax({
                         url: 'https://localhost:7286/api/quanlykhobai/themloaikhomoi',
                         type: 'POST',
                         contentType: 'application/json',
-                        data: JSON.stringify(result.value), // result.value chứa { TenLoaiKho: "...", GhiChu: "..." }
-                        success: function (res) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Thành công!',
-                                text: 'Đã thêm loại kho mới.',
-                                timer: 1500
-                            }).then(() => {
-                                window.location.reload();
-                            });
+                        xhrFields: { withCredentials: true }, // QUAN TRỌNG: Tương đương credentials: 'include' trong fetch
+                        data: JSON.stringify(result.value),
+                        success: function () {
+                            Swal.fire('Thành công!', '', 'success').then(() => location.reload());
                         },
-                        error: function (err) {
-                            Swal.fire('Lỗi!', 'Không thể kết nối server hoặc dữ liệu không hợp lệ.', 'error');
+                        error: function () {
+                            Swal.fire('Lỗi!', 'Không thể kết nối server.', 'error');
                         }
                     });
                 }
             });
         }
-    </script>
+
+            /**
+         * 3. MỞ MODAL CHỈNH SỬA
+         */
+        async function openEditModal(maKho) {
+            Swal.fire({ title: 'Đang tải...', didOpen: () => Swal.showLoading() });
+
+            try {
+                // BƯỚC 1: Đợi tải xong danh sách nhân viên
+                await loadNhanVienKho();
+
+                // BƯỚC 2: Lấy chi tiết kho
+                const response = await fetch(`https://localhost:7286/api/quanlykhobai/chitietkhobai/${maKho}`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                // BƯỚC 3: Map dữ liệu vào các ô input
+                document.getElementById('edit_MaKho').value = data.maKho;
+                document.getElementById('edit_MaDiaChi').value = data.maDiaChi;
+                document.getElementById('edit_TenKhoBai').value = data.tenKhoBai;
+                document.getElementById('edit_SoDienThoaiKho').value = data.soDienThoaiKho;
+                document.getElementById('edit_MaLoaiKho').value = data.maLoaiKho;
+                document.getElementById('edit_TrangThai').value = data.trangThai;
+                document.getElementById('edit_DienTichM2').value = data.dienTichM2;
+                document.getElementById('edit_DungTichM3').value = data.dungTichM3;
+                document.getElementById('edit_SucChua').value = data.sucChua;
+                document.getElementById('edit_MaQuanLy').value = data.maQuanLy;
+
+                const selectLoaiKho = document.getElementById('edit_MaLoaiKho');
+                selectLoaiKho.value = data.maLoaiKho;
+                // BƯỚC 4: Gán người quản lý (Chuyển ID về String để Select nhận diện đúng)
+                const selectEdit = document.getElementById('edit_MaQuanLy');
+                if (selectEdit && data.maQuanLy) {
+                    selectEdit.value = data.maQuanLy.toString();
+                } else {
+                    selectEdit.value = "";
+                }
+
+                Swal.close();
+                new bootstrap.Modal(document.getElementById('SuaKhoBai')).show();
+            } catch (error) {
+                Swal.fire("Lỗi!", "Không thể load dữ liệu: " + error.message, "error");
+            }
+        }
+
+        /**
+         * 4. XỬ LÝ SUBMIT CẬP NHẬT (PUT)
+         */
+        document.getElementById('formSuaKhoBai')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const maKho = document.getElementById('edit_MaKho').value;
+
+            // Tạo payload bao gồm MaQuanLy
+            const payload = {
+                MaKho: parseInt(maKho),
+                TenKhoBai: this.querySelector('[name="TenKhoBai"]').value,
+                SoDienThoaiKho: this.querySelector('[name="SoDienThoaiKho"]').value,
+                MaLoaiKho: parseInt(this.querySelector('[name="MaLoaiKho"]').value),
+                DienTichM2: parseFloat(this.querySelector('[name="DienTichM2"]').value) || 0,
+                DungTichM3: parseFloat(this.querySelector('[name="DungTichM3"]').value) || 0,
+                SucChua: parseFloat(this.querySelector('[name="SucChua"]').value) || 0,
+                TrangThai: this.querySelector('[name="TrangThai"]').value,
+                MaDiaChi: parseInt(document.getElementById('edit_MaDiaChi').value),
+                // Thêm MaQuanLy vào đây
+                MaQuanLy: document.getElementById('edit_MaQuanLy').value ? parseInt(document.getElementById('edit_MaQuanLy').value) : null
+            };
+
+            try {
+                const response = await fetch(`https://localhost:7286/api/quanlykhobai/cap-nhat-kho/${maKho}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    Swal.fire('Thành công', 'Dữ liệu đã cập nhật', 'success').then(() => location.reload());
+                } else {
+                    const err = await response.json();
+                    throw new Error(err.message || "Lỗi cập nhật");
+                }
+            } catch (error) {
+                Swal.fire("Thất bại", error.message, "error");
+            }
+        });
+   </script>
 </body>
 </html>

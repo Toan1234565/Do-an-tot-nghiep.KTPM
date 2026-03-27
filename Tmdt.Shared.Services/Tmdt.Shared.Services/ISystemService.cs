@@ -1,4 +1,10 @@
-﻿namespace QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Tmdt.Shared.Services
 {
     public interface ISystemService
     {

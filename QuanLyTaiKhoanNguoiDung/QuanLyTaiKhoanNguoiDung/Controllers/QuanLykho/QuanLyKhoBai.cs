@@ -27,7 +27,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLykho
              string? searchTerm,
              int page = 1,
              string loaikho = "Tất cả",
-             string trangthai = "Tất cả")
+             string trangthai = "Hoạt động")
         {
             var client = _httpClientFactory.CreateClient("BypassSSL");
             var queryParams = new Dictionary<string, string?>

@@ -9,8 +9,13 @@
     <title>Hệ Thống Quản Lý Khuyến Mãi</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <link rel="stylesheet" href="~/css/giaodiendanhsach.css" asp-append-version="true" />
     <style>
         
@@ -97,10 +102,30 @@
     <main class="container-fluid py-4">
         <div class="main-card">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="mb-0 fs-4"><i class="fa-solid fa-tags me-2 text-primary"></i>Quản Lý Chương Trình Khuyến Mãi</h1>
-                <button class="btn btn-add-new shadow-sm" data-bs-toggle="modal" data-bs-target="#ThemKhuyenMai">
-                    <i class="fas fa-plus-circle me-2"></i>Tạo khuyến mãi mới
-                </button>
+                <h1 class="mb-0 fs-4">
+                    <i class="fa-solid fa-tags me-2 text-primary"></i>Quản Lý Chương Trình Khuyến Mãi
+                </h1>
+
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-primary shadow-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#ThemKhuyenMai">
+                        <i class="fas fa-plus-circle me-2"></i>Tạo khuyến mãi mới
+                    </button>
+
+                    <div class="position-relative">
+                        <button type="button"
+                                class="btn btn-light position-relative p-0 d-flex align-items-center justify-content-center rounded-circle border shadow-sm btn-nhat-ky"
+                                style="width: 42px; height: 42px; transition: all 0.3s;"
+                                data-bs-toggle="modal"
+                                data-bs-target="#detailModal"
+                                data-service="Quản lý khuyến mãi"
+                                title="Xem nhật ký hoạt động">
+                            <i class="fa-solid fa-bell fs-5 text-primary"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                <span class="visually-hidden">New alerts</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             @* Bộ lọc tìm kiếm *@
@@ -397,6 +422,19 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="detailModal" data-bs-backdrop="static">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nhật ký hệ thống</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modalBodyNhatKy">
+                    @await Html.PartialAsync("_NhatKyPartial")
+                </div>
+            </div>
+        </div>
+    </div>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -438,135 +476,117 @@
             }
         }
 
-        // Thêm mới
-        $('#formThemKhuyenMai').on('submit', function(e) {
+        $('#formThemKhuyenMai').on('submit', async function(e) {
             e.preventDefault();
             const formData = new FormData(this);
             const payload = Object.fromEntries(formData.entries());
 
-            payload.GiaTriGiam = parseFloat(payload.GiaTriGiam);
+            // Ép kiểu chuẩn xác để tránh lỗi 400 Bad Request từ Backend
+            payload.GiaTriGiam = parseFloat(payload.GiaTriGiam) || 0;
             payload.GiamToiDa = parseFloat(payload.GiamToiDa) || 0;
-            payload.SoLuongToiDa = parseInt(payload.SoLuongToiDa);
-            payload.DonHangToiThieu = parseFloat(payload.DonHangToiThieu);
+            payload.SoLuongToiDa = parseInt(payload.SoLuongToiDa) || 0;
+            payload.DonHangToiThieu = parseFloat(payload.DonHangToiThieu) || 0;
             payload.TrangThai = true;
 
-            handleApiCall(`${API_BASE}/taomoikhuyenmai`, 'POST', payload);
+            // Sử dụng fetch để kiểm soát credentials (gửi kèm Cookie)
+            Swal.fire({ title: 'Đang lưu...', didOpen: () => Swal.showLoading() });
+
+            try {
+                const response = await fetch(`${API_BASE}/taomoikhuyenmai`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    credentials: 'include' // QUAN TRỌNG: Để gửi Cookie xác thực
+                });
+
+                if (response.status === 401) return handling401(); // Gọi hàm xử lý hết phiên
+
+                const result = await response.json();
+                if (response.ok) {
+                    await Swal.fire('Thành công', result.message, 'success');
+                    location.reload();
+                } else {
+                    Swal.fire('Lỗi', result.message || 'Không thể tạo mới', 'error');
+                }
+            } catch (err) {
+                Swal.fire('Lỗi', 'Kết nối server thất bại', 'error');
+            }
         });
 
-        // Đổ dữ liệu sửa
         function editPrice(item) {
-            // Log ra console để bạn kiểm tra chính xác tên thuộc tính nếu vẫn chưa được
             console.log("Dữ liệu nhận được:", item);
 
+            // Sử dụng đúng tên thuộc tính trả về từ API (thường là viết thường chữ đầu)
             $('#edit_MaKhuyenMai').val(item.maKhuyenMai);
             $('#edit_TenChuongTrinh').val(item.tenChuongTrinh);
             $('#edit_CodeKhuyenMai').val(item.codeKhuyenMai);
             $('#edit_MaLoaiKm').val(item.maLoaiKm);
             $('#edit_GiaTriGiam').val(item.giaTriGiam);
-
-            // Lưu ý: Tên thuộc tính JSON thường viết thường chữ cái đầu
-            $('#edit_GiaTriGiamToiDa').val(item.giamToiDa || 0);
+            $('#edit_GiaTriGiamToiDa').val(item.giamToiDa || item.giaTriGiamToiDa || 0);
             $('#edit_KieuGiamGia').val(item.kieuGiamGia);
-            $('#edit_SoLuong').val(item.soLuongToiDa || 0);
+            $('#edit_SoLuong').val(item.soLuongToiDa || item.soLuongKM || 0);
             $('#edit_DonHangToiThieu').val(item.donHangToiThieu || 0);
 
+            // Cắt chuỗi lấy YYYY-MM-DD cho input date
             if (item.ngayBatDau) $('#edit_NgayBatDau').val(item.ngayBatDau.split('T')[0]);
             if (item.ngayKetThuc) $('#edit_NgayKetThuc').val(item.ngayKetThuc.split('T')[0]);
 
-            updateMaxDiscountVisibility();
+            if (typeof updateMaxDiscountVisibility === 'function') {
+                updateMaxDiscountVisibility();
+            }
 
-            // Hiển thị modal
-            var editModal = new bootstrap.Modal(document.getElementById('EditKhuyenMaiModal'));
+            const editModal = new bootstrap.Modal(document.getElementById('EditKhuyenMaiModal'));
             editModal.show();
         }
-        // Cập nhật
-        $('#formEditKhuyenMai').on('submit', function(e) {
+
+        $('#formEditKhuyenMai').on('submit', async function(e) {
             e.preventDefault();
             const id = $('#edit_MaKhuyenMai').val();
             const formData = new FormData(this);
             const payload = Object.fromEntries(formData.entries());
 
+            // Chuẩn hóa dữ liệu trước khi gửi
             payload.MaKhuyenMai = parseInt(id);
-            payload.GiaTriGiam = parseFloat(payload.GiaTriGiam);
+            payload.GiaTriGiam = parseFloat(payload.GiaTriGiam) || 0;
             payload.GiaTriGiamToiDa = parseFloat(payload.GiaTriGiamToiDa) || 0;
-            payload.SoLuongKM = parseInt(payload.SoLuongKM);
-            payload.DonHangToiThieu = parseFloat(payload.DonHangToiThieu);
+            payload.SoLuongKM = parseInt(payload.SoLuongKM || payload.SoLuong) || 0;
+            payload.DonHangToiThieu = parseFloat(payload.DonHangToiThieu) || 0;
 
-            handleApiCall(`${API_BASE}/capnhatkhuyenmai/${id}`, 'POST', payload);
+            Swal.fire({ title: 'Đang cập nhật...', didOpen: () => Swal.showLoading() });
+
+            try {
+                const response = await fetch(`${API_BASE}/capnhatkhuyenmai/${id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    credentials: 'include'
+                });
+
+                if (response.status === 401) return handling401();
+
+                const result = await response.json();
+                if (response.ok) {
+                    await Swal.fire('Thành công', 'Cập nhật khuyến mãi hoàn tất', 'success');
+                    location.reload();
+                } else {
+                    Swal.fire('Thất bại', result.message || 'Lỗi cập nhật', 'error');
+                }
+            } catch (err) {
+                Swal.fire('Lỗi hệ thống', 'Không thể kết nối API', 'error');
+            }
         });
 
-        async function toggleStatus(id, currentStatus) {
-            if (currentStatus === true) {
-                // TRƯỜNG HỢP 1: ĐANG HOẠT ĐỘNG -> VÔ HIỆU HÓA (DELETE)
-                const result = await Swal.fire({
-                    title: 'Vô hiệu hóa?',
-                    text: "Chương trình sẽ ngừng áp dụng ngay lập tức.",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#ef4444',
-                    cancelButtonText: 'Hủy bỏ',
-                    confirmButtonText: 'Đồng ý dừng'
-                });
-
-                if (result.isConfirmed) {
-                    // Sử dụng hàm handleApiCall có sẵn của bạn
-                    handleApiCall(`${API_BASE}/vo-hieu-hoa/${id}`, 'DELETE', null);
-                }
-            } else {
-                // TRƯỜNG HỢP 2: ĐANG TẠM DỪNG -> KÍCH HOẠT (POST)
-                const result = await Swal.fire({
-                    title: 'Kích hoạt?',
-                    text: "Bạn muốn chạy lại chương trình khuyến mãi này?",
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonText: 'Hủy bỏ',
-                    confirmButtonText: 'Kích hoạt ngay'
-                });
-
-                if (result.isConfirmed) {
-                    Swal.fire({ title: 'Đang kiểm tra...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-                    try {
-                        // Gọi thử kích hoạt với body rỗng
-                        const response = await fetch(`${API_BASE}/kich-hoat/${id}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({}) // Gửi rỗng để Backend kiểm tra hạn định
-                        });
-
-                        const resData = await response.json();
-
-                        if (response.ok) {
-                            // Thành công trực tiếp (chưa hết hạn)
-                            await Swal.fire('Thành công!', resData.message, 'success');
-                            location.reload();
-                        } else {
-                            // Backend trả về lỗi (thường là 400 BadRequest do hết hạn)
-                            // Hoặc bạn có thể check chính xác: if(resData.message.includes("Ngày kết thúc"))
-
-                            Swal.close(); // Đóng loading hiện tại
-
-                            // Đổ dữ liệu vào Modal Gia hạn
-                            $('#gh_Id').val(id);
-
-                            // Gợi ý ngày: Bắt đầu từ hôm nay, kết thúc sau 7 ngày
-                            const now = new Date();
-                            const nextWeek = new Date();
-                            nextWeek.setDate(now.getDate() + 7);
-
-                            $('#gh_NgayBatDau').val(now.toISOString().split('T')[0]);
-                            $('#gh_NgayKetThuc').val(nextWeek.toISOString().split('T')[0]);
-
-                            // Hiện Modal
-                            const giaHanModal = new bootstrap.Modal(document.getElementById('GiaHanModal'));
-                            giaHanModal.show();
-                        }
-                    } catch (error) {
-                        Swal.fire('Lỗi hệ thống', 'Không thể kết nối tới máy chủ', 'error');
-                    }
-                }
-            }
+                // Hàm điều hướng khi hết phiên đăng nhập (Lỗi 401)
+        function handling401() {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Hết phiên làm việc',
+                text: 'Vui lòng đăng nhập lại để tiếp tục.',
+                confirmButtonText: 'Đăng nhập ngay'
+            }).then(() => {
+                const returnUrl = encodeURIComponent(window.location.href);
+                window.location.href = `https://localhost:7022/QuanLyPhanQuyen/DangNhap?ReturnUrl=${returnUrl}`;
+            });
         }
     </script>
 </body>

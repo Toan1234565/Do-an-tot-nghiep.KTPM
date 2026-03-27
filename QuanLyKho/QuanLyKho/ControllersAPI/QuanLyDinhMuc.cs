@@ -2,9 +2,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using QuanLyKho.Models;
-using QuanLyKho.Models1.QuanLyXe;
 using Microsoft.Extensions.Primitives;
+using QuanLyKho.Models;
+using QuanLyKho.Models1;
+using QuanLyKho.Models1.QuanLyXe;
+using Tmdt.Shared.Services;
 
 namespace QuanLyKho.ControllersAPI
 {
@@ -15,15 +17,17 @@ namespace QuanLyKho.ControllersAPI
         private readonly TmdtContext _context;
         private readonly ILogger<QuanLyDinhMuc> _logger;
         private readonly IMemoryCache _cacheKey;
+        private readonly ISystemService _sys;
 
         // CancellationTokenSource dùng để hiệu hủy toàn bộ cache định mức khi có thay đổi
         private static CancellationTokenSource _resetCacheToken = new CancellationTokenSource();
 
-        public QuanLyDinhMuc(TmdtContext context, ILogger<QuanLyDinhMuc> logger, IMemoryCache cache)
+        public QuanLyDinhMuc(TmdtContext context, ILogger<QuanLyDinhMuc> logger, IMemoryCache cache, ISystemService sys)
         {
             _context = context;
             _logger = logger;
             _cacheKey = cache;
+            _sys = sys;
         }
 
         [HttpGet("danhsachdinhmuc")]
@@ -109,6 +113,20 @@ namespace QuanLyKho.ControllersAPI
 
                 // Quan trọng: Xóa cache để dữ liệu mới được cập nhật lên danh sách
                 ResetCache();
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý phương tiện",
+                    "Thêm mới định mức " + model.TenHangMuc,
+                    "DinhMucBaoTri",
+                    "",
+                    new Dictionary<string, object>(),
+                    new Dictionary<string, object>
+                    {
+                        { "Loại xe", model.MaLoaiXe },
+                        { "Tên hạng mục", model.TenHangMuc },
+                        { "Định mức", $"KM: {model.DinhMucKm} - Tháng: {model.DinhMucThang}" }
+                    }
+
+                );
 
                 return Ok(new { message = "Thêm định mức thành công!", data = model });
             }
@@ -130,6 +148,13 @@ namespace QuanLyKho.ControllersAPI
                 var dinhMucItem = await _context.DinhMucBaoTris.FindAsync(id);
                 if (dinhMucItem == null) return NotFound("Không tìm thấy định mức cần sửa.");
 
+                var datacu = new Dictionary<string, object>
+                {
+                    { "Loại xe", dinhMucItem.MaLoaiXe },
+                    { "Tên hạng mục", dinhMucItem.TenHangMuc },
+                    { "Định mức", $"KM: {dinhMucItem.DinhMucKm} - Tháng: {dinhMucItem.DinhMucThang}" }
+                };
+
                 // Cập nhật các thông tin
                 dinhMucItem.MaLoaiXe = model.MaLoaiXe;
                 dinhMucItem.TenHangMuc = model.TenHangMuc;
@@ -141,6 +166,24 @@ namespace QuanLyKho.ControllersAPI
 
                 // Quan trọng: Xóa cache để dữ liệu mới được cập nhật
                 ResetCache();
+
+                var datamoi = new Dictionary<string, object>
+                {
+                    { "Loại xe", dinhMucItem.MaLoaiXe },
+                    { "Tên hạng mục", dinhMucItem.TenHangMuc },
+                    { "Định mức", $"KM: {dinhMucItem.DinhMucKm} - Tháng: {dinhMucItem.DinhMucThang}" }
+                };
+
+                var (diffCu, diffMoi) = LocThayDoi.GetChanges(datacu, datamoi);
+
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý phương tiện",
+                    "Cập nhật định mức " + model.TenHangMuc + model.MaLoaiXeNavigation.TenLoai,
+                    "DinhMucBaoTri",
+                    id.ToString(),
+                    diffCu,
+                    diffMoi
+                );
 
                 return Ok(new { message = "Cập nhật định mức thành công!" });
             }

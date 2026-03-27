@@ -5,9 +5,6 @@ namespace QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien
     public class LoaiXeModels
     {
         public int MaLoaiXe { get; set; }
-
-        
-
         
         public string? TenLoai { get; set; }
 

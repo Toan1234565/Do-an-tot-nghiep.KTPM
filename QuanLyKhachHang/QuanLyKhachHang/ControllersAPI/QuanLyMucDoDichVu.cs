@@ -1,12 +1,16 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using NetTopologySuite.Index.HPRtree;
 using QuanLyKhachHang.Models;
 using QuanLyKhachHang.Models1.QuanLyMucDoDichVu;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Tmdt.Shared.Services;
+using System.Data;
 using static QuanLyKhachHang.Models1.QuanLyMucDoDichVu.YeuCauPhanTich;
 
 namespace QuanLyKhachHang.ControllersAPI
@@ -19,16 +23,31 @@ namespace QuanLyKhachHang.ControllersAPI
         private readonly ILogger<QuanLyMucDoDichVu> _logger; // Sửa lại ILogger
         private readonly IMemoryCache _cache;
         private readonly IFlightService _flightService;
-
-       
+        private readonly ISystemService _sys;
+        private static CancellationTokenSource _resetCacheToken = new CancellationTokenSource();
         private const string ServiceLevelCacheKey = "ServiceLevelList";
 
-        public QuanLyMucDoDichVu(TmdtContext context, ILogger<QuanLyMucDoDichVu> logger, IMemoryCache cache, IFlightService flightService)
+        public QuanLyMucDoDichVu(TmdtContext context, ILogger<QuanLyMucDoDichVu> logger, IMemoryCache cache, IFlightService flightService, ISystemService sys)
         {
             _context = context;
             _logger = logger;
             _cache = cache;
             _flightService = flightService;
+            _sys = sys;
+        }
+
+        // HÀM DÙNG CHUNG ĐỂ LÀM MỚI CACHE
+        private void ClearPriceRegionCache()
+        {
+            // Hủy token cũ -> Tất cả cache gắn với token này sẽ tự động bị xóa
+            if (!_resetCacheToken.IsCancellationRequested)
+            {
+                _resetCacheToken.Cancel();
+                _resetCacheToken.Dispose();
+            }
+            // Tạo token mới cho các lượt cache tiếp theo
+            _resetCacheToken = new CancellationTokenSource();
+            _logger.LogInformation("Đã làm mới toàn bộ Cache Bảng giá vùng.");
         }
 
         [HttpGet("dsmucdichvu")]
@@ -91,6 +110,8 @@ namespace QuanLyKhachHang.ControllersAPI
             }
             return Ok(listService);
         }
+
+        [Authorize]
         [HttpPost("themmoi")]
         public async Task<IActionResult> ThemMoi([FromBody] MucDoDichVuModels model)
         {
@@ -122,6 +143,20 @@ namespace QuanLyKhachHang.ControllersAPI
                 _cache.Remove(ServiceLevelCacheKey);
                 _logger.LogInformation("Đã xóa Cache {Key} do có dữ liệu mới.", ServiceLevelCacheKey);
 
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý mức độ dịch vụ",
+                   "Thêm mới mức độ dịch vụ: " + model.TenDichVu,                 
+                   "Thêm mới",
+                    model.MaDichVu.ToString(),
+                    new Dictionary<string, object>(),
+                    new Dictionary<string, object>
+                    {
+                        {"Tên dịch vụ ", model.TenDichVu },
+                        { "Hệ số ", model.HeSoNhiPhan },
+                        { "Trạng thái ", model.TrangThai }
+                    }
+               );
+                ClearPriceRegionCache();
                 return Ok(new { message = "Thêm mới thành công!", data = entity });
             }
             catch (Exception ex)
@@ -132,6 +167,7 @@ namespace QuanLyKhachHang.ControllersAPI
         }
         // Thêm các Method này vào trong class QuanLyMucDoDichVu
 
+        [Authorize]
         [HttpPut("chinhsua")]
         public async Task<IActionResult> ChinhSua([FromBody] MucDoDichVuModels model)
         {
@@ -151,7 +187,14 @@ namespace QuanLyKhachHang.ControllersAPI
 
                 bool isCoreDataChanged = existingService.ThoiGianCamKet != model.ThoiGianCamKet ||
                                          existingService.HeSoNhiPhan != model.HeSoNhiPhan;
-
+                // Lưu lại dữ liệu cũ để ghi log trước khi thay đổi
+                var duLieuCu = new Dictionary<string, object>
+                {
+                    { "Tên dịch vụ", existingService.TenDichVu },
+                    { "Thời gian cam kết", existingService.ThoiGianCamKet },
+                    { "Hệ số nhi phân", existingService.HeSoNhiPhan },
+                    { "Trạng thái", existingService.TrangThai }
+                };
                 if (isCoreDataChanged)
                 {
                     existingService.TrangThai = false;
@@ -175,10 +218,28 @@ namespace QuanLyKhachHang.ControllersAPI
                     existingService.LaCaoCap = model.LaCaoCap;
                     existingService.TrangThai = model.TrangThai;
                 }
-
+                var dulieumoi = new Dictionary<string, object>
+                {
+                    { "Tên dịch vụ", model.TenDichVu },
+                   
+                    { "Hệ số nhi phân", model.HeSoNhiPhan }
+                    
+                };
                 await _context.SaveChangesAsync();
                 _cache.Remove(ServiceLevelCacheKey);
 
+                // Ghi log chi tiết và Reset Cache hệ thống (Redis)
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý mức độ dịch vụ",
+                    "Chỉnh sửa mức độ dịch vụ", // Hành động
+                                   // Bảng tác động
+                    $"Cập nhật dịch vụ ID: {model.MaDichVu}", // Mô tả
+                    "1",              // ID bản ghi
+                    duLieuCu,
+                    dulieumoi
+
+                );
+                ClearPriceRegionCache();
                 return Ok(new { success = true, message = "Cập nhật thành công!" });
             }
             catch (Exception ex)
@@ -188,6 +249,7 @@ namespace QuanLyKhachHang.ControllersAPI
             }
         }
 
+        [Authorize]
         [HttpPut("vohieuhoa/{id}")]
         public async Task<IActionResult> VoHieuHoa(int id)
         {
@@ -196,11 +258,31 @@ namespace QuanLyKhachHang.ControllersAPI
                 var service = await _context.MucDoDichVus.FindAsync(id);
                 if (service == null) return NotFound("Không tìm thấy dịch vụ.");
 
+                var datacu = new Dictionary<string, object>
+                {
+                    { "Tên dịch vụ", service.TenDichVu },
+                    
+                    { "Hệ số nhi phân", service.HeSoNhiPhan },
+                    
+                };
+
                 service.TrangThai = false;
                 service.NgayKetThuc = DateTime.Now;
 
                 await _context.SaveChangesAsync();
                 _cache.Remove(ServiceLevelCacheKey);
+
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý mức độ dịch vụ",
+                    "Vô hiệu hóa mức độ dịch vụ: " + service.TenDichVu,
+                    "Quản lý mức độ dịch vụ",
+                    id.ToString(),
+                    datacu,
+                    new Dictionary<string, object>
+                    {
+                        { "Trạng thái", "Ngừng hoạt động" }                    
+                    }
+                );
 
                 return Ok(new { success = true, message = "Đã vô hiệu hóa mức dịch vụ." });
             }

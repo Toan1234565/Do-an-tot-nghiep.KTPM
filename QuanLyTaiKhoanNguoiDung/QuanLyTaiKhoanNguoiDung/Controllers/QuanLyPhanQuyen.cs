@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi;
@@ -6,6 +8,7 @@ using QuanLyTaiKhoanNguoiDung.Models12._1234;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyTaiKhoan;
 using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
+using System.Security.Claims;
 using System.Text;
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers
@@ -34,13 +37,11 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
         {
             return View();
         }
-
-
-
         public class LoginResponse
         {
             public int userId { get; set; }
             public string? userName { get; set; }
+            public string? fullName { get; set; } // Thêm dòng này để lấy họ tên từ API
         }
 
         [HttpPost]
@@ -59,29 +60,58 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
 
                 if (response.IsSuccessStatusCode)
                 {
-                    // API trả về: { message, userId, userName }
-                    // Chúng ta dùng dynamic để đọc nhanh hoặc tạo DTO riêng. 
-                    // Ở đây tôi sẽ dùng dynamic để bạn dễ hình dung:
                     var result = JsonConvert.DeserializeObject<LoginResponse>(responseString);
 
                     if (result != null)
                     {
-                        // THỐNG NHẤT KEY SESSION VỚI LAYOUT
-                        HttpContext.Session.SetString("MaNguoiDung", result.userId.ToString() ?? "0");
-                        HttpContext.Session.SetString("TenDangNhap", result.userName?.ToString() ?? "");
+                        // 1. LƯU SESSION (Để dùng chung dữ liệu qua Redis)
+                        HttpContext.Session.SetString("MaNguoiDung", result.userId.ToString());
+                        HttpContext.Session.SetString("TenDangNhap", result.userName ?? "");
+                        HttpContext.Session.SetString("HoTenNhanVien", result.fullName ?? result.userName ?? "Thành viên");
+
+                        // 2. TẠO CLAIMS VÀ SIGNIN (Để kích hoạt isAuth = true)
+                        // Bước này cực kỳ quan trọng để các [Authorize] và User.Identity hoạt động
+                        var claims = new List<Claim>
+                        {
+                            new Claim(ClaimTypes.Name, result.fullName ?? result.userName ?? "Thành viên"),
+                            new Claim(ClaimTypes.NameIdentifier, result.userId.ToString()),
+                            new Claim("Username", result.userName ?? "")
+                        };
+
+                        var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                        var authProperties = new AuthenticationProperties
+                        {
+                            IsPersistent = true, // Ghi nhớ đăng nhập
+                            ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+                        };
+
+                        // Đóng dấu Cookie tại Client App
+                        await HttpContext.SignInAsync(
+                            CookieAuthenticationDefaults.AuthenticationScheme,
+                            new ClaimsPrincipal(claimsIdentity),
+                            authProperties
+                        );
 
                         return RedirectToAction("Index", "Home");
                     }
                 }
                 else
                 {
-                    var errorObj = JsonConvert.DeserializeObject<dynamic>(responseString);
-                    ModelState.AddModelError(string.Empty, errorObj?.ToString() ?? "Sai tài khoản/mật khẩu");
+                    try
+                    {
+                        var errorObj = JsonConvert.DeserializeObject<dynamic>(responseString);
+                        string msg = errorObj?.message ?? "Tài khoản hoặc mật khẩu không chính xác";
+                        ModelState.AddModelError(string.Empty, msg);
+                    }
+                    catch
+                    {
+                        ModelState.AddModelError(string.Empty, responseString ?? "Lỗi đăng nhập");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError(string.Empty, "Lỗi kết nối API: " + ex.Message);
+                ModelState.AddModelError(string.Empty, "Lỗi kết nối hệ thống: " + ex.Message);
             }
             return View(login);
         }

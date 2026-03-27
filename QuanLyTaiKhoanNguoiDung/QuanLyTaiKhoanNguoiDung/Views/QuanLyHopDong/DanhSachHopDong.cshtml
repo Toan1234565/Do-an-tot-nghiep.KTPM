@@ -9,8 +9,13 @@
     <title>Quản Lý Hợp Đồng Vận Chuyển</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <link rel="stylesheet" href="~/css/giaodiendanhsach.css" asp-append-version="true" />
     <style>
         
@@ -49,20 +54,37 @@
 <body>
     <main class="container-fluid py-4">
         <div class="main-card">
-            <div class="page-header d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h4 fw-bold m-0 text-dark">
-                    <i class="fa-solid fa-file-contract me-2 text-primary"></i>Danh Sách Hợp Đồng
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="mb-0 fs-4">
+                    <i class="fa-solid fa-tags me-2 text-primary"></i>Quản Lý hợp đồng
                 </h1>
-                <div class="d-flex gap-2">
+
+                <div class="d-flex align-items-center gap-3">
                     <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalThemHopDong">
                         <i class="fa-solid fa-plus me-1"></i> Thêm hợp đồng
                     </button>
+                    
+
+                    <div class="position-relative">
+                        <button type="button"
+                                class="btn btn-light position-relative p-0 d-flex align-items-center justify-content-center rounded-circle border shadow-sm btn-nhat-ky"
+                                style="width: 42px; height: 42px; transition: all 0.3s;"
+                                data-bs-toggle="modal"
+                                data-bs-target="#detailModal"
+                                data-service="Quản lý hợp đồng"
+                                title="Xem nhật ký hoạt động">
+                            <i class="fa-solid fa-bell fs-5 text-primary"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                <span class="visually-hidden">New alerts</span>
+                            </span>
+                        </button>
+                    </div>
                     <a href="@Url.Action("DanhSachHopDong")" class="btn btn-light btn-sm border rounded-pill px-3">
                         <i class="fa-solid fa-arrows-rotate me-1 text-muted"></i> Làm mới
                     </a>
                 </div>
             </div>
-
            @* Filter Form *@
             <form id="filterForm" method="get" action="@Url.Action("DanhSachHopDong")" class="bg-light border rounded-3 p-3 mb-4 shadow-sm">
                 <div class="row g-3">
@@ -191,9 +213,43 @@
                                 <input type="text" class="form-control" id="add_TenHopDong" name="TenHopDong" placeholder="Ví dụ: Hợp đồng vận chuyển hàng điện tử" required>
                             </div>
                             <div class="col-md-12">
-                                <label class="form-label fw-bold small">Mã khách hàng <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="add_MaKhachHang" name="MaKhachHang" placeholder="Nhập ID khách hàng" required>
+                                <label class="form-label fw-bold small">Số điện thoại khách hàng <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fa-solid fa-phone"></i></span>
+                                    <input type="text" class="form-control" id="add_SoDienThoai" placeholder="Nhập đủ 10 số..." maxlength="10">
+                                    <span id="phone_status" class="input-group-text d-none"></span>
+                                </div>
                             </div>
+                            <div id="new_customer_fields" class="mt-3 border p-3 rounded bg-light d-none">
+                                <h6 class="text-primary mb-3"><i class="fa-solid fa-user-plus me-2"></i>Thông tin khách hàng mới</h6>
+                             
+                                <
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <label class="small fw-bold">Tên liên hệ</label>
+                                        <input type="text" class="form-control form-control-sm" id="add_TenLienHe" placeholder="Nguyễn Văn A">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="small fw-bold">Tên công ty</label>
+                                        <input type="text" class="form-control form-control-sm" id="add_TenCongTy" placeholder="Công ty ABC">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="small fw-bold">Thành phố</label>
+                                        <input type="text" class="form-control form-control-sm" id="add_ThanhPho" placeholder="Hà Nội">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="small fw-bold">Quận/Huyện</label>
+                                        <input type="text" class="form-control form-control-sm" id="add_Phuong" placeholder="Cầu Giấy">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="small fw-bold">Địa chỉ chi tiết</label>
+                                        <input type="text" class="form-control form-control-sm" id="add_Duong" placeholder="Số 123 đường...">
+                                    </div>
+                                </div>
+                            </div>
+                           
+                            <input type="hidden" id="saved_MaKhachHang" value="">
+
                             <div class="col-md-6">
                                 <label class="form-label fw-bold small">Loại hàng hóa</label>
                                 <input type="text" class="form-control" id="add_LoaiHangHoa" name="LoaiHangHoa" placeholder="Ví dụ: Đồ gia dụng">
@@ -231,6 +287,19 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nhật ký hệ thống</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modalBodyNhatKy">
+                    @await Html.PartialAsync("_NhatKyPartial")
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 
@@ -239,63 +308,142 @@
 
 
 <script>
-        async function thucHienThemMoi() {
-        // 1. Kiểm tra các trường bắt buộc
-        const tenHD = document.getElementById('add_TenHopDong').value.trim();
-        const maKH = document.getElementById('add_MaKhachHang').value;
+    // 1. Xử lý kiểm tra Số điện thoại khi nhập
+    document.getElementById('add_SoDienThoai').addEventListener('input', async function(e) {
+        const sdt = e.target.value.trim();
+        const statusIcon = document.getElementById('phone_status');
+        const extraFields = document.getElementById('new_customer_fields');
+        const savedMaKH = document.getElementById('saved_MaKhachHang');
 
-        if (!tenHD || !maKH) {
-            Swal.fire('Chú ý', 'Vui lòng nhập đầy đủ Tên hợp đồng và Mã khách hàng', 'warning');
+        // Chỉ xử lý khi nhập đủ 10 chữ số
+        if (sdt.length === 10) {
+            statusIcon.classList.remove('d-none');
+            statusIcon.innerHTML = '<i class="fas fa-spinner fa-spin text-primary"></i>';
+
+            try {
+                const response = await fetch('https://localhost:7149/api/quanlykhachhang/check_so_dien_thoai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ SoDienThoai: sdt }),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Trường hợp tìm thấy khách hàng cũ
+                    if (data && data.maKhachHang) {
+                        statusIcon.innerHTML = '<i class="fas fa-check-circle text-success" title="Khách hàng cũ"></i>';
+                        extraFields.style.display = 'none'; // Ẩn ô nhập thông tin mới
+                        savedMaKH.value = data.maKhachHang;
+
+                        // Xóa dữ liệu cũ trong các ô nhập thông tin khách hàng mới (nếu có)
+                        xoaTrangThongTinKhachHangMoi();
+                    }
+                    else {
+                        hienThiNhapKhachHangMoi(statusIcon, extraFields, savedMaKH);
+                    }
+                } else {
+                    // API trả về 404 hoặc lỗi khác -> Coi như khách hàng mới
+                    hienThiNhapKhachHangMoi(statusIcon, extraFields, savedMaKH);
+                }
+            } catch (error) {
+                console.error("Lỗi check SDT:", error);
+                hienThiNhapKhachHangMoi(statusIcon, extraFields, savedMaKH);
+            }
+        } else {
+            // Khi đang nhập dở hoặc xóa bớt số
+            statusIcon.classList.add('d-none');
+            extraFields.style.display = 'none';
+            savedMaKH.value = "";
+        }
+    });
+
+    // Hàm bổ trợ hiển thị ô nhập khách hàng mới
+    function hienThiNhapKhachHangMoi(icon, fields, hiddenInput) {
+        icon.innerHTML = '<i class="fas fa-user-plus text-warning" title="Khách hàng mới"></i>';
+        fields.style.display = 'block'; // Hiện ô nhập thông tin
+        hiddenInput.value = ""; // Đánh dấu là tạo mới
+    }
+
+    function xoaTrangThongTinKhachHangMoi() {
+        document.getElementById('add_TenLienHe').value = "";
+        document.getElementById('add_TenCongTy').value = "";
+        document.getElementById('add_ThanhPho').value = "";
+        document.getElementById('add_Phuong').value = "";
+        document.getElementById('add_Duong').value = "";
+    }
+
+    // 2. Hàm thực hiện Lưu (Giữ nguyên logic cũ của bạn nhưng bọc trong try-catch chặt chẽ)
+    async function thucHienThemMoi() {
+        const form = document.getElementById('formThemHopDong');
+        if (!form.checkValidity()) {
+            form.reportValidity();
             return;
         }
 
-        // 2. Khởi tạo FormData để gửi cả Text và File
-        const formData = new FormData();
-        formData.append("TenHopDong", tenHD);
-        formData.append("MaKhachHang", maKH);
-        formData.append("LoaiHangHoa", document.getElementById('add_LoaiHangHoa').value.trim());
-        formData.append("TrangThai", document.getElementById('add_TrangThai').value);
-        formData.append("NgayKy", document.getElementById('add_NgayKy').value);
-        formData.append("NgayHetHan", document.getElementById('add_NgayHetHan').value);
-
-        // Xử lý File
-        const fileInput = document.getElementById('add_File');
-            if (fileInput.files.length > 0) {
-                formData.append("file", fileInput.files[0]); // Key "file" khớp với tham số 'IFormFile? file' trong Controller
-        }
-
-        // 3. Hiển thị Loading
         Swal.fire({
             title: 'Đang xử lý...',
-            text: 'Vui lòng chờ trong giây lát',
             allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
+            didOpen: () => { Swal.showLoading(); }
         });
 
         try {
-            // 4. Gọi API (Lưu ý: Không set Content-Type header khi dùng FormData)
+            const sdt = document.getElementById('add_SoDienThoai').value.trim();
+            let finalMaKH = document.getElementById('saved_MaKhachHang').value;
+
+            // Nếu là khách hàng mới (chưa có MaKH)
+            if (!finalMaKH) {
+                const customerPayload = {
+                    SoDienThoai: sdt,
+                    TenLienHe: document.getElementById('add_TenLienHe').value,
+                    TenCongTy: document.getElementById('add_TenCongTy').value,
+                    DiaChi: {
+                        ThanhPho: document.getElementById('add_ThanhPho').value,
+                        Phuong: document.getElementById('add_Phuong').value,
+                        Duong: document.getElementById('add_Duong').value
+                    }
+                };
+
+                const resCustomer = await fetch('https://localhost:7149/api/quanlykhachhang/them_moi_khach_hang', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(customerPayload),
+                    credentials: 'include'
+                });
+
+                if (!resCustomer.ok) throw new Error("Không thể tạo thông tin khách hàng mới.");
+                const customerData = await resCustomer.json();
+                finalMaKH = customerData.maKhachHang;
+            }
+
+            // Gửi dữ liệu hợp đồng
+            const formData = new FormData();
+            formData.append("TenHopDong", document.getElementById('add_TenHopDong').value.trim());
+            formData.append("MaKhachHang", finalMaKH);
+            formData.append("LoaiHangHoa", document.getElementById('add_LoaiHangHoa').value.trim());
+            formData.append("TrangThai", document.getElementById('add_TrangThai').value);
+            formData.append("NgayKy", document.getElementById('add_NgayKy').value);
+            formData.append("NgayHetHan", document.getElementById('add_NgayHetHan').value);
+
+            const fileInput = document.getElementById('add_File');
+            if (fileInput.files.length > 0) formData.append("file", fileInput.files[0]);
+
             const response = await fetch('https://localhost:7149/api/quanlyhopdong/them-moi', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                credentials: 'include'
             });
 
-            const result = await response.json();
-
-            if (response.ok && result.success) {
-                await Swal.fire({
-                    icon: 'success',
-                    title: 'Thành công!',
-                    text: 'Hợp đồng đã được thêm mới.',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
+            if (response.ok) {
+                await Swal.fire('Thành công!', 'Hợp đồng đã được lưu.', 'success');
                 location.reload();
             } else {
-                Swal.fire('Lỗi', result.message || 'Có lỗi xảy ra khi lưu dữ liệu', 'error');
+                const err = await response.json();
+                throw new Error(err.message || 'Lỗi khi lưu hợp đồng');
             }
         } catch (error) {
-            console.error("Error:", error);
-            Swal.fire('Lỗi kết nối', 'Không thể kết nối tới máy chủ API', 'error');
+            Swal.fire('Lỗi', error.message, 'error');
         }
     }
 </script>

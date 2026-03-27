@@ -17,5 +17,5 @@ public partial class DinhMucBaoTri
 
     public virtual ICollection<LichSuBaoTri> LichSuBaoTris { get; set; } = new List<LichSuBaoTri>();
 
-    public virtual LoaiXe? MaLoaiXeNavigation { get; set; }
+    public virtual LoaiXe MaLoaiXeNavigation { get; set; } = null!;
 }

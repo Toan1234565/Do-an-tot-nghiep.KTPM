@@ -60,7 +60,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
                 }
                 else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 {
-                    return RedirectToAction("Login", "Account"); // Hoặc trang thông báo lỗi
+                    return RedirectToAction("DangNhap", "QuanLyPhanQuyen"); // Hoặc trang thông báo lỗi
                 }
                 else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {

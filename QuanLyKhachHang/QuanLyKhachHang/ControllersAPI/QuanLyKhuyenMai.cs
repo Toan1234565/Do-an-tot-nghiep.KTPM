@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
+using NetTopologySuite.Index.HPRtree;
 using QuanLyKhachHang.Models;
+using QuanLyKhachHang.Models1;
 using QuanLyKhachHang.Models1.QuanLyKhuyenMai;
+using Tmdt.Shared.Services;
 
 namespace QuanLyKhachHang.ControllersAPI
 {
@@ -18,12 +21,14 @@ namespace QuanLyKhachHang.ControllersAPI
         private readonly IMemoryCache _cache;
         private const string PriceRegionCachePrefix = "PriceRegionList_";
         private static CancellationTokenSource _resetCacheToken = new CancellationTokenSource();
+        private readonly ISystemService _sys;
 
-        public QuanLyKhuyenMaiController(ILogger<QuanLyKhuyenMaiController> logger, TmdtContext context, IMemoryCache memoryCache)
+        public QuanLyKhuyenMaiController(ILogger<QuanLyKhuyenMaiController> logger, TmdtContext context, IMemoryCache memoryCache, ISystemService sys)
         {
             _logger = logger;
             _context = context;
             _cache = memoryCache;
+            _sys = sys;
         }
 
         [HttpGet("danhsachkhuyenmai")]
@@ -148,8 +153,25 @@ namespace QuanLyKhachHang.ControllersAPI
             {
                 var item = await _context.KhuyenMais.FindAsync(id);
                 if(item == null) return NotFound(new { message = "Không tìm thấy dữ liệu" });
+                var datacu = new Dictionary<string, object>{
+                    { "Tên khuyến mãi ", item.TenChuongTrinh},
+                };
                 item.TrangThai = false;                         
                 await _context.SaveChangesAsync();
+
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý khuyến mãi",
+                    "Vô hiệu hóa khuyến mãi",
+                    "Khuyến mãi",
+                    id.ToString(),
+                    datacu,
+                    new Dictionary<string, object>
+                    {
+                        { "Trạng thái", "Ngừng hoạt động" }
+                    }
+
+                );
+
                 ClearPriceRegionCache();
                 return Ok(new { success = true, message = "Đã ngừng áp dụng bảng giá này." });
             }
@@ -168,7 +190,11 @@ namespace QuanLyKhachHang.ControllersAPI
                 var item = await _context.KhuyenMais.FindAsync(id);
                 if (item == null)
                     return NotFound(new { success = false, message = "Không tìm thấy chương trình khuyến mãi" });
-
+                var datacu = new Dictionary<string, object>
+                {
+                    {"Tên khuyến mãi ", item.TenChuongTrinh},
+                    {"Thời gian", item.NgayBatDau - item.NgayKetThuc}
+                };
                 // 2. Nếu đã hết hạn, yêu cầu cập nhật thời gian mới từ Body
                 if (item.NgayKetThuc < DateTime.Now)
                 {
@@ -187,6 +213,18 @@ namespace QuanLyKhachHang.ControllersAPI
 
                 // Lưu thay đổi
                 await _context.SaveChangesAsync();
+
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý khuyến mãi",
+                    "Kích hoạt lại khuyến mãi",
+                    "Khuyến mãi",
+                    "",
+                    datacu,
+                    new Dictionary<string, object>
+                    {
+                        { "Trạng thái", "Ngưng hoạt động"}
+                    }
+                );
 
                 // 4. Xóa Cache để đồng bộ dữ liệu mới nhất
                 ClearPriceRegionCache();
@@ -225,6 +263,26 @@ namespace QuanLyKhachHang.ControllersAPI
                 _context.KhuyenMais.Add(newEntry);
                 await _context.SaveChangesAsync();
 
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý khuyến mãi",
+                    "Thêm khuyến mãi",
+                    "Khuyến mãi",
+                    "",
+                    new Dictionary<string, object>(),
+                    new Dictionary<string, object>
+                    {
+                        { "Mã Code", model.CodeKhuyenMai },
+                        { "Tên chương trình", model.TenChuongTrinh },
+                        { "Loại KM", model.MaLoaiKmNavigation?.TenLoai ?? "N/A" },
+                        { "Hình thức", model.KieuGiamGia == "Percentage" ? "Giảm theo %" : "Giảm tiền mặt" },
+                        { "Giá trị giảm", model.GiaTriGiam + (model.KieuGiamGia == "Percentage" ? "%" : " VNĐ") },
+                        { "Giảm tối đa", model.GiamToiDa?.ToString("N0") + " VNĐ" },
+                        { "Đơn tối thiểu", model.DonHangToiThieu?.ToString("N0") + " VNĐ" },
+                        { "Số lượng", model.SoLuongToiDa ?? 0 },
+                        { "Thời gian", $"{model.NgayBatDau?.ToString("dd/MM/yyyy")} - {model.NgayKetThuc?.ToString("dd/MM/yyyy")}" }
+                    }
+                );
+
                 ClearPriceRegionCache();
                 return Ok(new { success = true, message = "Tạo mới thành công!", id = newEntry.MaKhuyenMai });
             }
@@ -245,30 +303,77 @@ namespace QuanLyKhachHang.ControllersAPI
 
             try
             {
-                var existing = await _context.KhuyenMais.FindAsync(id);
-                if (existing == null) return NotFound(new { success = false, message = "Không tìm thấy." });
+                // 1. Lấy dữ liệu cũ để so sánh hoặc lấy thông tin Navigation (như TenLoai)
+                var existing = await _context.KhuyenMais
+                    .Include(x => x.MaLoaiKmNavigation)
+                    .FirstOrDefaultAsync(x => x.MaKhuyenMai == id);
 
-                // Kiểm tra trùng mã code với bản ghi KHÁC bản ghi hiện tại
+                if (existing == null) return NotFound(new { success = false, message = "Không tìm thấy chương trình." });
+
+                // Lưu lại dữ liệu cũ trước khi ghi đè để log (nếu cần so sánh)
+                // 1. Lưu lại dữ liệu cũ (Đầy đủ các trường để đối chiếu)
+                var dataCu = new Dictionary<string, object>
+                {
+                    { "Tên chương trình", existing.TenChuongTrinh },
+                    { "Số lượng", existing.SoLuongToiDa ?? 0 },
+                    { "Giá trị giảm", existing.GiaTriGiam },
+                    { "Giảm tối đa", existing.GiamToiDa ?? 0 },
+                    { "Đơn tối thiểu", existing.DonHangToiThieu ?? 0 },
+                    { "Loại KM", existing.MaLoaiKmNavigation?.TenLoai ?? "N/A" },
+                    { "Thời gian", $"{existing.NgayBatDau?.ToString("dd/MM/yyyy")} - {existing.NgayKetThuc?.ToString("dd/MM/yyyy")}" }
+                };
+
+                // 2. Kiểm tra trùng mã code
                 if (await _context.KhuyenMais.AnyAsync(x => x.CodeKhuyenMai == km.CodeKhuyenMai && x.MaKhuyenMai != id))
                     return BadRequest(new { success = false, message = "Mã code đã được sử dụng bởi chương trình khác." });
-                
-                // TỐI ƯU: Cập nhật thông minh
-                // Thay vì gán từng dòng, SetValues sẽ tự động tìm các thuộc tính trùng tên để ghi đè
+
+                // 3. Cập nhật dữ liệu
                 _context.Entry(existing).CurrentValues.SetValues(km);
                 existing.TrangThai = true;
-                // Giữ lại ID cũ để tránh lỗi logic nếu người dùng gửi ID khác trong body
                 existing.MaKhuyenMai = id;
 
                 await _context.SaveChangesAsync();
-                ClearPriceRegionCache();
+
+                // 1. Tạo dictionary chứa toàn bộ dữ liệu mới (để so sánh)
+                var dataMoiToanBo = new Dictionary<string, object>
+                {
+                    { "Tên chương trình", existing.TenChuongTrinh },
+                    { "Số lượng", existing.SoLuongToiDa ?? 0 },
+                    { "Giá trị giảm", existing.GiaTriGiam },
+                    { "Giảm tối đa", existing.GiamToiDa ?? 0 },
+                    { "Đơn tối thiểu", existing.DonHangToiThieu ?? 0 },
+                    { "Loại KM", existing.MaLoaiKmNavigation?.TenLoai ?? "N/A" },
+                    { "Thời gian", $"{existing.NgayBatDau?.ToString("dd/MM/yyyy")} - {existing.NgayKetThuc?.ToString("dd/MM/yyyy")}" }
+                };
+
+                // 2. Lọc ra chỉ những trường bị thay đổi
+                var (diffCu, diffMoi) = LocThayDoi.GetChanges(dataCu, dataMoiToanBo);
+
+                // 3. Nếu có thay đổi thì mới ghi log (hoặc ghi log với dữ liệu đã lọc)
+                if (diffMoi.Count > 0)
+                {
+                    // Thêm tên chương trình vào để dễ nhận diện trong danh sách log tổng
+                    if (!diffMoi.ContainsKey("Tên chương trình"))
+                        diffMoi.Add("Tên chương trình (Update)", existing.TenChuongTrinh);
+
+                    await _sys.GhiLogVaResetCacheAsync(
+                        "Quản lý khuyến mãi",
+                        "Cập nhật khuyến mãi",
+                        "Khuyến mãi",
+                        id.ToString(),
+                        diffCu,  // Chỉ chứa các giá trị cũ của trường bị sửa
+                        diffMoi  // Chỉ chứa các giá trị mới của trường bị sửa
+                    );
+                }
 
                 return Ok(new { success = true, message = "Cập nhật thành công." });
             }
-            catch (DbUpdateConcurrencyException)
+            catch (Exception ex)
             {
-                return Conflict(new { success = false, message = "Dữ liệu đã bị thay đổi, vui lòng tải lại." });
+                return StatusCode(500, new { success = false, message = "Lỗi: " + ex.Message });
             }
         }
+
         private string? ValidateKhuyenMai(KhuyenMaiModels model)
         {
             if (model.NgayBatDau >= model.NgayKetThuc)

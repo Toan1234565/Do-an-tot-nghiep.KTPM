@@ -4,7 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
 using QuanLyKhachHang.Models;
+using QuanLyKhachHang.Models1;
 using QuanLyKhachHang.Models1.QuanLyHopDong;
+using Tmdt.Shared.Services;
 
 namespace QuanLyKhachHang.ControllersAPI
 {
@@ -22,11 +24,14 @@ namespace QuanLyKhachHang.ControllersAPI
         // Token để xóa toàn bộ cache thuộc prefix này khi có thay đổi dữ liệu
         private static CancellationTokenSource _resetCacheToken = new CancellationTokenSource();
 
-        public QuanLyHopDong(ILogger<QuanLyHopDong> logger, TmdtContext context, IMemoryCache cache)
+        private readonly ISystemService _sys;
+
+        public QuanLyHopDong(ILogger<QuanLyHopDong> logger, TmdtContext context, IMemoryCache cache, ISystemService sys)
         {
             _logger = logger;
             _context = context;
             _cache = cache;
+            _sys = sys;
         }
 
         [HttpGet("danhsachhopdong")]
@@ -231,6 +236,21 @@ namespace QuanLyKhachHang.ControllersAPI
                 _context.HopDongVanChuyens.Add(model);
                 await _context.SaveChangesAsync();
 
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý hợp đồng",
+                    "Thêm mới hợp đồng",
+                    "Hợp đồng",
+                    "",
+                    new Dictionary<string, object>(),
+                    new Dictionary<string, object>
+                    {
+                        {"Mã hợp đồng",model.MaHopDong},
+                        {"Tên hợp đồng", model.TenHopDong },
+                        {"Thời gian", $"{model.NgayKy?.ToString("dd/MM/yyyy")} - {model.NgayHetHan?.ToString("dd/MM/yyyy")}"}
+
+                    }
+                );
+
                 // Xóa cache để danh sách mới được cập nhật
                 ClearContractCache();
 
@@ -250,45 +270,39 @@ namespace QuanLyKhachHang.ControllersAPI
         [HttpPut("cap-nhat/{id}")]
         public async Task<IActionResult> CapNhat(int id, [FromForm] HopDongVanChuyen model, IFormFile? file)
         {
-            // 1. Kiểm tra ID nhất quán
-            if (model.MaHopDong != 0 && id != model.MaHopDong)
-            {
-                return BadRequest(new { success = false, message = "ID hợp đồng không khớp giữa Route và Body." });
-            }
-
             try
             {
-                // 2. Kiểm tra sự tồn tại (Chỉ lấy MaHopDong, tránh tải cột FileHopDong nặng nề)
-                var contractExists = await _context.HopDongVanChuyens
-                    .AnyAsync(x => x.MaHopDong == id);
+                // 1. LẤY DỮ LIỆU CŨ THẬT TỪ DB (Bắt buộc phải có để so sánh)
+                var existingFromDb = await _context.HopDongVanChuyens
+                    .AsNoTracking() // Dùng AsNoTracking để không bị xung đột khi Attach sau này
+                    .FirstOrDefaultAsync(x => x.MaHopDong == id);
 
-                if (!contractExists)
+                if (existingFromDb == null)
+                    return NotFound(new { success = false, message = $"Không tìm thấy hợp đồng {id}." });
+
+                // 2. Khởi tạo dataCu từ dữ liệu TRONG DATABASE
+                var datacu = new Dictionary<string, object>
                 {
-                    return NotFound(new { success = false, message = $"Không tìm thấy hợp đồng mã số {id}." });
-                }
+                    {"Mã hợp đồng", existingFromDb.MaHopDong },
+                    {"Tên", existingFromDb.TenHopDong ?? "" },
+                    {"Loại hàng", existingFromDb.LoaiHangHoa ?? "" },
+                    {"Trạng thái", existingFromDb.TrangThai ?? "" },
+                    {"Thời gian", $"{existingFromDb.NgayKy?.ToString("dd/MM/yyyy")} - {existingFromDb.NgayHetHan?.ToString("dd/MM/yyyy")}"}
+                };
 
-                // 3. Sử dụng kỹ thuật Attach để cập nhật (Tối ưu hiệu suất)
-                // Thay vì FindAsync (tải hết data), ta tạo một object đại diện cho bản ghi hiện tại
+                // 3. Thực hiện Attach và cập nhật (Giữ nguyên logic tối ưu của bạn)
                 var existingContract = new HopDongVanChuyen { MaHopDong = id };
                 _context.HopDongVanChuyens.Attach(existingContract);
 
-                // 4. Áp dụng logic thay đổi các trường dữ liệu
                 existingContract.TenHopDong = model.TenHopDong;
                 existingContract.LoaiHangHoa = model.LoaiHangHoa;
                 existingContract.NgayKy = model.NgayKy;
                 existingContract.NgayHetHan = model.NgayHetHan;
 
-                // Logic tự động chuyển trạng thái nếu hết hạn
-                if (model.NgayHetHan.HasValue && model.NgayHetHan < DateTime.Now)
-                {
-                    existingContract.TrangThai = "Hết hiệu lực";
-                }
-                else
-                {
-                    existingContract.TrangThai = model.TrangThai;
-                }
+                // Logic tự động chuyển trạng thái
+                existingContract.TrangThai = (model.NgayHetHan.HasValue && model.NgayHetHan < DateTime.Now)
+                                             ? "Hết hiệu lực" : model.TrangThai;
 
-                // Đánh dấu các trường này là "Modified" để EF sinh câu lệnh Update chính xác
                 var entry = _context.Entry(existingContract);
                 entry.Property(x => x.TenHopDong).IsModified = true;
                 entry.Property(x => x.LoaiHangHoa).IsModified = true;
@@ -296,48 +310,49 @@ namespace QuanLyKhachHang.ControllersAPI
                 entry.Property(x => x.NgayHetHan).IsModified = true;
                 entry.Property(x => x.TrangThai).IsModified = true;
 
-                // 5. Xử lý File (Chỉ cập nhật nếu người dùng upload file mới)
+                // 4. Xử lý File
                 if (file != null && file.Length > 0)
                 {
-                    // Kiểm tra dung lượng (ví dụ giới hạn 10MB)
-                    if (file.Length > 10 * 1024 * 1024)
-                        return BadRequest(new { success = false, message = "File hợp đồng không được vượt quá 10MB." });
-
                     using var ms = new MemoryStream();
                     await file.CopyToAsync(ms);
-
                     existingContract.FileHopDong = ms.ToArray();
                     existingContract.TenFileGoc = file.FileName;
-
                     entry.Property(x => x.FileHopDong).IsModified = true;
                     entry.Property(x => x.TenFileGoc).IsModified = true;
                 }
 
-                // 6. Thực thi cập nhật xuống Database
                 await _context.SaveChangesAsync();
 
-                // 7. Xóa Cache (Nếu có) để người dùng thấy dữ liệu mới ngay lập tức
-                ClearContractCache();
-
-                return Ok(new
+                // 5. Khởi tạo dataMoi từ object đã cập nhật
+                var dataMoiToanBo = new Dictionary<string, object>
                 {
-                    success = true,
-                    message = "Cập nhật thông tin hợp đồng thành công!",
-                    data = new
-                    {
-                        id = existingContract.MaHopDong,
-                        trangThai = existingContract.TrangThai
-                    }
-                });
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                return Conflict(new { success = false, message = "Dữ liệu đã bị thay đổi bởi một tiến trình khác. Vui lòng tải lại trang." });
+                    {"Mã hợp đồng", existingContract.MaHopDong },
+                    {"Tên", existingContract.TenHopDong ?? "" },
+                    {"Loại hàng", existingContract.LoaiHangHoa ?? "" },
+                    {"Trạng thái", existingContract.TrangThai ?? "" },
+                    {"Thời gian", $"{existingContract.NgayKy?.ToString("dd/MM/yyyy")} - {existingContract.NgayHetHan?.ToString("dd/MM/yyyy")}"}
+                };
+
+                // 6. SO SÁNH VÀ GHI LOG
+                var (diffCu, diffMoi) = LocThayDoi.GetChanges(datacu, dataMoiToanBo);
+
+                if (diffMoi.Count > 0)
+                {
+                    await _sys.GhiLogVaResetCacheAsync(
+                        "Quản lý hợp đồng",
+                        "Cập nhật thông tin hợp đồng",
+                        "Hợp đồng",
+                        id.ToString(),
+                        diffCu,
+                        diffMoi
+                    );
+                }
+                ClearContractCache();
+                return Ok(new { success = true, message = "Cập nhật thành công!" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi cập nhật hợp đồng ID: {Id}", id);
-                return StatusCode(500, new { success = false, message = "Lỗi hệ thống: " + ex.Message });
+                return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
         [HttpGet("download-file/{id}")]

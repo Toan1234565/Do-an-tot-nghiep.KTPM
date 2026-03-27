@@ -16,6 +16,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.23" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="OfficeOpenXml.Core.ExcelPackage" Version="1.0.0" />
@@ -24,6 +25,12 @@
 
   <ItemGroup>
     <Folder Include="Models12\NewFolder\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Tmdt.Shared.Services">
+      <HintPath>..\..\Tmdt.Shared.Services\Tmdt.Shared.Services\bin\Debug\net8.0\Tmdt.Shared.Services.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

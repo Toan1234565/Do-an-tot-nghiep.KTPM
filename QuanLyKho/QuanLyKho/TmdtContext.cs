@@ -16,6 +16,8 @@ public partial class TmdtContext : DbContext
     {
     }
 
+    public virtual DbSet<ChiTietNhanSuPhanCong> ChiTietNhanSuPhanCongs { get; set; }
+
     public virtual DbSet<DangKiem> DangKiems { get; set; }
 
     public virtual DbSet<DinhMucBaoTri> DinhMucBaoTris { get; set; }
@@ -28,6 +30,8 @@ public partial class TmdtContext : DbContext
 
     public virtual DbSet<LoaiXe> LoaiXes { get; set; }
 
+    public virtual DbSet<PhanCongXe> PhanCongXes { get; set; }
+
     public virtual DbSet<PhuongTien> PhuongTiens { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -36,6 +40,27 @@ public partial class TmdtContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<ChiTietNhanSuPhanCong>(entity =>
+        {
+            entity.HasKey(e => e.MaChiTiet).HasName("PK__ChiTietN__CD8DB514812D2641");
+
+            entity.ToTable("ChiTietNhanSu_PhanCong");
+
+            entity.Property(e => e.MaChiTiet).HasColumnName("ma_chi_tiet");
+            entity.Property(e => e.GhiChuRieng)
+                .HasMaxLength(500)
+                .HasColumnName("ghi_chu_rieng");
+            entity.Property(e => e.MaNguoiDung).HasColumnName("ma_nguoi_dung");
+            entity.Property(e => e.MaPhanCong).HasColumnName("ma_phan_cong");
+            entity.Property(e => e.VaiTro)
+                .HasMaxLength(50)
+                .HasColumnName("vai_tro");
+
+            entity.HasOne(d => d.MaPhanCongNavigation).WithMany(p => p.ChiTietNhanSuPhanCongs)
+                .HasForeignKey(d => d.MaPhanCong)
+                .HasConstraintName("FK_ChiTiet_PhanCong");
+        });
+
         modelBuilder.Entity<DangKiem>(entity =>
         {
             entity.HasKey(e => e.IdDangKiem).HasName("PK__Dang_Kie__51FB7C9F67B5F6AA");
@@ -103,6 +128,9 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.MaDiaChi).HasColumnName("ma_dia_chi");
             entity.Property(e => e.MaLoaiKho).HasColumnName("ma_loai_kho");
             entity.Property(e => e.MaQuanLy).HasColumnName("ma_quan_ly");
+            entity.Property(e => e.MaVungH3)
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.SoDienThoaiKho)
                 .HasMaxLength(15)
                 .IsUnicode(false)
@@ -174,6 +202,38 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.TenLoai)
                 .HasMaxLength(50)
                 .HasColumnName("ten_loai");
+        });
+
+        modelBuilder.Entity<PhanCongXe>(entity =>
+        {
+            entity.HasKey(e => e.MaPhanCong).HasName("PK__PhanCong__59F41CE3006B4B28");
+
+            entity.ToTable("PhanCongXe");
+
+            entity.Property(e => e.MaPhanCong).HasColumnName("ma_phan_cong");
+            entity.Property(e => e.GhiChu).HasColumnName("ghi_chu");
+            entity.Property(e => e.MaPhuongTien).HasColumnName("ma_phuong_tien");
+            entity.Property(e => e.NgayBatDauBanGiao)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime")
+                .HasColumnName("ngay_bat_dau_ban_giao");
+            entity.Property(e => e.NgayKetThucDuKien)
+                .HasColumnType("datetime")
+                .HasColumnName("ngay_ket_thuc_du_kien");
+            entity.Property(e => e.NgayTraXeThucTe)
+                .HasColumnType("datetime")
+                .HasColumnName("ngay_tra_xe_thuc_te");
+            entity.Property(e => e.SoKmLucNhan).HasColumnName("so_km_luc_nhan");
+            entity.Property(e => e.SoKmLucTra).HasColumnName("so_km_luc_tra");
+            entity.Property(e => e.TrangThaiBanGiao)
+                .HasMaxLength(50)
+                .HasDefaultValue("Đang sử dụng")
+                .HasColumnName("trang_thai_ban_giao");
+
+            entity.HasOne(d => d.MaPhuongTienNavigation).WithMany(p => p.PhanCongXes)
+                .HasForeignKey(d => d.MaPhuongTien)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PhanCong_PhuongTien");
         });
 
         modelBuilder.Entity<PhuongTien>(entity =>

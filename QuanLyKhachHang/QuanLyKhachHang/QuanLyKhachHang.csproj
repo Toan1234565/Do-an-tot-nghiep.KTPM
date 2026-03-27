@@ -13,9 +13,20 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="6.1.0" />
     <PackageReference Include="pocketken.H3" Version="4.0.0" />
+    <PackageReference Include="RabbitMQ.Client" Version="7.2.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="QuanLyTaiKhoanNguoiDung">
+      <HintPath>..\..\QuanLyTaiKhoanNguoiDung\QuanLyTaiKhoanNguoiDung\bin\Debug\net8.0\QuanLyTaiKhoanNguoiDung.dll</HintPath>
+    </Reference>
+    <Reference Include="Tmdt.Shared.Services">
+      <HintPath>..\..\Tmdt.Shared.Services\Tmdt.Shared.Services\bin\Debug\net8.0\Tmdt.Shared.Services.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

@@ -19,6 +19,7 @@ using QuanLyTaiKhoanNguoiDung.Services;
 using System.Security.Claims; // Thư viện băm mật khẩu
 using System.Security.Cryptography; // Để dùng cho việc sinh chuỗi ngẫu nhiên an toàn hơn
 using System.Text;
+using Tmdt.Shared.Services;
 
 
 namespace TaiKhoan1.ControllersAPI
@@ -119,16 +120,18 @@ namespace TaiKhoan1.ControllersAPI
                 await HttpContext.SignInAsync(
                     CookieAuthenticationDefaults.AuthenticationScheme,
                     new ClaimsPrincipal(claimsIdentity),
-                    new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(20) }
+                    new AuthenticationProperties { IsPersistent = true,
+                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(20) }
                 );
-
+                HttpContext.Session.SetString("MaNguoiDung", taiKhoan.MaNguoiDung.ToString());
+                HttpContext.Session.SetString("HoTenNhanVien", hoTen);
                 // 8. Trả về JSON chuẩn
                 return Ok(new
                 {
                     message = "Đăng nhập thành công",
                     userId = taiKhoan.MaNguoiDung,
-                    userName = taiKhoan.TenDangNhap       
-                    
+                    userName = taiKhoan.TenDangNhap,
+                    fullName = hoTen // Trả thêm họ tên về cho Client nếu cần dùng ngay
                 });
             }
             catch (Exception ex)
@@ -136,6 +139,36 @@ namespace TaiKhoan1.ControllersAPI
                 // Nếu DB lỗi (thiếu cột...), chữ "M" sẽ xuất phát từ đây nếu không catch tốt
                 return StatusCode(500, new { message ="Lỗi hệ thống khi truy vấn dữ liệu", detail = ex.Message });
             }
+        }
+        [HttpGet("check-auth-info")]
+        public IActionResult CheckAuthInfo()
+        {
+            // 1. Lấy thông tin từ Cookie (thông qua Claims)
+            var cookieData = User.Claims.Select(c => new
+            {
+                Type = c.Type,
+                Value = c.Value
+            }).ToList();
+
+            // 2. Lấy thông tin từ Session
+            // Lưu ý: Session lưu dưới dạng byte[], nên cần lấy key và convert sang string
+            var sessionData = new Dictionary<string, string>();
+            foreach (var key in HttpContext.Session.Keys)
+            {
+                sessionData.Add(key, HttpContext.Session.GetString(key) ?? "n/a");
+            }
+
+            // 3. Lấy thông tin bổ sung từ Header (nếu cần xem Cookie thô)
+            var rawCookies = Request.Cookies.Select(c => new { c.Key, c.Value }).ToList();
+
+            return Ok(new
+            {
+                IsAuthenticated = User.Identity?.IsAuthenticated,
+                AuthenticationType = User.Identity?.AuthenticationType,
+                CookieClaims = cookieData,
+                SessionValues = sessionData,
+                RawCookiesHeader = rawCookies
+            });
         }
 
         [Authorize] // Thêm Authorize để đảm bảo chỉ người đã đăng nhập mới gọi được
@@ -281,6 +314,7 @@ namespace TaiKhoan1.ControllersAPI
             {
                 return StatusCode(403, new { message = "Bạn không có quyền thực hiện hành động này." });
             }
+            
             // 1. Tối ưu: Lấy tài khoản kèm thông tin người dùng để gửi mail ngay
             var tk = await _context.TaiKhoans
                 .Include(t => t.NguoiDung)
@@ -289,7 +323,7 @@ namespace TaiKhoan1.ControllersAPI
 
             if (tk == null) return NotFound(new { message = "Không tìm thấy tài khoản" });
             if (tk.HoatDong == false) return BadRequest(new { message = "Tài khoản đã bị khóa trước đó" });
-
+            if(tk.MaNguoiDung == GetCurrentUserId()) return BadRequest(new { message = "Bạn không thể khóa chính tài khoản của mình" });
             // 2. Cập nhật trạng thái
             tk.HoatDong = false;
             if (tk.NguoiDung?.TaiXe != null)
@@ -324,7 +358,7 @@ namespace TaiKhoan1.ControllersAPI
 
                 await _sys.GhiLogVaResetCacheAsync(
                     "Quản lý nhân viên",
-                    "Vô hiệu hóa tài khoản" + tenNhanVienBiKhoa,
+                    "Vô hiệu hóa tài khoản " + tenNhanVienBiKhoa,
                     "TaiKhoan",
                     id.ToString(),
                     // Dữ liệu cũ
@@ -389,7 +423,7 @@ namespace TaiKhoan1.ControllersAPI
                 }
                 await _sys.GhiLogVaResetCacheAsync(
                     "Quản lý nhân viên",
-                    "Vô hiệu hóa tài khoản" + tenNhanVienBiKhoa,
+                    "Vô hiệu hóa tài khoản " + tenNhanVienBiKhoa,
                     "TaiKhoan",
                     id.ToString(),
                     // Dữ liệu cũ

@@ -12,8 +12,13 @@
     <title>Quản lý Bảng giá Vận tải | TMS</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <link rel="stylesheet" href="~/css/giaodiendanhsach.css" asp-append-version="true" />
     <style>
         
@@ -61,6 +66,20 @@
                     <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addPriceModal">
                         <i class="fa-solid fa-plus me-1"></i> Thêm mới bảng giá
                     </button>
+                    <div class="position-relative">
+                        <button type="button"
+                                class="btn btn-light rounded-circle shadow-sm btn-nhat-ky d-flex align-items-center justify-content-center"
+                                style="width: 42px; height: 42px; border: 1px solid #dee2e6;"
+                                data-bs-toggle="modal"
+                                data-bs-target="#detailModal"
+                                data-service="Quản lý bảng giá vùng"
+                                title="Xem nhật ký hoạt động">
+                            <i class="fa-solid fa-bell text-primary fs-5"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                <span class="visually-hidden">Hoạt động mới</span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -108,7 +127,7 @@
                 </div>
             </div>
 
-            <div class="table-responsive">
+            <div>
                 <table class="table custom-table align-middle">
                     <thead>
                         <tr>
@@ -180,7 +199,7 @@
                                             @if (item.IsActive == true)
                                             {
                                                 <button class="btn btn-sm btn-outline-primary rounded-pill me-2 px-3" onclick='editPrice(@Html.Raw(Json.Serialize(item)))'>
-                                                    <i class="fa-solid fa-pen-to-square"></i> Cập nhật
+                                                    <i class="fa-solid fa-pen-to-square"></i>
                                                 </button>
                                                 <button class="btn btn-sm btn-outline-danger rounded-pill me-2" onclick="deactivatePrice(@item.MaBangGia)" title="Vô hiệu hóa">
                                                     <i class="fa-solid fa-ban"></i>
@@ -355,6 +374,19 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nhật ký hệ thống</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modalBodyNhatKy">
+                    @await Html.PartialAsync("_NhatKyPartial")
+                </div>
+            </div>
+        </div>
+    </div>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -440,9 +472,9 @@
             // Chuyển đổi FormData thành JSON Object
             const dataArray = $(this).serializeArray();
             const formData = {};
+            const numericFields = ["MaBangGia", "LoaiTinhGia", "TrongLuongToiThieuKg", "TrongLuongToiDaKg", "DonGiaCoBan", "PhuPhiMoiKg", "DonGiaKm", "PhiDungDiem", "KmToiThieu"];
+
             dataArray.forEach(item => {
-                // Chuyển các giá trị số từ string sang number để khớp API
-                const numericFields = ["MaBangGia", "LoaiTinhGia", "TrongLuongToiThieuKg", "TrongLuongToiDaKg", "DonGiaCoBan", "PhuPhiMoiKg", "DonGiaKm", "PhiDungDiem", "KmToiThieu"];
                 if (numericFields.includes(item.name)) {
                     formData[item.name] = parseFloat(item.value) || 0;
                 } else {
@@ -454,31 +486,61 @@
             const isUpdate = formData.MaBangGia > 0;
             const url = isUpdate ? `${API_BASE}/capnhatgiavung` : `${API_BASE}/themmoibanggia`;
 
-            if(isUpdate) formData.Action = "UPDATE";
+            if (isUpdate) formData.Action = "UPDATE";
 
-            Swal.fire({ title: 'Đang xử lý...', didOpen: () => Swal.showLoading() });
+            Swal.fire({
+                title: 'Đang xử lý...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
 
             $.ajax({
                 url: url,
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify(formData),
+                // --- ĐIỂM CỐT YẾU CHO MICROSERVICES ---
+                xhrFields: {
+                    withCredentials: true // Gửi kèm Cookie xác thực sang Port 7149
+                },
                 success: function (res) {
-                    Swal.fire('Thành công', res.message, 'success').then(() => location.reload());
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công',
+                        text: res.message,
+                        timer: 2000
+                    }).then(() => location.reload());
                 },
                 error: function (xhr) {
-                    Swal.fire('Lỗi hệ thống', xhr.responseJSON?.message || "Vui lòng kiểm tra lại dữ liệu", 'error');
+                    // Xử lý khi hết phiên đăng nhập (Lỗi 401)
+                    if (xhr.status === 401) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Phiên làm việc hết hạn',
+                            text: 'Vui lòng đăng nhập lại để thực hiện thao tác này.',
+                            confirmButtonText: 'Đi tới Đăng nhập'
+                        }).then(() => {
+                            const returnUrl = encodeURIComponent(window.location.href);
+                            // Điều hướng sang App Quản lý phân quyền ở Port 7022
+                            window.location.href = `https://localhost:7022/QuanLyPhanQuyen/DangNhap?ReturnUrl=${returnUrl}`;
+                        });
+                    } else {
+                        // Các lỗi logic khác từ Server (400, 404, 500)
+                        const errorMsg = xhr.responseJSON?.message || "Vui lòng kiểm tra lại dữ liệu hoặc liên hệ Admin";
+                        Swal.fire('Lỗi hệ thống', errorMsg, 'error');
+                    }
                 }
             });
         });
-
-        // 7. Vô hiệu hóa bảng giá (API Delete)
+                // 7. Vô hiệu hóa bảng giá (API Delete)
         function deactivatePrice(id) {
             Swal.fire({
-                title: 'Ngừng áp dụng?',
-                text: "Bảng giá này sẽ bị vô hiệu hóa và lưu vào lịch sử.",
+                title: 'Xác nhận ngừng áp dụng?',
+                text: "Bảng giá này sẽ bị vô hiệu hóa và lưu vào nhật ký hệ thống.",
                 icon: 'warning',
                 showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
                 confirmButtonText: 'Đồng ý',
                 cancelButtonText: 'Hủy'
             }).then((result) => {
@@ -486,11 +548,35 @@
                     $.ajax({
                         url: `${API_BASE}/vô-hieu-hoa/${id}`,
                         type: 'DELETE',
-                        success: function(res) {
-                            Swal.fire('Đã vô hiệu hóa', res.message, 'success').then(() => location.reload());
+                        xhrFields: {
+                            withCredentials: true // BẮT BUỘC: Để trình duyệt gửi kèm Cookie Shared
                         },
-                        error: function() {
-                            Swal.fire('Lỗi', 'Không thể thực hiện thao tác', 'error');
+                        success: function(res) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Thành công',
+                                text: res.message,
+                                timer: 1500
+                            }).then(() => location.reload());
+                        },
+                        error: function(xhr) {
+                            // THỦ PHẠM 401: Hết hạn phiên đăng nhập
+                            if (xhr.status === 401) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Hết phiên đăng nhập',
+                                    text: 'Vui lòng đăng nhập lại để thực hiện thao tác này!',
+                                    confirmButtonText: 'Đăng nhập ngay'
+                                }).then(() => {
+                                    // Điều hướng sang App Tài khoản ở Port 7022
+                                    const returnUrl = encodeURIComponent(window.location.href);
+                                    window.location.href = `https://localhost:7022/QuanLyPhanQuyen/DangNhap?ReturnUrl=${returnUrl}`;
+                                });
+                            } else {
+                                // Các lỗi hệ thống khác (500, 404...)
+                                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'Không thể thực hiện thao tác';
+                                Swal.fire('Lỗi', msg, 'error');
+                            }
                         }
                     });
                 }

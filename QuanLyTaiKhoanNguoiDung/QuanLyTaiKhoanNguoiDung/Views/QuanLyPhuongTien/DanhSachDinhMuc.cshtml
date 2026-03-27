@@ -9,8 +9,13 @@
     <title>Quản Lý Định Mức Bảo Trì</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <link rel="stylesheet" href="~/css/giaodiendanhsach.css" asp-append-version="true" />
     <style>
       
@@ -101,6 +106,20 @@
                 <button class="btn btn-add-new" id="btnOpenAddModal">
                     <i class="fas fa-plus me-2"></i>Thêm định mức mới
                 </button>
+                <div class="position-relative">
+                    <button type="button"
+                            class="btn btn-light position-relative p-0 d-flex align-items-center justify-content-center rounded-circle border shadow-sm btn-nhat-ky"
+                            style="width: 42px; height: 42px; transition: all 0.3s;"
+                            data-bs-toggle="modal"
+                            data-bs-target="#detailModal"
+                            data-service="Quản lý phương tiện"
+                            title="Xem nhật ký hoạt động">
+                        <i class="fa-solid fa-bell fs-5 text-primary"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                            <span class="visually-hidden">New alerts</span>
+                        </span>
+                    </button>
+                </div>
             </div>
 
             <div class="filter-section">
@@ -205,6 +224,19 @@
                 </div>
             }
         </div>
+        <div class="modal fade" id="detailModal" data-bs-backdrop="static">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Nhật ký hệ thống</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="modalBodyNhatKy">
+                        @await Html.PartialAsync("_NhatKyPartial")
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <div class="modal fade" id="ModalDinhMuc" tabindex="-1" aria-hidden="true">
@@ -272,16 +304,28 @@
         // Mở modal sửa
         function editDinhMuc(id) {
             Swal.fire({ title: 'Đang tải...', didOpen: () => Swal.showLoading() });
-            $.get(`https://localhost:7286/api/quanlydinhmuc/chi-tiet/${id}`, function(data) {
-                Swal.close();
-                $('#MaDinhMuc').val(data.maDinhMuc);
-                $('#MaLoaiXe').val(data.maLoaiXe);
-                $('#TenHangMuc').val(data.tenHangMuc);
-                $('#DinhMucKm').val(data.dinhMucKm);
-                $('#DinhMucThang').val(data.dinhMucThang);
-                $('#modalTitle').text('Chỉnh sửa định mức');
-                modalEl.show();
-            }).fail(() => Swal.fire('Lỗi', 'Không thể lấy dữ liệu', 'error'));
+
+            // Sửa $.get thành $.ajax để thêm được cấu hình credentials
+            $.ajax({
+                url: `https://localhost:7286/api/quanlydinhmuc/chi-tiet/${id}`,
+                type: 'GET',
+                xhrFields: {
+                    withCredentials: true // Gửi kèm Cookie/Session cho GET
+                },
+                success: function(data) {
+                    Swal.close();
+                    $('#MaDinhMuc').val(data.maDinhMuc);
+                    $('#MaLoaiXe').val(data.maLoaiXe);
+                    $('#TenHangMuc').val(data.tenHangMuc);
+                    $('#DinhMucKm').val(data.dinhMucKm);
+                    $('#DinhMucThang').val(data.dinhMucThang);
+                    $('#modalTitle').text('Chỉnh sửa định mức');
+                    modalEl.show();
+                },
+                error: function() {
+                    Swal.fire('Lỗi', 'Không thể lấy dữ liệu', 'error');
+                }
+            });
         }
 
         // Lưu dữ liệu
@@ -308,12 +352,21 @@
                 type: method,
                 contentType: 'application/json',
                 data: JSON.stringify(data),
+                // SỬA Ở ĐÂY: Sử dụng xhrFields thay vì credentials
+                xhrFields: {
+                    withCredentials: true
+                },
                 success: function(res) {
                     modalEl.hide();
                     Swal.fire('Thành công', res.message, 'success').then(() => location.reload());
                 },
                 error: function(xhr) {
-                    Swal.fire('Lỗi', xhr.responseText || 'Thao tác thất bại', 'error');
+                    // Nếu backend trả về 401 Unauthorized, báo lỗi đăng nhập
+                    if (xhr.status === 401) {
+                        Swal.fire('Lỗi', 'Phiên đăng nhập hết hạn!', 'error');
+                    } else {
+                        Swal.fire('Lỗi', xhr.responseText || 'Thao tác thất bại', 'error');
+                    }
                 }
             });
         }

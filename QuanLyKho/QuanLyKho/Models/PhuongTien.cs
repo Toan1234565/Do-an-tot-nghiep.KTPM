@@ -30,4 +30,6 @@ public partial class PhuongTien
     public virtual KhoBai? MaKhoNavigation { get; set; }
 
     public virtual LoaiXe MaLoaiXeNavigation { get; set; } = null!;
+
+    public virtual ICollection<PhanCongXe> PhanCongXes { get; set; } = new List<PhanCongXe>();
 }

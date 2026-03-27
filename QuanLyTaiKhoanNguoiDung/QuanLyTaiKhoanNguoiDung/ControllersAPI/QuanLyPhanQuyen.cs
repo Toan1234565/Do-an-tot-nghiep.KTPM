@@ -8,6 +8,7 @@ using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
 using System.Security.Claims;
 using TaiKhoan1.ControllersAPI;
+using Tmdt.Shared.Services;
 
 namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
 {
@@ -120,9 +121,9 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     currentUser?.ToString(),
                     new Dictionary<string, object> { { "Trạng thái", "Tạo mới" } },
                     new Dictionary<string, object> {
-                { "Tên chức vụ", model.TenChucVu },
-                { "Vai trò", tenVaiTro }, // Đã chuyển từ Mã sang Tên
-                { "Người thực hiện", currentUser?.HoTenNhanVien }
+                        { "Tên chức vụ", model.TenChucVu },
+                        { "Vai trò", tenVaiTro }, // Đã chuyển từ Mã sang Tên
+                        { "Người thực hiện", currentUser?.HoTenNhanVien }
                     }
                 );
 
@@ -225,14 +226,14 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     currentUser?.ToString(),
                     // Dữ liệu cũ
                     new Dictionary<string, object> {
-                { "Tên chức vụ", tenChucVuCu },
-                { "Vai trò", tenVaiTroCu }
+                        { "Tên chức vụ", tenChucVuCu },
+                        { "Vai trò", tenVaiTroCu }
                     },
                     // Dữ liệu mới
                     new Dictionary<string, object> {
-                { "Tên chức vụ", model.TenChucVu },
-                { "Vai trò", tenVaiTroMoi },
-                { "Người thực hiện", currentUser?.HoTenNhanVien ?? "Hệ thống" }
+                        { "Tên chức vụ", model.TenChucVu },
+                        { "Vai trò", tenVaiTroMoi },
+                        { "Người thực hiện", currentUser?.HoTenNhanVien ?? "Hệ thống" }
                     }
                 );
 

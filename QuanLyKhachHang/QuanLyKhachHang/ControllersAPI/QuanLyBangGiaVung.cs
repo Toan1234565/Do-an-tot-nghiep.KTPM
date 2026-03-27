@@ -1,10 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
 using QuanLyKhachHang;
 using QuanLyKhachHang.Models;
 using QuanLyKhachHang.Models1.QuanLyBangGiaVung;
+using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong;
+using System.Data;
+using Tmdt.Shared.Services;
 
 [Route("api/quanlybangiavung")]
 [ApiController]
@@ -13,16 +17,35 @@ public class QuanLyBangGiaVung : ControllerBase
     private readonly ILogger<QuanLyBangGiaVung> _logger;
     private readonly TmdtContext _context;
     private readonly IMemoryCache _cache;
-
+    private readonly ISystemService _sys;
     // Key gốc để quản lý phụ thuộc cache
     private const string PriceRegionCachePrefix = "PriceRegionList_";
     private static CancellationTokenSource _resetCacheToken = new CancellationTokenSource();
 
-    public QuanLyBangGiaVung(ILogger<QuanLyBangGiaVung> logger, TmdtContext context, IMemoryCache cache)
+    public QuanLyBangGiaVung(ILogger<QuanLyBangGiaVung> logger, TmdtContext context, IMemoryCache cache, ISystemService sys)
     {
         _logger = logger;
         _context = context;
         _cache = cache;
+        _sys = sys;
+    }
+    [HttpGet("check-auth-info")]
+    public IActionResult CheckAuthInfo()
+    {
+        return Ok(new
+        {
+            IsAuthenticated = User.Identity?.IsAuthenticated,
+            UserClaims = User.Claims.Select(c => new { c.Type, c.Value }),
+            SessionData = HttpContext.Session.Keys.ToDictionary(k => k, k => HttpContext.Session.GetString(k)),
+            CookiesReceived = Request.Cookies.Select(c => new { c.Key, c.Value })
+        });
+    }
+    [HttpGet("who-am-i")]
+    public IActionResult WhoAmI()
+    {
+        var userId = _sys.GetCurrentUserId();
+        var hoTen = HttpContext.Session.GetString("HoTenNhanVien");
+        return Ok(new { UserId = userId, Name = hoTen, IsAuth = User.Identity.IsAuthenticated });
     }
 
     [HttpGet("dsbanggia")]
@@ -125,7 +148,7 @@ public class QuanLyBangGiaVung : ControllerBase
         _logger.LogInformation("Đã làm mới toàn bộ Cache Bảng giá vùng.");
     }
 
-
+    [Authorize]
     [HttpPost("themmoibanggia")]
     public async Task<IActionResult> ThemMoi([FromBody] BangGiaVung model)
     {
@@ -159,7 +182,6 @@ public class QuanLyBangGiaVung : ControllerBase
             bg.KhuVucLay == model.KhuVucLay &&
             bg.KhuVucGiao == model.KhuVucGiao &&
             bg.LoaiTinhGia == model.LoaiTinhGia &&
-
             bg.TrongLuongToiThieuKg == model.TrongLuongToiThieuKg &&
             bg.TrongLuongToiDaKg == model.TrongLuongToiDaKg &&
             bg.MaLoaiHang == model.MaLoaiHang &&
@@ -183,6 +205,26 @@ public class QuanLyBangGiaVung : ControllerBase
 
             _context.BangGiaVungs.Add(model);
             await _context.SaveChangesAsync();
+            
+            await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý bảng giá vùng",
+                    $"Thêm mới bảng giá vùng mã: {model.MaBangGia}",
+                    "BangGiaVung",
+                    model.MaBangGia.ToString(),
+                    new Dictionary<string, object>(),
+                    new Dictionary<string, object>
+                    {
+                        { "Tuyến đường", $"{model.KhuVucLay} ➔ {model.KhuVucGiao}" },
+                        { "Cách tính giá", model.LoaiTinhGia == 1 ? "Tính theo vùng" : "Tính theo số Km" },
+                        { "Khung trọng lượng", $"{model.TrongLuongToiThieuKg}kg - {model.TrongLuongToiDaKg}kg" },
+                        { "Đơn giá cơ bản", model.DonGiaCoBan?.ToString("N0") + " VNĐ" },
+                        { "Phụ phí vượt cân", model.PhuPhiMoiKg?.ToString("N0") + " VNĐ/kg" },
+                        { "Đơn giá/Km", model.DonGiaKm?.ToString("N0") + " VNĐ" },
+                        { "Phí dừng điểm", model.PhiDungDiem?.ToString("N0") + " VNĐ" },
+                        { "Km tối thiểu", model.KmToiThieu + " Km" },
+                        { "Loại hàng hóa", model.MaLoaiHang }
+                    }
+                );
 
             ClearPriceRegionCache();
             return Ok(new { message = "Thêm bảng giá thành công", data = model });
@@ -193,126 +235,175 @@ public class QuanLyBangGiaVung : ControllerBase
             return StatusCode(500, new { message = "Lỗi máy chủ khi lưu dữ liệu", detail = ex.Message });
         }
     }
+
+    [Authorize] // <--- THÊM 1: Bắt buộc phải đăng nhập mới được vô hiệu hóa
     [HttpDelete("vô-hieu-hoa/{id}")]
     public async Task<IActionResult> VoHieuHoa(int id)
     {
+        // Lấy ID của người đang thực hiện thao tác từ SystemService
+        var nguoiThucHienId = _sys.GetCurrentUserId();
+
+        using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             var item = await _context.BangGiaVungs.FindAsync(id);
             if (item == null) return NotFound(new { message = "Không tìm thấy dữ liệu" });
+
+            // THÊM 2: Logic bảo vệ (Nếu cần, tùy thuộc vào nghiệp vụ của bạn)
+            // Ví dụ: Không cho phép vô hiệu hóa nếu bảng giá này đang là mặc định
+            // if (item.IsDefault) return BadRequest(new { message = "Không thể khóa bảng giá mặc định" });
 
             item.IsActive = false;
             item.NgayCapNhat = DateTime.Now;
             item.LyDoThayDoi = "Ngừng áp dụng bởi người dùng";
 
             await _context.SaveChangesAsync();
+
+            // GHI LOG VÀ RESET CACHE
+            // Lúc này _sys sẽ tự lấy nguoiThucHienId và Tên từ Cookie đã giải mã nhờ thẻ [Authorize]
+            await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý bảng giá vùng",
+                    $"Vô hiệu hóa bảng giá vùng mã: {item.MaBangGia}",
+                    "BangGiaVung",
+                    id.ToString(),
+                    new Dictionary<string, object> { { "Trạng thái", "Đang hoạt động" } },
+                    new Dictionary<string, object> {
+                    { "Trạng thái", "Ngừng hoạt động" },
+                    { "Lý do", item.LyDoThayDoi }
+                    }
+                );
+
             ClearPriceRegionCache();
+            await transaction.CommitAsync();
 
             return Ok(new { success = true, message = "Đã ngừng áp dụng bảng giá này." });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi khi vô hiệu hóa");
-            return StatusCode(500, "Lỗi hệ thống");
+            await transaction.RollbackAsync(); // <--- Đừng quên Rollback nếu lỗi nhé!
+            _logger.LogError(ex, "Lỗi khi vô hiệu hóa bởi UserID: {UserId}", nguoiThucHienId);
+            return StatusCode(500, "Lỗi hệ thống khi thực hiện thao tác");
         }
     }
-
+    [Authorize]
     [HttpPost("capnhatgiavung")]
     public async Task<IActionResult> UpdateProcess([FromBody] BangGiaVungUpdateDto request)
     {
-        // Sử dụng transaction để đảm bảo an toàn dữ liệu chéo bảng (nếu có)
         using var transaction = await _context.Database.BeginTransactionAsync();
+        var nguoiThucHienId = _sys.GetCurrentUserId();
         try
         {
-            // 1. Kiểm tra bản ghi gốc và đảm bảo nó vẫn đang Active (tránh Race Condition)
+            // 1. Kiểm tra bản ghi gốc
             var existing = await _context.BangGiaVungs
                 .FirstOrDefaultAsync(x => x.MaBangGia == request.MaBangGia && x.IsActive == true);
 
             if (existing == null)
                 return NotFound(new { message = "Không tìm thấy bảng giá đang hoạt động hoặc bản ghi đã bị thay đổi bởi người khác." });
 
-            // TRƯỜNG HỢP 1: VÔ HIỆU HÓA (XÓA MỀM)
+            // Lưu lại dữ liệu cũ để ghi Log
+            var datacu = new Dictionary<string, object>
+            {
+                {"Khu vực", $"{existing.KhuVucLay} -> {existing.KhuVucGiao}"},
+                {"Giá cơ bản", existing.DonGiaCoBan},
+                {"Trạng thái", "Đang hoạt động"}
+            };
+
+            bool isNewVersion = false;
+            string hanhDongLog = "";
+
+            // TRƯỜNG HỢP 1: VÔ HIỆU HÓA
             if (request.Action == "DEACTIVATE")
             {
                 existing.IsActive = false;
                 existing.NgayCapNhat = DateTime.Now;
                 existing.LyDoThayDoi = request.LyDoThayDoi ?? "Ngừng áp dụng hệ thống";
-
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-                ClearPriceRegionCache();
-                return Ok(new { success = true, message = "Đã vô hiệu hóa bảng giá thành công." });
-            }
-
-            // 2. PHÂN TÍCH BIẾN ĐỘNG: Đưa tất cả các trường ảnh hưởng đến TIỀN vào đây
-            // Nếu thay đổi khu vực hoặc giá thì đều phải ra version mới để đối soát
-            bool isVersionNeeded =
-                existing.KhuVucLay != request.KhuVucLay ||
-                existing.KhuVucGiao != request.KhuVucGiao ||
-                existing.DonGiaCoBan != request.DonGiaCoBan ||
-                existing.PhuPhiMoiKg != request.PhuPhiMoiKg ||
-                existing.DonGiaKm != request.DonGiaKm ||
-                existing.PhiDungDiem != request.PhiDungDiem ||
-                existing.KmToiThieu != request.KmToiThieu ||
-                existing.TrongLuongToiThieuKg != request.TrongLuongToiThieuKg ||
-                existing.MaLoaiHang != request.MaLoaiHang||
-                existing.TrongLuongToiDaKg != request.TrongLuongToiDaKg;
-
-
-            // TRƯỜNG HỢP 2: TẠO PHIÊN BẢN MỚI (Versioning)
-            if (isVersionNeeded)
-            {
-                // Vô hiệu hóa bản cũ trước
-                existing.IsActive = false;
-                existing.NgayCapNhat = DateTime.Now;
-                existing.LyDoThayDoi = $"Đã nâng cấp lên phiên bản mới. Lý do: {request.LyDoThayDoi}";
-
-                // Copy và tạo bản mới với dữ liệu cập nhật
-                var newVersion = new BangGiaVung
-                {
-                    KhuVucLay = request.KhuVucLay,
-                    KhuVucGiao = request.KhuVucGiao,
-                    LoaiTinhGia = request.LoaiTinhGia,
-                    TrongLuongToiThieuKg = request.TrongLuongToiThieuKg,
-                    TrongLuongToiDaKg = request.TrongLuongToiDaKg,
-                    DonGiaCoBan = request.DonGiaCoBan,
-                    PhuPhiMoiKg = request.PhuPhiMoiKg,
-                    DonGiaKm = request.DonGiaKm,
-                    PhiDungDiem = request.PhiDungDiem,
-                    KmToiThieu = request.KmToiThieu,
-                    MaLoaiHang = request.MaLoaiHang,
-                    MaBangCu = existing.MaBangGia, // Giữ liên kết lịch sử
-                    IsActive = true,
-                    NgayCapNhat = DateTime.Now,
-                    LyDoThayDoi = request.LyDoThayDoi
-                };
-
-                _context.BangGiaVungs.Add(newVersion);
+                hanhDongLog = "Vô hiệu hóa bảng giá";
             }
             else
             {
-                // TRƯỜNG HỢP 3: CHỈ SỬA GHI CHÚ/THÔNG TIN PHỤ (Không ảnh hưởng giá)
-                existing.LyDoThayDoi = request.LyDoThayDoi;
-                existing.NgayCapNhat = DateTime.Now;
+                // 2. PHÂN TÍCH BIẾN ĐỘNG (Versioning)
+                bool isVersionNeeded =
+                    existing.KhuVucLay != request.KhuVucLay ||
+                    existing.KhuVucGiao != request.KhuVucGiao ||
+                    existing.DonGiaCoBan != request.DonGiaCoBan ||
+                    existing.PhuPhiMoiKg != request.PhuPhiMoiKg ||
+                    existing.DonGiaKm != request.DonGiaKm ||
+                    existing.TrongLuongToiDaKg != request.TrongLuongToiDaKg ||
+                    existing.MaLoaiHang != request.MaLoaiHang;
+
+                if (isVersionNeeded)
+                {
+                    isNewVersion = true;
+                    hanhDongLog = "Cập nhật phiên bản giá mới";
+
+                    // Vô hiệu hóa bản cũ
+                    existing.IsActive = false;
+                    existing.NgayCapNhat = DateTime.Now;
+                    existing.LyDoThayDoi = $"Nâng cấp lên phiên bản mới. Lý do: {request.LyDoThayDoi}";
+
+                    // Tạo bản mới
+                    var newVersion = new BangGiaVung
+                    {
+                        KhuVucLay = request.KhuVucLay,
+                        KhuVucGiao = request.KhuVucGiao,
+                        LoaiTinhGia = request.LoaiTinhGia,
+                        TrongLuongToiThieuKg = request.TrongLuongToiThieuKg,
+                        TrongLuongToiDaKg = request.TrongLuongToiDaKg,
+                        DonGiaCoBan = request.DonGiaCoBan,
+                        PhuPhiMoiKg = request.PhuPhiMoiKg,
+                        DonGiaKm = request.DonGiaKm,
+                        PhiDungDiem = request.PhiDungDiem,
+                        KmToiThieu = request.KmToiThieu,
+                        MaLoaiHang = request.MaLoaiHang,
+                        MaBangCu = existing.MaBangGia,
+                        IsActive = true,
+                        NgayCapNhat = DateTime.Now,
+                        LyDoThayDoi = request.LyDoThayDoi
+                    };
+                    _context.BangGiaVungs.Add(newVersion);
+                }
+                else
+                {
+                    hanhDongLog = "Cập nhật thông tin bổ sung";
+                    existing.LyDoThayDoi = request.LyDoThayDoi;
+                    existing.NgayCapNhat = DateTime.Now;
+                }
             }
 
             await _context.SaveChangesAsync();
+
+            // 3. GHI LOG VÀ RESET CACHE TOÀN HỆ THỐNG (Sử dụng SystemService đã hoàn thiện)
+            var dataMoi = new Dictionary<string, object>
+        {
+            {"Thao tác", hanhDongLog},
+            {"Lý do", request.LyDoThayDoi}
+        };
+
+            await _sys.GhiLogVaResetCacheAsync(
+                "Quản lý bảng giá vùng",
+                $"{hanhDongLog}: {existing.MaBangGia}",
+                "BangGiaVung",
+                existing.MaBangGia.ToString(),
+                datacu,
+                dataMoi
+            );
+
             await transaction.CommitAsync();
 
-            // Xóa cache để các request điều phối sau đó lấy được giá mới ngay lập tức
+            // Xóa cache local
             ClearPriceRegionCache();
 
             return Ok(new
             {
                 success = true,
-                message = isVersionNeeded ? "Đã tạo phiên bản giá mới thành công" : "Cập nhật thông tin bổ sung thành công",
-                isNewVersion = isVersionNeeded
+                message = isNewVersion ? "Đã tạo phiên bản giá mới thành công" : "Cập nhật thành công",
+                isNewVersion = isNewVersion
             });
         }
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            _logger.LogError(ex, "Lỗi nghiêm trọng khi cập nhật bảng giá ID: {ID}", request.MaBangGia);
+            _logger.LogError(ex, "Lỗi cập nhật bảng giá ID: {ID}", request.MaBangGia);
             return StatusCode(500, new { message = "Lỗi máy chủ", detail = ex.Message });
         }
     }
@@ -456,4 +547,3 @@ public class QuanLyBangGiaVung : ControllerBase
         }
     }
 }
-

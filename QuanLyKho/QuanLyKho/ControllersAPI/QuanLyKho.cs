@@ -5,9 +5,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
 using QuanLyKho.Models;
+using QuanLyKho.Models1;
 using QuanLyKho.Models1.QuanLyKho;
 using QuanLyKho.Models1.QuanLyXe;
 using System.Net.Http;
+using Tmdt.Shared.Services;
 
 namespace QuanLyKho.ControllersAPI
 {
@@ -18,17 +20,46 @@ namespace QuanLyKho.ControllersAPI
         public readonly TmdtContext _context;
         public readonly ILogger<QuanLyKho> _logger;
         public readonly IMemoryCache _cache;
+
+        // Sử dụng lock để đảm bảo thread-safe khi thao tác với biến static
+        private static readonly object _cacheLock = new object();
         private static CancellationTokenSource _resetCacheToken = new CancellationTokenSource();
+
         private readonly IHttpClientFactory _httpClientFactory;
-        public QuanLyKho(TmdtContext context, ILogger<QuanLyKho> logger, IMemoryCache cache, IHttpClientFactory httpClientFactory)
+        private readonly ISystemService _sys;
+
+        public QuanLyKho(TmdtContext context, ILogger<QuanLyKho> logger, IMemoryCache cache, IHttpClientFactory httpClientFactory, ISystemService sys)
         {
             _context = context;
             _logger = logger;
             _cache = cache;
             _httpClientFactory = httpClientFactory;
+            _sys = sys;
+        }
+
+        // Hàm hỗ trợ reset cache an toàn
+        private void ResetCache()
+        {
+            lock (_cacheLock)
+            {
+                _resetCacheToken.Cancel();
+                // Bỏ lệnh Dispose() ở đây để tránh lỗi ObjectDisposedException cho các request đang chạy
+                _resetCacheToken = new CancellationTokenSource();
+            }
+        }
+        [HttpGet("check-auth-info")]
+        public IActionResult CheckAuthInfo()
+        {
+            return Ok(new
+            {
+                IsAuthenticated = User.Identity?.IsAuthenticated,
+                UserClaims = User.Claims.Select(c => new { c.Type, c.Value }),
+                SessionData = HttpContext.Session.Keys.ToDictionary(k => k, k => HttpContext.Session.GetString(k)),
+                CookiesReceived = Request.Cookies.Select(c => new { c.Key, c.Value })
+            });
         }
         [HttpGet("getallkho")]
-        public async Task<IActionResult> GetAllKhoBai([FromQuery] string? seach, [FromQuery] int page, [FromQuery] string? trangthai = "Tất cả", [FromQuery] string? loaikho = "Tất cả")
+        public async Task<IActionResult> GetAllKhoBai([FromQuery] string? seach, [FromQuery] int page, [FromQuery] string? trangthai = "Hoạt động", [FromQuery] string? loaikho = "Tất cả")
         {
             if (page <= 0)
             {
@@ -41,10 +72,12 @@ namespace QuanLyKho.ControllersAPI
                 {
                     int pageSize = 20;
                     var query = _context.KhoBais.Include(loai => loai.MaLoaiKhoNavigation).AsNoTracking();
+
                     if (!string.IsNullOrEmpty(seach))
                     {
                         query = query.Where(k => k.MaKho.ToString().Contains(seach));
                     }
+
                     if (trangthai != "Tất cả")
                     {
                         if (trangthai == "Hoạt động")
@@ -63,8 +96,8 @@ namespace QuanLyKho.ControllersAPI
                         {
                             query = query.Where(k => k.TrangThai == "Đang đầy");
                         }
-
                     }
+
                     if (loaikho != "Tất cả")
                     {
                         var loaiKhoEntity = await _context.LoaiKhos
@@ -80,7 +113,8 @@ namespace QuanLyKho.ControllersAPI
                             return NotFound($"Loại kho '{loaikho}' không tồn tại.");
                         }
                     }
-                    var khoBaiList = query
+
+                    var khoBaiList = await query
                         .Skip((page - 1) * pageSize)
                         .Take(pageSize)
                         .Select(k => new Models1.QuanLyKho.KhoBaiModels
@@ -95,48 +129,50 @@ namespace QuanLyKho.ControllersAPI
                             TrangThai = k.TrangThai,
                             SucChua = k.SucChua,
                             TenLoaiKho = k.MaLoaiKhoNavigation != null ? k.MaLoaiKhoNavigation.TenLoaiKho : null
-
                         })
                         .ToListAsync();
-                    if (khoBaiList.Result.Count == 0)
+
+                    if (khoBaiList.Count == 0)
                     {
                         return NotFound("Không tìm thấy kho bãi nào.");
                     }
+
                     cachedData = new
                     {
                         TotalItems = query.Count(),
                         TotalPages = (int)Math.Ceiling((double)query.Count() / pageSize),
                         CurrentPage = page,
                         PageSize = pageSize,
-                        Data = khoBaiList.Result
+                        Data = khoBaiList
                     };
+
+                    // Lấy token hủy một cách an toàn
+                    CancellationToken token;
+                    lock (_cacheLock)
+                    {
+                        token = _resetCacheToken.Token;
+                    }
 
                     // Lưu vào cache với thời gian hết hạn
                     var cacheOptions = new MemoryCacheEntryOptions()
                         .SetSlidingExpiration(TimeSpan.FromMinutes(5))
                         .SetAbsoluteExpiration(TimeSpan.FromMinutes(30))
-                        // Thêm dòng này để liên kết cache với token hủy. xóa cache khi thêm mới để tải được dữ liệu mới nhất 
-                        .AddExpirationToken(new CancellationChangeToken(_resetCacheToken.Token));
+                        .AddExpirationToken(new CancellationChangeToken(token));
+
                     _cache.Set(cachekey, cachedData, cacheOptions);
-
-
                 }
                 return Ok(cachedData);
             }
             catch (SqlException ex)
             {
-                // Lỗi kết nối Database
                 _logger.LogError(ex, "Lỗi kết nối cơ sở dữ liệu khi lấy danh sách kho bãi ");
                 return StatusCode(503, "Dịch vụ cơ sở dữ liệu tạm thời không khả dụng");
             }
             catch (Exception ex)
             {
-                // Các lỗi không xác định khác
                 _logger.LogError(ex, "Lỗi hệ thống khi lấy danh sách kho bãi  với Term: {SearchTerm}", seach);
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
             }
-
-
         }
 
         [HttpGet("danhsachtenkho")]
@@ -146,20 +182,23 @@ namespace QuanLyKho.ControllersAPI
             {
                 var dsTen = await _context.KhoBais.AsNoTracking().Select(tenKho => new KhoBaiModels
                 {
-                   TenKhoBai = tenKho.TenKhoBai,
-                   MaKho = tenKho.MaKho
+                    TenKhoBai = tenKho.TenKhoBai,
+                    MaKho = tenKho.MaKho
                 }).ToListAsync();
-                if(dsTen == null)
+
+                if (dsTen == null || dsTen.Count == 0)
                 {
                     return NotFound("Khong tim thay");
                 }
                 return Ok(dsTen);
-            }catch(Exception ex)
+            }
+            catch (Exception ex)
             {
-                _logger.LogError("Loi ");
+                _logger.LogError(ex, "Lỗi khi lấy danh sách tên kho");
                 return StatusCode(503, ex.Message);
             }
         }
+
         [HttpGet("getallloaikho")]
         public async Task<IActionResult> GetAllLoaiKho()
         {
@@ -174,6 +213,7 @@ namespace QuanLyKho.ControllersAPI
                         GhiChu = lk.GhiChu
                     })
                     .ToListAsync();
+
                 if (loaiKhoList.Count == 0)
                 {
                     return NotFound("Không tìm thấy loại kho nào.");
@@ -182,13 +222,11 @@ namespace QuanLyKho.ControllersAPI
             }
             catch (SqlException ex)
             {
-                // Lỗi kết nối Database
                 _logger.LogError(ex, "Lỗi kết nối cơ sở dữ liệu khi lấy danh sách loại kho");
                 return StatusCode(503, "Dịch vụ cơ sở dữ liệu tạm thời không khả dụng");
             }
             catch (Exception ex)
             {
-                // Các lỗi không xác định khác
                 _logger.LogError(ex, "Lỗi hệ thống khi lấy danh sách loại kho");
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
             }
@@ -211,28 +249,44 @@ namespace QuanLyKho.ControllersAPI
                     SoDienThoaiKho = newKho.SoDienThoaiKho,
                     MaLoaiKho = newKho.MaLoaiKho
                 };
+
                 _context.KhoBais.Add(khoBaiEntity);
                 await _context.SaveChangesAsync();
-                // Hủy bỏ token cũ để xóa toàn bộ các cache liên quan đến danh sách loại xe
-                _resetCacheToken.Cancel();
-                _resetCacheToken.Dispose();
-                // Khởi tạo token mới cho các lượt cache tiếp theo
-                _resetCacheToken = new CancellationTokenSource();
+
+                // Gọi hàm ResetCache thay vì code thủ công
+                ResetCache();
+
+                var data = new Dictionary<string, object>
+                {
+                    { "Mã kho", khoBaiEntity.MaKho },
+                    { "Tên kho", khoBaiEntity.TenKhoBai },
+                    { "Chi tiết kho", $"{khoBaiEntity.DungTichM3}m³ | {khoBaiEntity.DienTichM2}m² | Sức chứa: {khoBaiEntity.SucChua}" },
+                    { "TrangThai", khoBaiEntity.TrangThai }
+                };
+
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý kho bãi",
+                    "Thêm mới kho bãi",
+                    "QuanLyKho",
+                    "",
+                    new Dictionary<string, object>(),
+                    data
+                );
+
                 return Ok(new { Message = "Thêm kho mới thành công", MaKho = khoBaiEntity.MaKho });
             }
             catch (SqlException ex)
             {
-                // Lỗi kết nối Database
                 _logger.LogError(ex, "Lỗi kết nối cơ sở dữ liệu khi thêm kho mới");
                 return StatusCode(503, "Dịch vụ cơ sở dữ liệu tạm thời không khả dụng");
             }
             catch (Exception ex)
             {
-                // Các lỗi không xác định khác
                 _logger.LogError(ex, "Lỗi hệ thống khi thêm kho mới");
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
             }
         }
+
         [HttpPost("themloaikhomoi")]
         public async Task<IActionResult> ThemLoaiKhoMoi([FromBody] LoaiKhoModels newLoaiKho)
         {
@@ -246,31 +300,126 @@ namespace QuanLyKho.ControllersAPI
                 {
                     return BadRequest("Tên loại kho không được để trống.");
                 }
+
                 var loaiKhoEntity = new LoaiKho
                 {
                     TenLoaiKho = newLoaiKho.TenLoaiKho,
                     GhiChu = newLoaiKho.GhiChu
                 };
+
                 _context.LoaiKhos.Add(loaiKhoEntity);
                 await _context.SaveChangesAsync();
-                // Hủy bỏ token cũ để xóa toàn bộ các cache liên quan đến danh sách loại xe
-                _resetCacheToken.Cancel();
-                _resetCacheToken.Dispose();
-                // Khởi tạo token mới cho các lượt cache tiếp theo
-                _resetCacheToken = new CancellationTokenSource();
+
+                // Reset cache an toàn
+                ResetCache();
+
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý kho bãi",
+                    "Thêm mới loại kho",
+                    "QuanLyKho",
+                    "",
+                    new Dictionary<string, object>(),
+                    new Dictionary<string, object>
+                    {
+                        { "Mã loại kho", loaiKhoEntity.MaLoaiKho },
+                        { "Tên loại kho", loaiKhoEntity.TenLoaiKho },
+                        { "Ghi chú", loaiKhoEntity.GhiChu ?? "" }
+                    }
+                );
+
                 return Ok(new { Message = "Thêm loại kho mới thành công", MaLoaiKho = loaiKhoEntity.MaLoaiKho });
             }
             catch (SqlException ex)
             {
-                // Lỗi kết nối Database
                 _logger.LogError(ex, "Lỗi kết nối cơ sở dữ liệu khi thêm loại kho mới");
                 return StatusCode(503, "Dịch vụ cơ sở dữ liệu tạm thời không khả dụng");
             }
             catch (Exception ex)
             {
-                // Các lỗi không xác định khác
                 _logger.LogError(ex, "Lỗi hệ thống khi thêm loại kho mới");
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
+            }
+        }
+
+        [HttpPut("cap-nhat-kho/{maKho}")]
+        public async Task<IActionResult> CapNhatKhoBai(int maKho, [FromBody] KhoBaiModels updateModel)
+        {
+            try
+            {
+                var khoBaiEntity = await _context.KhoBais
+                    .Include(k => k.MaLoaiKhoNavigation)
+                    .FirstOrDefaultAsync(k => k.MaKho == maKho);
+
+                if (khoBaiEntity == null) return NotFound($"Không tìm thấy kho bãi mã: {maKho}");
+
+                // --- BƯỚC 1: SAO LƯU DỮ LIỆU CŨ ---
+                var oldData = new Dictionary<string, object>
+                {
+                    { "Tên kho", khoBaiEntity.TenKhoBai ?? "" },
+                    { "Số điện thoại", khoBaiEntity.SoDienThoaiKho ?? "" },
+                    { "Trạng thái", khoBaiEntity.TrangThai ?? "" },
+                    { "Mã quản lý", khoBaiEntity.MaQuanLy ?? 0 },
+                    { "Loại kho", khoBaiEntity.MaLoaiKhoNavigation?.TenLoaiKho ?? "" },
+                    { "Thông số kỹ thuật", $"{khoBaiEntity.DungTichM3}m³ | {khoBaiEntity.DienTichM2}m² | Sức chứa: {khoBaiEntity.SucChua}" }
+                };
+
+                // Lấy thông tin loại kho mới để ghi log chính xác (nếu có cập nhật loại kho)
+                string newTenLoaiKho = oldData["Loại kho"].ToString() ?? "";
+                if (khoBaiEntity.MaLoaiKho != updateModel.MaLoaiKho)
+                {
+                    var newLoaiKho = await _context.LoaiKhos.AsNoTracking().FirstOrDefaultAsync(lk => lk.MaLoaiKho == updateModel.MaLoaiKho);
+                    newTenLoaiKho = newLoaiKho?.TenLoaiKho ?? "";
+                }
+
+                // --- BƯỚC 2: CẬP NHẬT DỮ LIỆU MỚI ---
+                khoBaiEntity.TenKhoBai = updateModel.TenKhoBai;
+                khoBaiEntity.MaDiaChi = updateModel.MaDiaChi;
+                khoBaiEntity.MaQuanLy = updateModel.MaQuanLy;
+                khoBaiEntity.DungTichM3 = updateModel.DungTichM3;
+                khoBaiEntity.DienTichM2 = updateModel.DienTichM2;
+                khoBaiEntity.TrangThai = updateModel.TrangThai;
+                khoBaiEntity.SucChua = updateModel.SucChua;
+                khoBaiEntity.SoDienThoaiKho = updateModel.SoDienThoaiKho;
+                khoBaiEntity.MaLoaiKho = updateModel.MaLoaiKho;
+
+                await _context.SaveChangesAsync();
+
+                // --- BƯỚC 3: CHUẨN BỊ DỮ LIỆU MỚI ĐỂ SO SÁNH ---
+                var newData = new Dictionary<string, object>
+                {
+                    { "Tên kho", updateModel.TenKhoBai ?? "" },
+                    { "Số điện thoại", updateModel.SoDienThoaiKho ?? "" },
+                    { "Trạng thái", updateModel.TrangThai ?? "" },
+                    { "Mã quản lý", updateModel.MaQuanLy ?? 0 },
+                    { "Loại kho", newTenLoaiKho },
+                    { "Thông số kỹ thuật", $"{updateModel.DungTichM3}m³ | {updateModel.DienTichM2}m² | Sức chứa: {updateModel.SucChua}" }
+                };
+
+                // --- BƯỚC 4: LỌC SỰ KHÁC BIỆT ---
+                var (diffCu, diffMoi) = LocThayDoi.GetChanges(oldData, newData);
+
+                // --- BƯỚC 5: GHI LOG VÀ RESET CACHE ---
+                if (diffMoi.Count > 0)
+                {
+                    // Reset cache an toàn
+                    ResetCache();
+
+                    await _sys.GhiLogVaResetCacheAsync(
+                        "Quản lý kho bãi",
+                        $"Cập nhật thay đổi kho ID: {maKho}",
+                        "QuanLyKho",
+                        "",
+                        diffCu,
+                        diffMoi
+                    );
+                }
+
+                return Ok(new { Success = true, Message = "Cập nhật thành công!" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi cập nhật kho {MaKho}", maKho);
+                return StatusCode(500, "Lỗi hệ thống.");
             }
         }
 
@@ -280,14 +429,15 @@ namespace QuanLyKho.ControllersAPI
             try
             {
                 var khoBai = await _context.KhoBais
-
                     .AsNoTracking()
                     .Include(k => k.MaLoaiKhoNavigation)
                     .FirstOrDefaultAsync(k => k.MaKho == maKho);
+
                 if (khoBai == null)
                 {
                     return NotFound($"Không tìm thấy kho bãi với mã kho: {maKho}");
                 }
+
                 var khoBaiModel = new Models1.QuanLyKho.KhoBaiModels
                 {
                     MaKho = khoBai.MaKho,
@@ -299,19 +449,19 @@ namespace QuanLyKho.ControllersAPI
                     SoDienThoaiKho = khoBai.SoDienThoaiKho,
                     TrangThai = khoBai.TrangThai,
                     SucChua = khoBai.SucChua,
+                    MaLoaiKho = khoBai.MaLoaiKho,
                     TenLoaiKho = khoBai.MaLoaiKhoNavigation != null ? khoBai.MaLoaiKhoNavigation.TenLoaiKho : null
                 };
+
                 return Ok(khoBaiModel);
             }
             catch (SqlException ex)
             {
-                // Lỗi kết nối Database
                 _logger.LogError(ex, "Lỗi kết nối cơ sở dữ liệu khi lấy chi tiết kho bãi");
                 return StatusCode(503, "Dịch vụ cơ sở dữ liệu tạm thời không khả dụng");
             }
             catch (Exception ex)
             {
-                // Các lỗi không xác định khác
                 _logger.LogError(ex, "Lỗi hệ thống khi lấy chi tiết kho bãi với mã kho: {MaKho}", maKho);
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
             }
@@ -328,9 +478,10 @@ namespace QuanLyKho.ControllersAPI
                     .Select(k => new
                     {
                         k.TenKhoBai,
-                        k.MaKho 
+                        k.MaKho
                     })
                     .ToListAsync();
+
                 if (tenKhoBaiList.Count == 0)
                 {
                     return NotFound("Không tìm thấy kho bãi nào.");
@@ -339,19 +490,15 @@ namespace QuanLyKho.ControllersAPI
             }
             catch (SqlException ex)
             {
-                // Lỗi kết nối Database
                 _logger.LogError(ex, "Lỗi kết nối cơ sở dữ liệu khi lấy danh sách tên kho bãi");
                 return StatusCode(503, "Dịch vụ cơ sở dữ liệu tạm thời không khả dụng");
             }
             catch (Exception ex)
             {
-                // Các lỗi không xác định khác
                 _logger.LogError(ex, "Lỗi hệ thống khi lấy danh sách tên kho bãi");
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
             }
         }
-
-
         [HttpGet("tim-kho-gan-nhat/{maDiaChiLayHang}")]
         public async Task<IActionResult> TimKhoGanNhat(int maDiaChiLayHang)
         {
