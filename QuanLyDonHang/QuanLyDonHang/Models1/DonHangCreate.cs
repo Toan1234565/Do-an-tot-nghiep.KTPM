@@ -42,5 +42,7 @@ namespace QuanLyDonHang.Models1
         public string? YeuCauBaoQuan { get; set; }
 
         public int MaKhuyenMai { get; set; }
+
+        public int MaPTTT { get; set; }
     }
 }

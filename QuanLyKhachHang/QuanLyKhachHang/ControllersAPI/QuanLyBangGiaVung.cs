@@ -236,6 +236,76 @@ public class QuanLyBangGiaVung : ControllerBase
         }
     }
 
+    [Authorize]
+    [HttpPost("kich-hoat-lai/{id}")]
+    public async Task<IActionResult> KichHoatLai(int id)
+    {
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            // 1. Tìm bảng giá cũ muốn mở lại
+            var item = await _context.BangGiaVungs.FindAsync(id);
+            if (item == null)
+                return NotFound(new { message = "Không tìm thấy bảng giá" });
+
+            if (item.IsActive == true)
+                return BadRequest(new { message = "Bảng giá này hiện đã đang hoạt động rồi." });
+
+            // 2. KIỂM TRA XUNG ĐỘT 
+            // Kiểm tra xem có bảng giá nào KHÁC đang hoạt động trùng cấu hình với bảng này không
+            bool isConflict = await _context.BangGiaVungs.AnyAsync(bg =>
+                bg.IsActive == true &&
+                bg.KhuVucLay == item.KhuVucLay &&
+                bg.KhuVucGiao == item.KhuVucGiao &&
+                bg.LoaiTinhGia == item.LoaiTinhGia &&
+                bg.MaLoaiHang == item.MaLoaiHang &&
+                bg.MaBangGia != id // Không tính chính nó
+            );
+
+            if (isConflict)
+            {
+                return BadRequest(new
+                {
+                    message = "Không thể kích hoạt lại. Đã có một bảng giá khác đang hoạt động cho tuyến đường và loại hàng này.",
+                    detail = "Vui lòng vô hiệu hóa bảng giá hiện tại trước khi mở lại bản cũ."
+                });
+            }
+
+            // 3. Thực hiện kích hoạt
+            var duLieuCu = new Dictionary<string, object> { { "Trạng thái", "Ngừng hoạt động" } };
+
+            item.IsActive = true;
+            item.NgayCapNhat = DateTime.Now;
+            item.LyDoThayDoi = "Kích hoạt lại bảng giá từ lịch sử";
+
+            await _context.SaveChangesAsync();
+
+            // 4. Ghi Log và Clear Cache
+            await _sys.GhiLogVaResetCacheAsync(
+                "Quản lý bảng giá vùng",
+                $"Kích hoạt lại bảng giá mã: {item.MaBangGia}",
+                "BangGiaVung",
+                id.ToString(),
+                duLieuCu,
+                new Dictionary<string, object> {
+                { "Trạng thái", "Hoạt động trở lại" },
+                { "Lý do", item.LyDoThayDoi }
+                }
+            );
+
+            ClearPriceRegionCache();
+            await transaction.CommitAsync();
+
+            return Ok(new { success = true, message = "Bảng giá đã được hoạt động trở lại." });
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Lỗi khi kích hoạt lại bảng giá ID: {id}", id);
+            return StatusCode(500, "Lỗi hệ thống khi thực hiện kích hoạt");
+        }
+    }
+
     [Authorize] // <--- THÊM 1: Bắt buộc phải đăng nhập mới được vô hiệu hóa
     [HttpDelete("vô-hieu-hoa/{id}")]
     public async Task<IActionResult> VoHieuHoa(int id)

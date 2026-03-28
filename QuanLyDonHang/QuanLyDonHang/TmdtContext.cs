@@ -24,7 +24,11 @@ public partial class TmdtContext : DbContext
 
     public virtual DbSet<DanhMucLoaiHang> DanhMucLoaiHangs { get; set; }
 
+    public virtual DbSet<DanhMucPhuongThucThanhToan> DanhMucPhuongThucThanhToans { get; set; }
+
     public virtual DbSet<DonHang> DonHangs { get; set; }
+
+    public virtual DbSet<HoaDon> HoaDons { get; set; }
 
     public virtual DbSet<KienHang> KienHangs { get; set; }
 
@@ -122,6 +126,20 @@ public partial class TmdtContext : DbContext
                 .HasColumnName("ten_loai_hang");
         });
 
+        modelBuilder.Entity<DanhMucPhuongThucThanhToan>(entity =>
+        {
+            entity.HasKey(e => e.MaPttt).HasName("PK__Danh_Muc__B30A28028C18A566");
+
+            entity.ToTable("Danh_Muc_Phuong_Thuc_Thanh_Toan");
+
+            entity.Property(e => e.MaPttt).HasColumnName("MaPTTT");
+            entity.Property(e => e.LoaiThanhToan).HasMaxLength(50);
+            entity.Property(e => e.TenPttt)
+                .HasMaxLength(100)
+                .HasColumnName("TenPTTT");
+            entity.Property(e => e.TrangThai).HasDefaultValue(true);
+        });
+
         modelBuilder.Entity<DonHang>(entity =>
         {
             entity.HasKey(e => e.MaDonHang).HasName("PK__Don_Hang__0246C5EA3FF89D88");
@@ -142,6 +160,7 @@ public partial class TmdtContext : DbContext
                 .HasDefaultValue(1)
                 .HasColumnName("ma_loai_dv");
             entity.Property(e => e.MaMucDoDv).HasColumnName("ma_muc_do_dv");
+            entity.Property(e => e.MaPttt).HasColumnName("MaPTTT");
             entity.Property(e => e.MaVung).HasColumnName("ma_vung");
             entity.Property(e => e.MaVungH3Giao)
                 .HasMaxLength(20)
@@ -173,6 +192,40 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.TrangThaiHienTai)
                 .HasMaxLength(50)
                 .HasColumnName("trang_thai_hien_tai");
+            entity.Property(e => e.TrangThaiThanhToanTong)
+                .HasMaxLength(50)
+                .HasDefaultValue("Chưa thanh toán");
+
+            entity.HasOne(d => d.MaPtttNavigation).WithMany(p => p.DonHangs)
+                .HasForeignKey(d => d.MaPttt)
+                .HasConstraintName("FK_DonHang_DanhMucPTTT");
+        });
+
+        modelBuilder.Entity<HoaDon>(entity =>
+        {
+            entity.HasKey(e => e.MaHoaDon).HasName("PK__HoaDon__835ED13B2D60DA49");
+
+            entity.ToTable("HoaDon");
+
+            entity.Property(e => e.MaGiaoDichNgoai)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.MaPttt).HasColumnName("MaPTTT");
+            entity.Property(e => e.NgayThanhToan)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.SoTienThanhToan).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.TrangThaiThanhToan).HasMaxLength(50);
+
+            entity.HasOne(d => d.MaDonHangNavigation).WithMany(p => p.HoaDons)
+                .HasForeignKey(d => d.MaDonHang)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_HoaDon_DonHang");
+
+            entity.HasOne(d => d.MaPtttNavigation).WithMany(p => p.HoaDons)
+                .HasForeignKey(d => d.MaPttt)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_HoaDon_PTTT");
         });
 
         modelBuilder.Entity<KienHang>(entity =>

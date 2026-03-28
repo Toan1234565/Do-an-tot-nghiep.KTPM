@@ -47,5 +47,13 @@ public partial class DonHang
 
     public string? MaVungH3Giao { get; set; }
 
+    public string? TrangThaiThanhToanTong { get; set; }
+
+    public int? MaPttt { get; set; }
+
+    public virtual ICollection<HoaDon> HoaDons { get; set; } = new List<HoaDon>();
+
     public virtual ICollection<KienHang> KienHangs { get; set; } = new List<KienHang>();
+
+    public virtual DanhMucPhuongThucThanhToan? MaPtttNavigation { get; set; }
 }

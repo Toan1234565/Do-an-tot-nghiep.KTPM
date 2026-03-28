@@ -198,19 +198,32 @@
                                         <div class="btn-group">
                                             @if (item.IsActive == true)
                                             {
-                                                <button class="btn btn-sm btn-outline-primary rounded-pill me-2 px-3" onclick='editPrice(@Html.Raw(Json.Serialize(item)))'>
+                                                <button class="btn btn-sm btn-outline-primary rounded-pill me-2 px-3" 
+                                                        onclick='editPrice(@Html.Raw(Json.Serialize(item)))' 
+                                                        title="Chỉnh sửa">
                                                     <i class="fa-solid fa-pen-to-square"></i>
                                                 </button>
-                                                <button class="btn btn-sm btn-outline-danger rounded-pill me-2" onclick="deactivatePrice(@item.MaBangGia)" title="Vô hiệu hóa">
+                                                <button class="btn btn-sm btn-outline-danger rounded-pill me-2" 
+                                                        onclick="deactivatePrice(@item.MaBangGia)" 
+                                                        title="Vô hiệu hóa">
                                                     <i class="fa-solid fa-ban"></i>
                                                 </button>
                                             }
+                                            else
+                                            {
+                                                @* Nút Mở lại - Chỉ hiện khi bảng giá đang bị vô hiệu hóa *@
+                                                <button class="btn btn-sm btn-outline-success rounded-pill me-2 px-3" 
+                                                        onclick="reactivatePrice(@item.MaBangGia)" 
+                                                        title="Kích hoạt lại (Mở lại)">
+                                                    <i class="fa-solid fa-rotate-right"></i>
+                                                </button>
+                                            }
+
                                             <button class="btn btn-sm btn-outline-info rounded-pill"
                                                     title="Lịch sử thay đổi"
                                                     onclick="showHistory(@item.MaBangGia)">
                                                 <i class="fa-solid fa-clock-rotate-left"></i>
                                             </button>
-
                                         </div>
                                     </td>
                                     
@@ -223,31 +236,54 @@
                 {
                     <nav aria-label="Page navigation" class="mt-4">
                         <ul class="pagination justify-content-center">
+                            @* Nút Quay lại *@
                             <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
                                 <a class="page-link border-0 shadow-sm rounded-circle mx-1"
-                                   href="@Url.Action("GetDanhSachBangGiaVung", new { page = ViewBag.CurrentPage - 1, searchTerm = ViewBag.SearchTerm })">
+                                   href="@Url.Action("GetDanhSachBangGiaVung", new { 
+                                        page = ViewBag.CurrentPage - 1, 
+                                        searchTerm = ViewBag.SearchTerm,
+                                        khuvuclay = ViewBag.KhuVucLay,
+                                        khuvucgiao = ViewBag.KhuVucGiao,
+                                        loaitinhgia = ViewBag.LoaiTinhGia,
+                                        isActive = ViewBag.IsActive
+                                   })">
                                     <i class="fa-solid fa-chevron-left"></i>
                                 </a>
                             </li>
 
+                            @* Các con số trang *@
                             @for (int i = 1; i <= ViewBag.TotalPages; i++)
                             {
                                 <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
                                     <a class="page-link border-0 shadow-sm rounded-circle mx-1"
-                                       href="@Url.Action("GetDanhSachBangGiaVung", new { page = i, searchTerm = ViewBag.SearchTerm })">@i</a>
+                                       href="@Url.Action("GetDanhSachBangGiaVung", new { 
+                                            page = i, 
+                                            searchTerm = ViewBag.SearchTerm,
+                                            khuvuclay = ViewBag.KhuVucLay,
+                                            khuvucgiao = ViewBag.KhuVucGiao,
+                                            loaitinhgia = ViewBag.LoaiTinhGia,
+                                            isActive = ViewBag.IsActive
+                                       })">@i</a>
                                 </li>
                             }
 
+                            @* Nút Tiếp theo *@
                             <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
                                 <a class="page-link border-0 shadow-sm rounded-circle mx-1"
-                                   href="@Url.Action("GetDanhSachBangGiaVung", new { page = ViewBag.CurrentPage + 1, searchTerm = ViewBag.SearchTerm })">
+                                   href="@Url.Action("GetDanhSachBangGiaVung", new { 
+                                        page = ViewBag.CurrentPage + 1, 
+                                        searchTerm = ViewBag.SearchTerm,
+                                        khuvuclay = ViewBag.KhuVucLay,
+                                        khuvucgiao = ViewBag.KhuVucGiao,
+                                        loaitinhgia = ViewBag.LoaiTinhGia,
+                                        isActive = ViewBag.IsActive
+                                   })">
                                     <i class="fa-solid fa-chevron-right"></i>
                                 </a>
                             </li>
                         </ul>
                     </nav>
                 }
-
                 
             </div>
         </div>
@@ -390,7 +426,20 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.querySelectorAll('#filterForm select').forEach(select => {
+            select.addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+        });
 
+        // Đối với ô nhập tìm kiếm, có thể để người dùng nhấn Enter
+        document.querySelector('input[name="searchTerm"]').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('filterForm').submit();
+            }
+        });
+    </script>
     <script>
         // 1. Cấu hình dùng chung
         const API_BASE = "https://localhost:7149/api/quanlybangiavung";
@@ -532,7 +581,7 @@
                 }
             });
         });
-                // 7. Vô hiệu hóa bảng giá (API Delete)
+        // 7. Vô hiệu hóa bảng giá (API Delete)
         function deactivatePrice(id) {
             Swal.fire({
                 title: 'Xác nhận ngừng áp dụng?',
@@ -582,8 +631,63 @@
                 }
             });
         }
-
-        // 8. Xem lịch sử thay đổi
+                // 8. Kích hoạt lại bảng giá (Mở khóa)
+        function reactivatePrice(id) {
+            Swal.fire({
+                title: 'Xác nhận mở lại?',
+                text: "Bảng giá này sẽ hoạt động trở lại và áp dụng cho các đơn hàng mới.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745', // Màu xanh lá cho hành động khôi phục
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Đồng ý mở lại',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: `${API_BASE}/kich-hoat-lai/${id}`, // Khớp với Route [HttpPost("kich-hoat-lai/{id}")]
+                        type: 'POST',
+                        xhrFields: {
+                            withCredentials: true // BẮT BUỘC để gửi kèm Cookie Auth sang Backend
+                        },
+                        success: function(res) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Thành công',
+                                text: res.message,
+                                timer: 1500
+                            }).then(() => location.reload());
+                        },
+                        error: function(xhr) {
+                            // Xử lý lỗi 401 (Hết phiên làm việc)
+                            if (xhr.status === 401) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Hết phiên đăng nhập',
+                                    text: 'Vui lòng đăng nhập lại để thực hiện thao tác này!',
+                                    confirmButtonText: 'Đăng nhập ngay'
+                                }).then(() => {
+                                    const returnUrl = encodeURIComponent(window.location.href);
+                                    // Điều hướng về cổng đăng nhập của bạn
+                                    window.location.href = `https://localhost:7022/QuanLyPhanQuyen/DangNhap?ReturnUrl=${returnUrl}`;
+                                });
+                            } else {
+                                // Xử lý các lỗi nghiệp vụ (Xung đột dải giá, không tìm thấy...)
+                                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'Không thể thực hiện thao tác';
+                                const detail = xhr.responseJSON && xhr.responseJSON.detail ? `<br><small>${xhr.responseJSON.detail}</small>` : '';
+                        
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Lỗi kích hoạt',
+                                    html: msg + detail
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        // 9. Xem lịch sử thay đổi
         function showHistory(id) {
             const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
             const content = $('#historyContent');

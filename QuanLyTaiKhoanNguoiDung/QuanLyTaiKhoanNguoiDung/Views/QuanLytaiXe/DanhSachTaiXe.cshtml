@@ -82,6 +82,10 @@
                 </h1>
     
                 <div class="d-flex gap-3 align-items-center">
+                    <button type="button" onclick="showExpiryAlerts()" class="btn btn-outline-danger btn-sm border rounded-pill px-3 shadow-sm">
+                        <i class="fa-solid fa-file-invoice me-1"></i> Bằng lái sắp hết hạn
+                    </button>
+                    
                     <a href="@Url.Action("DanhSachTaiXe")" class="btn btn-light btn-sm border rounded-pill px-3 shadow-sm">
                         <i class="fa-solid fa-arrows-rotate me-1 text-muted"></i> Làm mới
                     </a>
@@ -420,7 +424,7 @@
                         </td>
                         <td>
                             <div class="d-flex gap-2">
-                                <a href="/QuanLyTaiXe/ChiTietTaiXe/${item.maNguoiDung}" class="btn btn-sm btn-outline-primary rounded-circle" title="Xem chi tiết">
+                                <a href="/QuanLyTaiXe/ChiTietTaiXe?id=${item.maNguoiDung}" class="btn btn-sm btn-outline-primary rounded-circle" title="Xem chi tiết">
                                     <i class="fa-solid fa-eye"></i>
                                 </a>
                                 <button onclick="guiYeuCauCapLai(${item.maNguoiDung}, '${item.hoTenTaiXe}')"

@@ -35,11 +35,12 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
         private readonly IEmailService _emailService; // Dùng Interface chuẩn
         private static CancellationTokenSource _resetCacheSignal = new CancellationTokenSource();
         private readonly CacheSignalService _cacheSignal;
-
+        private readonly ISystemService _sys;
         private readonly PhanQuyenService _phanQuyen;
         public QuanLyHoSoTaiXe(TmdtContext context,
                                ILogger<QuanLyHoSoTaiXe> logger,
                                IMemoryCache cache,
+                               ISystemService sys,
                                IEmailService emailService, PhanQuyenService phanQuyen, CacheSignalService cacheSignal)
         {
             _context = context;
@@ -48,6 +49,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
             _emailService = emailService;
             _phanQuyen = phanQuyen;
             _cacheSignal = cacheSignal;
+            _sys = sys;
         }
         private int? GetCurrentUserId()
         {
@@ -440,6 +442,18 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     ngayHetHanStr
                 );
 
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý tài xế",
+                    "Gửi Email cảnh báo yêu cầu cấp lại bằng lái",
+                    "",
+                    "",
+                    new Dictionary<string, object>(),
+                    new Dictionary<string, object>
+                    {
+                        {"thông tin", $"Đã gửi email cảnh báo hết hạn bằng lái cho tài xế {tx.MaNguoiDungNavigation.HoTenNhanVien} (ID: {id}) - Ngày hết hạn: {ngayHetHanStr}" }
+                    }
+                );
+
                 return Ok(new { success = true, message = "Gửi email thành công!" });
             }
             catch (Exception ex)
@@ -466,7 +480,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     .OrderBy(tx => tx.NgayHetHanBang)
                     .AsNoTracking()
                     .ToListAsync();
-
+                var tentaixe = data.FirstOrDefault()?.MaNguoiDungNavigation?.HoTenNhanVien ?? "Danh sách tài xế sắp hết hạn";
                 if (data == null || !data.Any())
                 {
                     return NotFound("Không có dữ liệu tài xế sắp hết hạn trong khoảng thời gian này.");
@@ -526,6 +540,18 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                     var fileContents = package.GetAsByteArray();
                     string fileName = $"BaoCao_HetHan_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
 
+                    await _sys.GhiLogVaResetCacheAsync(
+                       "Quản lý tài xế",
+                       "Gửi Email cảnh báo yêu cầu cấp lại bằng lái",
+                       "",
+                       "",
+                       new Dictionary<string, object>(),
+                       new Dictionary<string, object>
+                       {
+                            {"thông tin đã gửi Email cho", tentaixe}
+                       }
+                   );
+
                     return File(
                         fileContents,
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -540,7 +566,6 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                 return StatusCode(500, $"Lỗi hệ thống: {ex.Message}");
             }
         }
-
 
         [HttpGet("lich-trinh-tai-xe")]
         public async Task<IActionResult> GetLichTrinhTaiXe([FromQuery] int maKho, [FromQuery] string? loaiXeYeuCau)

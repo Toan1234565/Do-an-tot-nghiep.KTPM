@@ -20,12 +20,12 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyKhachHang
         }
 
         public async Task<IActionResult> GetDanhSachBangGiaVung(
-    string? searchTerm,
-    int page = 1,
-    string khuvuclay = "Tất cả",
-    string khuvucgiao = "Tất cả",
-    string loaitinhgia = "Tất cả",
-    bool? isActive = true)
+            string? searchTerm,
+            int page = 1,
+            string khuvuclay = "Tất cả",
+            string khuvucgiao = "Tất cả",
+            string loaitinhgia = "Tất cả",
+            bool? isActive = true)
         {
             var client = _httpClientFactory.CreateClient("BypassSSL");
             int pageSize = 15;

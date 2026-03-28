@@ -6,7 +6,10 @@ using Microsoft.Extensions.Primitives;
 using QuanLyDonHang.Models;
 using QuanLyDonHang.Models1;
 using QuanLyDonHang.Models1.QuanLyDieuPhoiGomHang;
+using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace QuanLyDonHang.ControllersAPI
@@ -24,6 +27,13 @@ namespace QuanLyDonHang.ControllersAPI
         string apiKhachHang = "https://localhost:7149/api/quanlykhachhang";
         string apiVung = "https://localhost:7149/api/quanlybangiavung";
         string BaseUrl = "https://localhost:7149/api";
+
+        // Thông tin tài khoản test Momo (Bạn có thể đăng ký tại developers.momo.vn)
+        string endpoint = "https://test-payment.momo.vn/v2/gateway/api/create";
+        string partnerCode = "MOMOBKUN20180529"; // Mã đối tác
+        string accessKey = "klm05673asj91kj";    // Access Key
+        string secretKey = "at67bcvdghas78nhj";   // Secret Key
+
         private static CancellationTokenSource _resetCacheSignal = new CancellationTokenSource();
         public DonHang(TmdtContext context, ILogger<DonHang> logger, IMemoryCache cache, IHttpClientFactory httpClientFactory, HttpClient httpClient)
         {
@@ -275,6 +285,7 @@ namespace QuanLyDonHang.ControllersAPI
                 return StatusCode(500, "Đã xảy ra lỗi hệ thống khi xử lý yêu cầu của bạn.");
             }
         }
+
         [HttpGet("danhsachdonhangtheokhachhang/{makhachhang}")]
         public async Task<IActionResult> GetDonHangByKhachHang(int makhachhang, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
@@ -508,7 +519,10 @@ namespace QuanLyDonHang.ControllersAPI
                     SdtNguoiNhan = request.SdtNguoiNhan,
                     MaKhuyenMai = maKhuyenMai,
                     MaVungH3Giao = maH3Giao,
-                    MaVungH3Nhan = maH3Nhan
+                    MaVungH3Nhan = maH3Nhan,
+
+                    MaPttt = request.MaPTTT,
+                    TrangThaiThanhToanTong = "Chưa thanh toán"
                 };
 
                 _context.DonHangs.Add(newDonHang);
@@ -531,10 +545,19 @@ namespace QuanLyDonHang.ControllersAPI
                         SoTien = danhSachGiaGoc[i],
                         DaThuGom = false
                     });
-                }
-
+                }             
+               var newHoaDon = new HoaDon  
+                {
+                    MaDonHang = newDonHang.MaDonHang,
+                    MaPttt = request.MaPTTT,
+                    SoTienThanhToan = tongTienThucTe,
+                    NgayThanhToan = DateTime.Now,
+                    TrangThaiThanhToan = "Chưa thanh toán",
+                };
+                await _context.HoaDons.AddAsync(newHoaDon);
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
                 var responseData = new
                 {
                     Success = true,
@@ -567,7 +590,80 @@ namespace QuanLyDonHang.ControllersAPI
                     }
                 }
 
-                return Ok(new { Success = true, MaDonHang = newDonHang.MaDonHang, H3 = maH3Nhan });
+                
+                // --- BƯỚC 6: TẠO LINK THANH TOÁN MOMO TRỰC TIẾP ---
+                string paymentUrl = "";
+
+                if (request.MaPTTT == 3) // Giả sử ID 3 là thanh toán qua Ví Momo
+                {
+                    // 1. Chuẩn bị dữ liệu gửi sang Momo
+                    string orderId = newDonHang.MaDonHang.ToString() + "_" + DateTime.Now.Ticks; // Đảm bảo Unique
+                    string requestId = Guid.NewGuid().ToString();
+                    string orderInfo = "Thanh toán đơn hàng #" + newDonHang.MaDonHang;
+                    string redirectUrl = "https://localhost:7149/api/thanhtoan/momo-callback"; // Link quay lại web sau khi thanh toán
+                    string ipnUrl = "https://your-domain.com/api/thanhtoan/momo-ipn"; // Link Momo gọi ngầm để cập nhật DB
+                    string amount = ((long)tongTienThucTe).ToString();
+                    string extraData = ""; // Có thể để trống hoặc lưu thông tin thêm dạng Base64
+
+                    // 2. Tạo chuỗi dữ liệu để ký tên (Raw Signature) theo thứ tự bảng chữ cái của Key
+                    string rawHash = "accessKey=" + accessKey +
+                        "&amount=" + amount +
+                        "&extraData=" + extraData +
+                        "&ipnUrl=" + ipnUrl +
+                        "&orderId=" + orderId +
+                        "&orderInfo=" + orderInfo +
+                        "&partnerCode=" + partnerCode +
+                        "&redirectUrl=" + redirectUrl +
+                        "&requestId=" + requestId +
+                        "&requestType=captureWallet";
+
+                    // 3. Ký số SHA256 với Secret Key
+                    string signature = "";
+                    using (HMACSHA256 hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secretKey)))
+                    {
+                        byte[] hashValue = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawHash));
+                        signature = BitConverter.ToString(hashValue).Replace("-", "").ToLower();
+                    }
+
+                    // 4. Tạo Object JSON để gửi POST sang Momo
+                    var message = new
+                    {
+                        partnerCode = partnerCode,
+                        requestId = requestId,
+                        amount = long.Parse(amount),
+                        orderId = orderId,
+                        orderInfo = orderInfo,
+                        redirectUrl = redirectUrl,
+                        ipnUrl = ipnUrl,
+                        extraData = extraData,
+                        requestType = "captureWallet",
+                        signature = signature,
+                        lang = "vi"
+                    };
+
+                    // 5. Gọi API Momo để lấy link thanh toán (PayUrl)
+                    var responseMomo = await client.PostAsJsonAsync(endpoint, message);
+                    if (responseMomo.IsSuccessStatusCode)
+                    {
+                        var resultMomo = await responseMomo.Content.ReadFromJsonAsync<JsonElement>();
+                        // Momo trả về 'payUrl' nếu thành công
+                        if (resultMomo.TryGetProperty("payUrl", out var urlElement))
+                        {
+                            paymentUrl = urlElement.GetString();
+                        }
+                    }
+                }
+
+                
+
+                return Ok(new
+                {
+                    Success = true,
+                    MaDonHang = newDonHang.MaDonHang,
+                    H3 = maH3Nhan,
+                    TongTien = tongTienThucTe,
+                    PaymentUrl = paymentUrl // Trả về URL để FE redirect người dùng đi thanh toán (nếu rỗng thì thôi)
+                });
             }
 
 
@@ -577,6 +673,72 @@ namespace QuanLyDonHang.ControllersAPI
                 _logger.LogError($"[Fatal Error] TaoDonHang: {ex.Message}");
                 return StatusCode(500, new { message = "Lỗi hệ thống", detail = ex.Message });
             }
+        }
+
+        private bool VerifyMomoSignature(MomoIPNRequest request)
+        {
+            // 1. Thông tin SecretKey (Phải khớp với key lúc bạn gửi đi)
+            string secretKey = "at67bcvdghas78nhj";
+
+            // 2. Tạo chuỗi rawHash theo đúng thứ tự Momo quy định (A-Z)
+            // Lưu ý: Không được thiếu bất kỳ trường nào dưới đây
+            string rawHash = $"accessKey={accessKey}" + // Bạn cần biến accessKey ở đây
+                             $"&amount={request.amount}" +
+                             $"&extraData={request.extraData}" +
+                             $"&message={request.message}" +
+                             $"&orderId={request.orderId}" +
+                             $"&orderInfo={request.orderInfo}" +
+                             $"&partnerCode={request.partnerCode}" +
+                             $"&requestId={request.requestId}" +
+                             $"&responseTime={request.responseTime}" +
+                             $"&resultCode={request.resultCode}" +
+                             $"&transId={request.transId}";
+
+            // 3. Tính toán lại chữ ký từ chuỗi rawHash
+            string checkSignature = "";
+            using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secretKey)))
+            {
+                byte[] hashValue = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawHash));
+                checkSignature = BitConverter.ToString(hashValue).Replace("-", "").ToLower();
+            }
+
+            // 4. So sánh chữ ký mình vừa tính với chữ ký Momo gửi sang
+            return checkSignature == request.signature;
+        }
+
+        [HttpPost("momo-ipn")]
+        public async Task<IActionResult> MomoIPN([FromBody] MomoIPNRequest request)
+        {
+            // 1. Kiểm tra chữ ký (Signature) để đảm bảo tin nhắn này đúng là từ Momo gửi, không phải hacker
+            bool isValid = VerifyMomoSignature(request);
+            if (!isValid) return BadRequest();
+
+            // 2. Kiểm tra mã kết quả (resultCode == 0 là thành công)
+            if (request.resultCode == 0)
+            {
+                // Tìm đơn hàng dựa trên MaDonHang (TxnRef) mà Momo gửi về
+                var donHang = await _context.DonHangs.FirstOrDefaultAsync(d => d.MaDonHang == request.orderId);
+                var hoaDon = await _context.HoaDons.FirstOrDefaultAsync(h => h.MaDonHang == request.orderId);
+
+                if (donHang != null && hoaDon != null)
+                {
+                    // BƯỚC CẬP NHẬT TRẠNG THÁI:
+
+                    // 1. Cập nhật bảng Hóa đơn (Lưu vết giao dịch chi tiết)
+                    hoaDon.TrangThaiThanhToan = "Thanh_Cong";
+                    hoaDon.MaGiaoDichNgoai = request.transId; // Lưu mã của Momo để đối soát
+                    hoaDon.NgayThanhToan = DateTime.Now;
+
+                    // 2. Cập nhật bảng Đơn hàng (Để quản lý tổng thể)
+                    donHang.TrangThaiThanhToanTong = "Đã thanh toán";
+                    donHang.TrangThaiHienTai = "Đang xử lý"; // Có thể chuyển luôn sang trạng thái chuẩn bị kho
+
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            // Trả về cho Momo biết bạn đã nhận được thông tin (để họ không gọi lại nữa)
+            return NoContent();
         }
 
         [HttpPost("cho-dieu-phoi")]
@@ -643,6 +805,7 @@ namespace QuanLyDonHang.ControllersAPI
                 return StatusCode(500, "Lỗi Server nội bộ khi xử lý gom nhóm: " + ex.Message);
             }
         }
+
         [HttpPut("cap-nhat-trang-thai-nhieu")]
         public async Task<IActionResult> CapNhatTrangThaiNhieuDonHang([FromBody] UpdateMultiStatusRequest request)
         {

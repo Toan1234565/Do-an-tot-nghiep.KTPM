@@ -1,0 +1,491 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.CauHinhDiem
+@model CauHinhDiemModels
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cấu hình Tích điểm hệ thống | TMS</title>
+
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--secondary-bg);
+            color: #334155;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            border: none;
+            border-left: 4px solid var(--primary-color);
+            border-radius: 12px;
+            transition: transform 0.2s;
+        }
+
+            .stat-card:hover {
+                transform: translateY(-5px);
+            }
+
+        .config-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            background: #fff;
+            height: 100%;
+        }
+
+        .icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .bg-soft-primary {
+            background-color: #e0e7ff;
+            color: #4361ee;
+        }
+
+        .bg-soft-success {
+            background-color: #dcfce7;
+            color: #15803d;
+        }
+
+        .bg-soft-info {
+            background-color: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-card">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-5">
+                <div>
+                    <h2 class="fw-bold mb-1 text-dark">Cấu hình Tích điểm & Đổi thưởng</h2>
+                    <p class="text-muted mb-0">Thiết lập cơ chế tính điểm cho khách hàng sử dụng dịch vụ vận tải</p>
+                </div>
+
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-primary px-4 py-2 rounded-pill fw-bold shadow-sm" onclick="openEditModal()">
+                        <i class="fa-solid fa-pen-to-square me-2"></i>Chỉnh sửa cấu hình
+                    </button>
+
+                    <div class="position-relative">
+                        <button type="button"
+                                class="btn btn-light p-0 d-flex align-items-center justify-content-center rounded-circle border shadow-sm btn-nhat-ky"
+                                style="width: 44px; height: 44px; transition: all 0.2s ease-in-out;"
+                                data-bs-toggle="modal"
+                                data-bs-target="#detailModal"
+                                data-service="Quản lý khuyến mãi"
+                                title="Xem nhật ký hoạt động">
+                            <i class="fa-solid fa-bell fs-5 text-primary"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-2 border-white rounded-circle">
+                                <span class="visually-hidden">New alerts</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm p-3">
+                        <small class="text-muted fw-bold">KHÁCH THAM GIA</small>
+                        <h3 class="fw-bold mb-0" id="stat-tongKhachHang">...</h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm p-3" style="border-left-color: #10b981;">
+                        <small class="text-muted fw-bold">TỔNG ĐIỂM PHÁT HÀNH</small>
+                        <h3 class="fw-bold mb-0 text-success" id="stat-tongPhatHanh">...</h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm p-3" style="border-left-color: #f59e0b;">
+                        <small class="text-muted fw-bold">ĐIỂM ĐÃ SỬ DỤNG</small>
+                        <h3 class="fw-bold mb-0 text-warning" id="stat-tongDaDung">...</h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card shadow-sm p-3" style="border-left-color: #6366f1;">
+                        <small class="text-muted fw-bold">ĐIỂM TỒN HỆ THỐNG</small>
+                        <h3 class="fw-bold mb-0 text-primary" id="stat-tongTon">...</h3>
+                    </div>
+                </div>
+            </div>
+            @if (Model != null)
+            {
+                <div class="row g-4">
+                    <div class="col-md-3">
+                        <div class="config-item text-center">
+                            <div class="icon-box bg-soft-primary mx-auto"><i class="fa-solid fa-percentage fs-4"></i></div>
+                            <h6 class="text-uppercase fw-bold small text-muted">Tỷ lệ tích điểm</h6>
+                            <h3 class="fw-bold text-dark">@Model.TyLeTichDiem.ToString() %</h3>
+                            <p class="small text-muted mb-0">Trên giá trị đơn hàng</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="config-item text-center">
+                            <div class="icon-box bg-soft-success mx-auto"><i class="fa-solid fa-money-bill-transfer fs-4"></i></div>
+                            <h6 class="text-uppercase fw-bold small text-muted">Giá trị quy đổi</h6>
+                            <h3 class="fw-bold text-dark">@string.Format("{0:N0}", Model.GiaTriDiem) đ</h3>
+                            <p class="small text-muted mb-0">Tương ứng với 1 điểm</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="config-item text-center">
+                            <div class="icon-box bg-soft-warning mx-auto"><i class="fa-solid fa-shield-halved fs-4"></i></div>
+                            <h6 class="text-uppercase fw-bold small text-muted">Hạn mức sử dụng</h6>
+                            <h3 class="fw-bold text-dark">@string.Format("{0:N0}", Model.DiemToiThieuDeDung)</h3>
+                            <p class="small text-muted mb-0">Điểm tối thiểu để đổi</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="config-item text-center">
+                            <div class="icon-box @(Model.ChoPhepDungDiem ? "bg-soft-success" : "bg-soft-warning") mx-auto">
+                                <i class="fa-solid @(Model.ChoPhepDungDiem ? "fa-toggle-on" : "fa-toggle-off") fs-4"></i>
+                            </div>
+                            <h6 class="text-uppercase fw-bold small text-muted">Trạng thái hệ thống</h6>
+                            <div class="mt-2">
+                                @if (Model.ChoPhepDungDiem)
+                                {
+                                    <span class="status-badge bg-success text-white">ĐANG HOẠT ĐỘNG</span>
+                                }
+                                else
+                                {
+                                    <span class="status-badge bg-secondary text-white">TẠM NGƯNG</span>
+                                }
+                            </div>
+                            <p class="small text-muted mb-0 mt-3">Cập nhật: @(Model.NgayCapNhat?.ToString("dd/MM/yyyy HH:mm"))</p>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning border-0 shadow-sm rounded-4 p-4 text-center">
+                    <i class="fa-solid fa-triangle-exclamation fs-1 mb-3"></i>
+                    <h5>Không tìm thấy dữ liệu cấu hình!</h5>
+                    <p>Hệ thống cần ít nhất một bản ghi cấu hình trong database để hoạt động.</p>
+                </div>
+            }
+        </div>
+        <div class="main-card">
+            <h4 class="fw-bold mb-4"><i class="fa-solid fa-magnifying-glass me-2 text-primary"></i>Tra cứu khách hàng</h4>
+            <div class="row g-3 mb-4">
+                <div class="col-md-8">
+                    <input type="text" id="inputMaKH" class="form-control form-control-lg rounded-pill"
+                           placeholder="Nhập Mã KH, Tên hoặc Số điện thoại...">
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-dark w-100 h-100 rounded-pill fw-bold" onclick="traCuuKhachHang()">
+                        <i class="fa-solid fa-search me-2"></i>Tìm kiếm dữ liệu
+                    </button>
+                </div>
+            </div>
+
+            <div id="resultArea" style="display: none;">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="p-4 bg-light rounded-4 border">
+                            <h6 class="text-muted text-uppercase small fw-bold">Chủ sở hữu</h6>
+                            <h4 class="fw-bold text-primary" id="res-tenKH">---</h4>
+                            <hr>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Số dư hiện tại:</span>
+                                <b class="text-success fs-5" id="res-soDu">0</b>
+                            </div>
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">Tổng tích lũy:</span>
+                                <span id="res-tongTich">0</span>
+                            </div>
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">Đã sử dụng:</span>
+                                <span id="res-daDung">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle border rounded">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Sự kiện</th>
+                                        <th>Thời gian</th>
+                                        <th class="text-end">Trạng thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableLichSu">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="fw-bold"><i class="fa-solid fa-sliders me-2"></i>Điều chỉnh cấu hình</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editForm">
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-600 small">Tỷ lệ tích điểm (%)</label>
+                            <input type="number" step="0.1" class="form-control form-control-lg rounded-3" name="TyLeTichDiem" value="@Model?.TyLeTichDiem">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-600 small">Giá trị 1 điểm (VNĐ)</label>
+                            <input type="number" class="form-control form-control-lg rounded-3" name="GiaTriDiem" value="@Model?.GiaTriDiem">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-600 small">Điểm tối thiểu để đổi</label>
+                            <input type="number" class="form-control form-control-lg rounded-3" name="DiemToiThieuDeDung" value="@Model?.DiemToiThieuDeDung">
+                        </div>
+                        <div class="form-check form-switch mt-4">
+                            <input class="form-check-input" type="checkbox" id="ChoPhepDungDiem" name="ChoPhepDungDiem" @(Model?.ChoPhepDungDiem == true ? "checked" : "")>
+                            <label class="form-check-label fw-bold" for="ChoPhepDungDiem">Kích hoạt sử dụng điểm trên toàn hệ thống</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="button" class="btn btn-primary px-4" onclick="updateConfig()">Lưu cấu hình mới</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="detailModal" data-bs-backdrop="static">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nhật ký hệ thống</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modalBodyNhatKy">
+                    @await Html.PartialAsync("_NhatKyPartial")
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        function openEditModal() {
+            $('#editModal').modal('show');
+        }
+        function updateConfig() {
+            // 1. Thu thập dữ liệu từ Form
+            const formData = {
+                TyLeTichDiem: parseFloat($('input[name="TyLeTichDiem"]').val()),
+                GiaTriDiem: parseInt($('input[name="GiaTriDiem"]').val()),
+                DiemToiThieuDeDung: parseInt($('input[name="DiemToiThieuDeDung"]').val()),
+                ChoPhepDungDiem: $('#ChoPhepDungDiem').is(':checked')
+            };
+
+            // 2. Validation cơ bản tại Client
+            if (isNaN(formData.TyLeTichDiem) || formData.TyLeTichDiem < 0) {
+                Swal.fire('Lỗi!', 'Tỷ lệ tích điểm không hợp lệ.', 'error');
+                return;
+            }
+
+            // 3. Xác nhận từ người dùng
+            Swal.fire({
+                title: 'Xác nhận cập nhật?',
+                text: "Các thay đổi sẽ áp dụng ngay lập tức và làm mới bộ nhớ đệm (Cache)!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#4361ee',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Đồng ý, cập nhật!',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Hiển thị loading khi đang gọi API
+                    Swal.showLoading();
+
+                    $.ajax({
+                        // ĐƯỜNG DẪN KHỚP VỚI [Route("api/cauhinhtichdiem")] và [HttpPut("cap-nhat")]
+                        url: 'https://localhost:7149/api/cauhinhtichdiem/cap-nhat',
+                        type: 'PUT', // Phải là PUT để khớp với backend
+                        contentType: 'application/json',
+                        credentials: 'include',
+                        data: JSON.stringify(formData),
+                        success: function(res) {
+                            if (res.success) {
+                                Swal.fire({
+                                    title: 'Thành công!',
+                                    text: res.message,
+                                    icon: 'success',
+                                    confirmButtonColor: '#4361ee'
+                                }).then(() => {
+                                    location.reload(); // Load lại trang để hiển thị thông số mới
+                                });
+                            } else {
+                                Swal.fire('Thất bại', res.message || 'Không thể cập nhật cấu hình.', 'error');
+                            }
+                        },
+                        error: function(xhr) {
+                            // Xử lý các lỗi từ Server (400, 500, v.v.)
+                            let errorMsg = "Có lỗi xảy ra trong quá trình xử lý.";
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMsg = xhr.responseJSON.message;
+                            } else if (typeof xhr.responseText === 'string' && xhr.responseText.length < 100) {
+                                errorMsg = xhr.responseText;
+                            }
+
+                            Swal.fire('Lỗi hệ thống', errorMsg, 'error');
+                        }
+                    });
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            loadThongKeTongQuan();
+        });
+
+        // 1. Hàm gọi API Thống kê tổng quan
+        function loadThongKeTongQuan() {
+            $.get('https://localhost:7149/api/cauhinhtichdiem/thong-ke-tong-quan', function(res) {
+                if(res.success) {
+                    const d = res.data;
+                    $('#stat-tongKhachHang').text(d.tongKhachHangThamGia.toLocaleString());
+                    $('#stat-tongPhatHanh').text(d.tongDiemHeThong.toLocaleString());
+                    $('#stat-tongDaDung').text(d.tongDiemDaSuDung.toLocaleString());
+                    $('#stat-tongTon').text(d.diemConTonTrongHeThong.toLocaleString());
+                }
+            });
+        }
+
+               // 2. Hàm tra cứu Số dư và Lịch sử
+        function traCuuKhachHang() {
+            const searchTerm = $('#inputMaKH').val().trim();
+            if (!searchTerm) return Swal.fire('Nhắc nhở', 'Vui lòng nhập thông tin tra cứu', 'info');
+
+            Swal.showLoading();
+
+            // Mã hóa từ khóa để an toàn khi đưa lên URL (tránh lỗi tiếng Việt có dấu)
+            const encodedTerm = encodeURIComponent(searchTerm);
+
+            // Đường dẫn gốc từ server-side (Razor)
+            const baseDetailUrl = '@Url.Action("ChiTietKhachHang", "QuanLyKhachHang")';
+
+            // Gọi đồng thời 2 API
+            const apiSoDu = $.get(`https://localhost:7149/api/cauhinhtichdiem/so-du/${encodedTerm}`);
+            const apiLichSu = $.get(`https://localhost:7149/api/cauhinhtichdiem/lich-su-diem/${encodedTerm}`);
+
+            $.when(apiSoDu, apiLichSu).done(function (res1, res2) {
+                Swal.close();
+
+                const soDuData = res1[0];
+                const lichSuData = res2[0];
+
+                if (soDuData.success && soDuData.data) {
+                    $('#resultArea').fadeIn();
+                    const d = soDuData.data;
+
+                    // 1. Cập nhật tên khách hàng thành Link điều hướng
+                    // d.maKhachHang phải được trả về từ API Backend
+                    const detailUrl = `${baseDetailUrl}?maKhachHang=${d.maKhachHang}`;
+
+                    $('#res-tenKH').html(`
+                        <a href="${detailUrl}" class="text-decoration-none fw-bold text-primary" title="Click để xem chi tiết khách hàng">
+                            ${d.tenKhachHang}
+                            <i class="fa-solid fa-arrow-up-right-from-square ms-1" style="font-size: 10px;"></i>
+                        </a>
+                    `);
+
+                    // 2. Cập nhật các thông số số dư
+                    $('#res-soDu').text(d.soDuHienTai.toLocaleString());
+                    $('#res-tongTich').text(d.tongDiemTichLuy.toLocaleString());
+                    $('#res-daDung').text(d.diemDaDung.toLocaleString());
+
+                    // 3. Đổ dữ liệu lịch sử vào Table
+                    let html = '';
+                    if (lichSuData.data && lichSuData.data.length > 0) {
+                        lichSuData.data.forEach(item => {
+                            // Xác định màu sắc/icon dựa trên dữ liệu (nếu cần)
+                            html += `
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-sm bg-light rounded-circle me-2 d-flex align-items-center justify-content-center" style="width:30px; height:30px;">
+                                                <i class="fa-solid fa-clock-rotate-left text-muted small"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-600">Cập nhật điểm hệ thống</div>
+                                                <small class="text-muted">Mã KH: ${d.maKhachHang}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="small text-muted">
+                                        ${new Date(item.ngayCapNhatCuoi).toLocaleString('vi-VN')}
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-soft-success text-success border-0 px-3">Thành công</span>
+                                    </td>
+                                </tr>`;
+                        });
+                    } else {
+                        html = '<tr><td colspan="3" class="text-center py-4 text-muted">Không tìm thấy nhật ký giao dịch điểm</td></tr>';
+                    }
+                    $('#tableLichSu').html(html);
+
+                } else {
+                    $('#resultArea').hide();
+                    Swal.fire('Thông báo', soDuData.message || 'Không tìm thấy dữ liệu khách hàng này', 'warning');
+                }
+            }).fail(function (xhr) {
+                Swal.close();
+                let errorMsg = 'Không thể kết nối đến máy chủ.';
+                if(xhr.status === 400) errorMsg = 'Dữ liệu yêu cầu không hợp lệ (Lỗi 400).';
+
+                Swal.fire('Lỗi hệ thống', errorMsg, 'error');
+            });
+        }
+
+    </script>
+</body>
+</html>
