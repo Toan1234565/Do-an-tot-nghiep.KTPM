@@ -25,6 +25,7 @@ public partial class TaiXe
 
     public string? AnhBangLaiSau { get; set; }
 
+    public virtual ICollection<DangKyCaTruc> DangKyCaTrucs { get; set; } = new List<DangKyCaTruc>();
 
     public virtual ICollection<LichSuViPham> LichSuViPhams { get; set; } = new List<LichSuViPham>();
 

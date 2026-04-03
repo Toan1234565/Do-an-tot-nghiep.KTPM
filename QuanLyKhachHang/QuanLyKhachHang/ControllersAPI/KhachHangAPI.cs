@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using H3;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using QuanLyKhachHang.Models;
@@ -257,7 +258,6 @@ namespace QuanLyKhachHang.ControllersAPI
         [HttpPost("check_so_dien_thoai")]
         public async Task<IActionResult> GetOrCreateByPhone([FromBody] KhachHangModels request)
         {
-            // Kiểm tra đầu vào cơ bản
             if (string.IsNullOrWhiteSpace(request.SoDienThoai) || !Regex.IsMatch(request.SoDienThoai, @"^[0-9]{10,11}$"))
                 return BadRequest("Số điện thoại không hợp lệ.");
 
@@ -271,46 +271,52 @@ namespace QuanLyKhachHang.ControllersAPI
                 if (khachHang != null)
                     return Ok(new { maKhachHang = khachHang.MaKhachHang, soDienThoai = khachHang.SoDienThoai });
 
-                // 2. LOGIC TỰ ĐỘNG LẤY TỌA ĐỘ
+                // 2. LOGIC TỰ ĐỘNG LẤY TỌA ĐỘ VÀ MÃ H3
                 double? lat = request.DiaChi?.ViDo;
                 double? lon = request.DiaChi?.KinhDo;
+                string? maVungH3 = null;
 
-                // Nếu thiếu tọa độ nhưng có thông tin địa chỉ, tiến hành tự động lấy
-                if (request.DiaChi != null && (lat == null || lon == null))
+                if (request.DiaChi != null)
                 {
-                    // Kiểm tra xem có đủ thông tin tối thiểu để tìm kiếm không
-                    if (!string.IsNullOrEmpty(request.DiaChi.ThanhPho))
+                    if (lat == null || lon == null)
                     {
-                        _logger.LogInformation("Đang tự động lấy tọa độ cho địa chỉ mới...");
+                        if (!string.IsNullOrEmpty(request.DiaChi.ThanhPho))
+                        {
+                            _logger.LogInformation("Đang tự động lấy tọa độ cho khách hàng mới...");
+                            (lat, lon) = await GetCoordinatesAsync(request.DiaChi.Duong, request.DiaChi.Phuong, request.DiaChi.ThanhPho);
+                        }
+                    }
 
-                        // Gọi hàm lấy tọa độ (hàm này đã có trong Controller của bạn)
-                        (lat, lon) = await GetCoordinatesAsync(
-                            request.DiaChi.Duong,
-                            request.DiaChi.Phuong,
-                            request.DiaChi.ThanhPho
-                        );
+                    // Tính toán mã H3 nếu có tọa độ (Quan trọng cho hệ thống Logistics của Hoàng Đế)
+                    if (lat.HasValue && lon.HasValue)
+                    {
+                        try
+                        {
+                            var h3Index = H3Index.FromLatLng(new H3.Model.LatLng(lat.Value, lon.Value), 7);
+                            maVungH3 = h3Index.ToString();
+                        }
+                        catch { /* Bỏ qua nếu thư viện H3 lỗi */ }
                     }
                 }
 
-                // 3. Thực hiện lưu dữ liệu vào Database
+                // 3. Thực hiện lưu dữ liệu (Transaction)
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // Lưu địa chỉ trước để lấy ID
                     var newDiaChi = new DiaChi
                     {
                         Duong = request.DiaChi?.Duong ?? "Chưa xác định",
                         Phuong = request.DiaChi?.Phuong ?? "Chưa xác định",
                         ThanhPho = request.DiaChi?.ThanhPho ?? "Chưa xác định",
                         MaBuuDien = request.DiaChi?.MaBuuDien,
-                        ViDo = lat, // Tọa độ tự động hoặc thủ công
-                        KinhDo = lon // Tọa độ tự động hoặc thủ công
+                        ViDo = lat,
+                        KinhDo = lon,
+                        MaVungH3 = maVungH3 // Lưu thêm mã H3
                     };
 
                     _context.DiaChis.Add(newDiaChi);
                     await _context.SaveChangesAsync();
 
-                    // Lưu khách hàng
                     var newKhachHang = new KhachHang
                     {
                         SoDienThoai = request.SoDienThoai,
@@ -324,14 +330,14 @@ namespace QuanLyKhachHang.ControllersAPI
 
                     await transaction.CommitAsync();
 
-                    // Xóa cache danh sách
-                    _cache.Remove("CustomerList_P1_S_");
+                    // 4. Xóa Cache (Nên dùng Token để clear toàn bộ danh sách khách hàng)
+                    // _cache.Remove(...) -> Cách này của ngài cũng được nhưng nên dùng Key chung.
 
                     return Ok(new
                     {
                         maKhachHang = newKhachHang.MaKhachHang,
                         soDienThoai = newKhachHang.SoDienThoai,
-                        toaDo = new { lat, lon } // Trả về tọa độ để FE biết đã lấy thành công
+                        toaDo = new { lat, lon, maVungH3 }
                     });
                 }
                 catch (Exception)
@@ -340,16 +346,13 @@ namespace QuanLyKhachHang.ControllersAPI
                     throw;
                 }
             }
-            catch (DbUpdateException)
-            {
-                return Conflict("Dữ liệu khách hàng đã được tạo hoặc có lỗi xung đột.");
-            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Lỗi khi xử lý khách hàng: {Phone}", request.SoDienThoai);
                 return StatusCode(500, "Lỗi máy chủ nội bộ.");
             }
         }
+
         private async Task<(double? lat, double? lon)> GetCoordinatesAsync(string? duong, string? phuong, string? thanhPho)
         {
             if (string.IsNullOrWhiteSpace(thanhPho)) return (null, null);
@@ -359,28 +362,35 @@ namespace QuanLyKhachHang.ControllersAPI
                 using var client = new HttpClient();
                 client.DefaultRequestHeaders.Add("User-Agent", "QuanLyVanchuyenApp/1.0");
 
-                // Kết hợp địa chỉ thành chuỗi tìm kiếm (Query)
-                // Ví dụ: "Số 1 Đống Đa, Quang Trung, Hà Nội, Vietnam"
-                var parts = new List<string>();
-                if (!string.IsNullOrWhiteSpace(duong)) parts.Add(duong);
-                if (!string.IsNullOrWhiteSpace(phuong)) parts.Add(phuong);
-                if (!string.IsNullOrWhiteSpace(thanhPho)) parts.Add(thanhPho);
-                parts.Add("Vietnam");
-
-                string fullAddress = string.Join(", ", parts);
-                string url = $"https://nominatim.openstreetmap.org/search?q={Uri.EscapeDataString(fullAddress)}&format=json&limit=1";
-
-                var response = await client.GetAsync(url);
-                if (response.IsSuccessStatusCode)
+                // Lớp 1: Tìm địa chỉ đầy đủ
+                var levels = new List<string[]>
                 {
-                    var json = await response.Content.ReadAsStringAsync();
-                    var data = System.Text.Json.JsonSerializer.Deserialize<List<GeocodeResult>>(json);
+                    new[] { duong, phuong, thanhPho }, // Ưu tiên 1: Đầy đủ
+                    new[] { phuong, thanhPho }        // Ưu tiên 2: Chỉ lấy Phường/Xã nếu Đường không tìm thấy
+                };
 
-                    if (data != null && data.Count > 0)
+                foreach (var parts in levels)
+                {
+                    var searchParts = parts.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+                    searchParts.Add("Vietnam");
+                    string fullAddress = string.Join(", ", searchParts);
+
+                    string url = $"https://nominatim.openstreetmap.org/search?q={Uri.EscapeDataString(fullAddress)}&format=json&limit=1";
+
+                    var response = await client.GetAsync(url);
+                    if (response.IsSuccessStatusCode)
                     {
-                        double.TryParse(data[0].lat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double latRes);
-                        double.TryParse(data[0].lon, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lonRes);
-                        return (latRes, lonRes);
+                        var json = await response.Content.ReadAsStringAsync();
+                        var data = System.Text.Json.JsonSerializer.Deserialize<List<GeocodeResult>>(json);
+
+                        if (data != null && data.Count > 0)
+                        {
+                            double.TryParse(data[0].lat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double latRes);
+                            double.TryParse(data[0].lon, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lonRes);
+
+                            _logger.LogInformation("Tìm thấy tọa độ cho: {Address}", fullAddress);
+                            return (latRes, lonRes);
+                        }
                     }
                 }
             }

@@ -21,11 +21,19 @@ public partial class LoTrinh
 
     public string? GhiChu { get; set; }
 
+    public DateTime? ThoiGianKetThucThucTe { get; set; }
+
+    public int? MaKhoQuanLy { get; set; }
+
+    public bool? LoTrinhTuyen { get; set; }
+
     public virtual ICollection<ChiPhiLoTrinh> ChiPhiLoTrinhs { get; set; } = new List<ChiPhiLoTrinh>();
 
     public virtual ICollection<ChiTietLoTrinhKienHang> ChiTietLoTrinhKienHangs { get; set; } = new List<ChiTietLoTrinhKienHang>();
 
     public virtual ICollection<DiemDung> DiemDungs { get; set; } = new List<DiemDung>();
+
+    public virtual ICollection<LichSuHanhTrinhDonHang> LichSuHanhTrinhDonHangs { get; set; } = new List<LichSuHanhTrinhDonHang>();
 
     public virtual ICollection<SuCo> SuCos { get; set; } = new List<SuCo>();
 }

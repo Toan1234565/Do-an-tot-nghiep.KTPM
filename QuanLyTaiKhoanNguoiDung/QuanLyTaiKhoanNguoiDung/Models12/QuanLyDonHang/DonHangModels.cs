@@ -24,7 +24,7 @@
 
         public int? MaVung { get; set; }
 
-        public int? MaDiaChiGiaoHang { get; set; }
+        public int? MaDiaChiNhanHang { get; set; }
 
         public string? TenNguoiNhan { get; set; }
 

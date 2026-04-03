@@ -44,5 +44,7 @@ namespace QuanLyDonHang.Models1
         public int MaKhuyenMai { get; set; }
 
         public int MaPTTT { get; set; }
+
+        public int? MaKhoHienTai { get; set; }
     }
 }

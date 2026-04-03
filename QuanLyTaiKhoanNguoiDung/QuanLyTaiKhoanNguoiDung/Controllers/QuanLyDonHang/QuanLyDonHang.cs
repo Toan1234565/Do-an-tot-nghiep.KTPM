@@ -159,7 +159,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyDonHang
                     tasks.Add(Task.Run(async () => {
                         try
                         {
-                            var res = await client.GetAsync($"{apiDiaChi}/chitietdiachi/{donHang?.MaDiaChiLayHang}");
+                            var res = await client.GetAsync($"{apiDiaChi}/chitietdiachi/{donHang?.MaDiaChiNhanHang}");
                             if (res.IsSuccessStatusCode)
                             {
                                 var json = await res.Content.ReadAsStringAsync();

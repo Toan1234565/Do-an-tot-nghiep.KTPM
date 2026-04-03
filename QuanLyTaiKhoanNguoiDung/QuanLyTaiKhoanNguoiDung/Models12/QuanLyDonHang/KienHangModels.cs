@@ -10,6 +10,8 @@
 
         public int MaDiaChiLay { get; set; }
 
+        public int MaDiaChiNhan { get; set; }
+
         public double? KhoiLuong { get; set; }
 
         public double? TheTich { get; set; }

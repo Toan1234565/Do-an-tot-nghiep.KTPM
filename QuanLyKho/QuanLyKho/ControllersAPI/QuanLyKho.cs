@@ -499,81 +499,179 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
             }
         }
-        [HttpGet("tim-kho-gan-nhat/{maDiaChiLayHang}")]
-        public async Task<IActionResult> TimKhoGanNhat(int maDiaChiLayHang)
+        [HttpPost("tim-kho-theo-lo")]
+        public async Task<IActionResult> TimKhoTheoLo([FromBody] BatchKhoRequest request)
         {
+            if (request?.MaDiaChis == null || !request.MaDiaChis.Any())
+                return BadRequest("Danh sách mã địa chỉ trống.");
+
             try
             {
                 var client = _httpClientFactory.CreateClient();
 
-                // BƯỚC 1: Lấy tọa độ khách hàng
-                // BƯỚC 1: Lấy tọa độ của Khách hàng
-                var urlKhach = $"https://localhost:7149/api/quanlydiachi/lay-toa-do/{maDiaChiLayHang}";
-                var resKhach = await client.GetAsync(urlKhach);
+                // 1. Lấy thông tin tọa độ và mã H3 của DANH SÁCH địa chỉ khách hàng
+                var resToaDo = await client.PostAsJsonAsync("https://localhost:7149/api/quanlydiachi/lay-toa-do-danh-sach", request.MaDiaChis);
+                if (!resToaDo.IsSuccessStatusCode) return BadRequest("Không thể lấy dữ liệu tọa độ từ Service Địa Chỉ.");
 
-                if (!resKhach.IsSuccessStatusCode)
-                {
-                    _logger.LogError($"Lỗi gọi API tọa độ khách: {resKhach.StatusCode} tại URL: {urlKhach}");
-                    // Thay vì trả về BadRequest, bạn có thể gán kho mặc định (ví dụ MaKho = 1) để đơn hàng vẫn được tạo
-                    return BadRequest($"Không lấy được tọa độ khách (Mã địa chỉ: {maDiaChiLayHang}). Vui lòng kiểm tra Server Khách hàng.");
-                }
+                var danhSachToaDoKhach = await resToaDo.Content.ReadFromJsonAsync<List<ToaDoResponseDto>>();
+                if (danhSachToaDoKhach == null) return NotFound("Dữ liệu tọa độ trống.");
 
-                var toaDoKhach = await resKhach.Content.ReadFromJsonAsync<ToaDoDto>();
-
-                // Kiểm tra nếu tọa độ trả về bị rỗng
-                if (toaDoKhach == null || toaDoKhach.ViDo == 0 || toaDoKhach.KinhDo == 0)
-                {
-                    return BadRequest("Tọa độ khách hàng trong cơ sở dữ liệu đang bị trống hoặc bằng 0.");
-                }
-                if (!resKhach.IsSuccessStatusCode) return BadRequest("Không lấy được tọa độ khách.");
-               
-
-                // BƯỚC 2: Lấy các kho đang hoạt động
+                // 2. Lấy danh sách kho đang hoạt động
                 var khoBais = await _context.KhoBais
+                    .AsNoTracking()
                     .Where(k => k.TrangThai == "Hoạt động")
-                    .Select(k => new { k.MaKho, k.MaDiaChi, k.TenKhoBai })
                     .ToListAsync();
 
-                if (!khoBais.Any()) return NotFound("Không có kho nào đang hoạt động.");
-
+                // 3. Lấy tọa độ của TẤT CẢ các kho để tính khoảng cách Haversine
                 var maDiaChiKhos = khoBais.Select(k => k.MaDiaChi).Distinct().ToList();
+                var resToaDoKho = await client.PostAsJsonAsync("https://localhost:7149/api/quanlydiachi/lay-toa-do-danh-sach", maDiaChiKhos);
+                var danhSachToaDoKho = await resToaDoKho.Content.ReadFromJsonAsync<List<ToaDoResponseDto>>();
 
-                // BƯỚC 3: Lấy tọa độ các kho (Đã sửa URL từ hhttps thành https)
-                var resKhos = await client.PostAsJsonAsync("https://localhost:7149/api/quanlydiachi/lay-toa-do-danh-sach", maDiaChiKhos);
-                if (!resKhos.IsSuccessStatusCode) return BadRequest("Không lấy được tọa độ các kho.");
+                var ketQua = new Dictionary<int, object>();
 
-                var danhSachToaDoKho = await resKhos.Content.ReadFromJsonAsync<List<ToaDoResponseDto>>();
-
-                // BƯỚC 4: Tính toán và tìm kho gần nhất
-                var ketQua = khoBais.Select(k => {
-                    var toaDo = danhSachToaDoKho.FirstOrDefault(t => t.MaDiaChi == k.MaDiaChi);
-                    return new
-                    {
-                        k.MaKho,
-                        k.TenKhoBai,
-                        KhoangCach = (toaDo != null && toaDo.ViDo.HasValue && toaDo.KinhDo.HasValue)
-                            ? TinhKhoangCach(toaDoKhach.ViDo, toaDoKhach.KinhDo, (double)toaDo.ViDo.Value, (double)toaDo.KinhDo.Value)
-                            : double.MaxValue
-                    };
-                })
-                .OrderBy(k => k.KhoangCach)
-                .FirstOrDefault(k => k.KhoangCach < double.MaxValue); // Đảm bảo không lấy kho lỗi tọa độ
-
-                if (ketQua == null) return NotFound("Không tìm thấy kho nào có tọa độ hợp lệ.");
-
-                return Ok(new
+                foreach (var dcKhach in danhSachToaDoKhach)
                 {
-                    maKho = ketQua.MaKho,
-                    tenKho = ketQua.TenKhoBai,
-                    distance = Math.Round(ketQua.KhoangCach, 2) + " km"
-                });
+                    // CHIẾN THUẬT 1: Tìm kho cùng vùng H3 (Ưu tiên số 1)
+                    var khoCungVung = khoBais.FirstOrDefault(k => !string.IsNullOrEmpty(k.MaVungH3) && k.MaVungH3 == dcKhach.MaVungH3);
+
+                    if (khoCungVung != null)
+                    {
+                        ketQua[dcKhach.MaDiaChi] = new
+                        {
+                            maKho = khoCungVung.MaKho,
+                            tenKho = khoCungVung.TenKhoBai,
+                            maDiaChi = khoCungVung.MaDiaChi,
+                            maVungH3 = khoCungVung.MaVungH3,
+                            distance = "0 km (Cùng vùng H3)"
+                        };
+                    }
+                    else
+                    {
+                        // CHIẾN THUẬT 2: Tìm kho gần nhất bằng công thức Haversine (Dự phòng)
+                        var khoGanNhatObj = khoBais
+                            .Select(k =>
+                            {
+                                var toaDoK = danhSachToaDoKho?.FirstOrDefault(t => t.MaDiaChi == k.MaDiaChi);
+                                double khoangCach = double.MaxValue;
+
+                                if (toaDoK != null && dcKhach.ViDo.HasValue && dcKhach.KinhDo.HasValue && toaDoK.ViDo.HasValue && toaDoK.KinhDo.HasValue)
+                                {
+                                    khoangCach = TinhKhoangCach(
+                                        dcKhach.ViDo.Value,
+                                        dcKhach.KinhDo.Value,
+                                        toaDoK.ViDo.Value,
+                                        toaDoK.KinhDo.Value
+                                    );
+                                }
+                                return new { Kho = k, Distance = khoangCach };
+                            })
+                            .OrderBy(x => x.Distance)
+                            .FirstOrDefault();
+
+                        if (khoGanNhatObj != null && khoGanNhatObj.Distance < double.MaxValue)
+                        {
+                            // Lấy thực thể Kho từ kết quả sắp xếp
+                            var khoThucTe = khoGanNhatObj.Kho;
+
+                            ketQua[dcKhach.MaDiaChi] = new
+                            {
+                                maKho = khoThucTe.MaKho,
+                                tenKho = khoThucTe.TenKhoBai,
+                                maDiaChi = khoThucTe.MaDiaChi, // Đã sửa: Không dùng biến null khoCungVung
+                                maVungH3 = khoThucTe.MaVungH3,
+                                distance = Math.Round(khoGanNhatObj.Distance, 2) + " km"
+                            };
+                        }
+                    }
+                }
+
+                return Ok(ketQua);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi tìm kho gần nhất");
+                _logger.LogError(ex, "Lỗi Batch tìm kho");
                 return StatusCode(500, "Lỗi hệ thống: " + ex.Message);
             }
         }
+
+        [HttpGet("tim-kho-gan-nhat")]
+        public async Task<IActionResult> TimKhoGanNhat([FromQuery] int maDiaChi)
+        {
+            if (maDiaChi <= 0) return BadRequest("Mã địa chỉ không hợp lệ.");
+
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+
+                // 1. Gọi sang Service Địa Chỉ để lấy tọa độ của địa chỉ đích (đơn hàng)
+                var resToaDo = await client.GetAsync($"https://localhost:7149/api/quanlydiachi/lay-toa-do/{maDiaChi}");
+                if (!resToaDo.IsSuccessStatusCode) return NotFound("Không tìm thấy tọa độ địa chỉ yêu cầu.");
+
+                var toaDoDich = await resToaDo.Content.ReadFromJsonAsync<ToaDoResponseDto>();
+                if (toaDoDich == null) return NotFound("Dữ liệu tọa độ trống.");
+
+                // 2. Lấy danh sách tất cả kho đang hoạt động
+                var khoBais = await _context.KhoBais
+                    .AsNoTracking()
+                    .Where(k => k.TrangThai == "Hoạt động")
+                    .ToListAsync();
+
+                // 3. CHIẾN THUẬT 1: Tìm kho cùng vùng H3 (Nhanh nhất)
+                var khoCungVung = khoBais.FirstOrDefault(k => !string.IsNullOrEmpty(k.MaVungH3) && k.MaVungH3 == toaDoDich.MaVungH3);
+                if (khoCungVung != null)
+                {
+                    return Ok(new
+                    {
+                        MaKho = khoCungVung.MaKho,
+                        TenKho = khoCungVung.TenKhoBai,
+                        Distance = 0,
+                        Note = "Cùng vùng H3"
+                    });
+                }
+
+                // 4. CHIẾN THUẬT 2: Tính khoảng cách Haversine để tìm kho vật lý gần nhất
+                // Lấy tọa độ của tất cả các kho
+                var maDiaChiKhos = khoBais.Select(k => k.MaDiaChi).Distinct().ToList();
+                var resToaDoKhos = await client.PostAsJsonAsync("https://localhost:7149/api/quanlydiachi/lay-toa-do-danh-sach", maDiaChiKhos);
+                var danhSachToaDoKho = await resToaDoKhos.Content.ReadFromJsonAsync<List<ToaDoResponseDto>>();
+
+                var khoGanNhat = khoBais
+                    .Select(k =>
+                    {
+                        var tdK = danhSachToaDoKho?.FirstOrDefault(t => t.MaDiaChi == k.MaDiaChi);
+                        double distance = double.MaxValue;
+                        if (tdK != null && toaDoDich.ViDo.HasValue && toaDoDich.KinhDo.HasValue && tdK.ViDo.HasValue && tdK.KinhDo.HasValue)
+                        {
+                            distance = TinhKhoangCach(toaDoDich.ViDo.Value, toaDoDich.KinhDo.Value, tdK.ViDo.Value, tdK.KinhDo.Value);
+                        }
+                        return new { Kho = k, Distance = distance };
+                    })
+                    .OrderBy(x => x.Distance)
+                    .FirstOrDefault();
+
+                if (khoGanNhat != null && khoGanNhat.Distance < double.MaxValue)
+                {
+                    // Tìm dòng này trong Controller QuanLyKho của KhoApi:
+                    return Ok(new
+                    {
+                        MaKho = khoGanNhat.Kho.MaKho,
+                        TenKho = khoGanNhat.Kho.TenKhoBai,
+                        Distance = Math.Round(khoGanNhat.Distance, 2).ToString(), // Thêm .ToString() ở đây
+                        Note = "Tính theo khoảng cách vật lý"
+                    });
+
+
+                }
+
+                return NotFound("Không tìm thấy kho phù hợp.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi tìm kho gần nhất cho địa chỉ {MaDiaChi}", maDiaChi);
+                return StatusCode(500, "Lỗi hệ thống khi tìm kho.");
+            }
+        }
+
         private double TinhKhoangCach(double lat1, double lon1, double lat2, double lon2)
         {
             var R = 6371; // km
@@ -583,6 +681,32 @@ namespace QuanLyKho.ControllersAPI
                     Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
                     Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
             return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        }
+
+        [HttpGet("MaDiaChiKho/{maKho}")]
+        public async Task<IActionResult> GetMaDiaChiKho([FromRoute] int maKho)
+        {
+            try
+            {
+                var khoBai = await _context.KhoBais
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(k => k.MaKho == maKho);
+                if (khoBai == null)
+                {
+                    return NotFound($"Không tìm thấy kho bãi với mã kho: {maKho}");
+                }
+                return Ok(new { MaDiaChi = khoBai.MaDiaChi });
+            }
+            catch (SqlException ex)
+            {
+                _logger.LogError(ex, "Lỗi kết nối cơ sở dữ liệu khi lấy mã địa chỉ của kho bãi");
+                return StatusCode(503, "Dịch vụ cơ sở dữ liệu tạm thời không khả dụng");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi hệ thống khi lấy mã địa chỉ của kho bãi với mã kho: {MaKho}", maKho);
+                return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
+            }
         }
     }
 }

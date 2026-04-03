@@ -25,8 +25,6 @@ public partial class DonHang
 
     public string? GhiChuDacBiet { get; set; }
 
-    public int? MaVung { get; set; }
-
     public int? MaDiaChiNhanHang { get; set; }
 
     public string? TenNguoiNhan { get; set; }
@@ -50,6 +48,8 @@ public partial class DonHang
     public string? TrangThaiThanhToanTong { get; set; }
 
     public int? MaPttt { get; set; }
+
+    public int? MaKhoHienTai { get; set; }
 
     public virtual ICollection<HoaDon> HoaDons { get; set; } = new List<HoaDon>();
 

@@ -205,7 +205,7 @@ public class QuanLyBangGiaVung : ControllerBase
 
             _context.BangGiaVungs.Add(model);
             await _context.SaveChangesAsync();
-            
+
             await _sys.GhiLogVaResetCacheAsync(
                     "Quản lý bảng giá vùng",
                     $"Thêm mới bảng giá vùng mã: {model.MaBangGia}",
@@ -537,74 +537,116 @@ public class QuanLyBangGiaVung : ControllerBase
     {
         try
         {
-            // 1. Tính trọng lượng quy đổi để dùng cho phần tính phụ phí (nếu có)
+            // --- 1. TÍNH TRỌNG LƯỢNG QUY ĐỔI ---
             double trongLuongTheTich = (request.TheTichTong ?? 0) / 6000.0;
             decimal trongLuongDeTinh = (decimal)Math.Max((double)(request.KhoiLuongTong ?? 0), trongLuongTheTich);
 
-            // 2. Query bảng giá - Chỉ lọc theo tuyến đường, trạng thái và loại hàng
-            var query = _context.BangGiaVungs
+            // Ngưỡng xác định hàng nặng (thường là 1000kg hoặc tùy quy định công ty)
+            bool laHangNang = trongLuongDeTinh > 1000;
+
+            // --- 2. XÁC ĐỊNH NHÃN TUYẾN ĐƯỜNG (MAPPING LOGIC) ---
+            string nhanLay = "";
+            string nhanGiao = "";
+
+            if (request.ThanhPhoLay == request.ThanhPhoGiao)
+            {
+                // Trường hợp NỘI TỈNH
+                nhanLay = "NOI_TINH";
+
+                // Logic check Phường/Xã để phân loại Trung Tâm hay Huyện Xã
+                bool laVungXa = await KiemTraVungSauVungXa(request.ThanhPhoGiao, request.PhuongGiaoHang);
+                nhanGiao = laVungXa ? "NOI_TINH_HUYEN_XA" : "NOI_TINH_TRUNG_TAM";
+            }
+            else
+            {
+                // Trường hợp LIÊN TỈNH: Lấy nhãn theo Miền
+                nhanLay = LayMienTuTenTinh(request.ThanhPhoLay);
+                nhanGiao = LayMienTuTenTinh(request.ThanhPhoGiao);
+            }
+
+            // --- 3. XÂY DỰNG QUERY LỌC BẢNG GIÁ ---
+            // Lấy toàn bộ danh sách phù hợp với tuyến đường trước
+            var tatCaBangGia = await _context.BangGiaVungs
                 .AsNoTracking()
-                .Where(bg => bg.IsActive == true &&
-                             bg.KhuVucLay == request.ThanhPhoLay &&
-                             bg.KhuVucGiao == request.ThanhPhoGiao);
+                .Where(bg => bg.IsActive == true && bg.KhuVucLay == nhanLay && bg.KhuVucGiao == nhanGiao)
+                .ToListAsync();
 
-            // Lọc theo loại hàng cụ thể
-            if (request.MaLoaiHang > 0)
-            {
-                query = query.Where(bg => bg.MaLoaiHang == request.MaLoaiHang);
-            }
-            if (request.MaBangGiaVung > 0)
-            {
-                query = query.Where(bg => bg.MaBangGia == request.MaBangGiaVung);
-            }
-            // Lấy tất cả bảng giá thỏa mãn tuyến đường và loại hàng (Bỏ lọc dải trọng lượng)
-            var danhSachBangGia = await query.ToListAsync();
+            // --- 4. LOGIC LỌC TRỌNG LƯỢNG VÀ KHỬ TRÙNG DỮ LIỆU ---
+            var danhSachLoc = tatCaBangGia
+                .Where(bg =>
+                {
+                    // Lọc theo MaLoaiHang (Nếu request > 0 thì lọc đúng mã, nếu = 0 thì lấy mặc định/tất cả)
+                    if (request.MaLoaiHang > 0 && bg.MaLoaiHang != request.MaLoaiHang) return false;
 
-            if (!danhSachBangGia.Any())
-                return NotFound(new { message = "Không tìm thấy bảng giá phù hợp cho tuyến đường và loại hàng này." });
+                    // Lọc theo trọng lượng
+                    if (laHangNang)
+                    {
+                        return bg.LoaiTinhGia == 2 || (bg.LoaiTinhGia == 1 && bg.TrongLuongToiDaKg > 1000);
+                    }
+                    var maxTrongLuongCuaTuyen = tatCaBangGia
+                    .Where(x => x.LoaiTinhGia == 1 && x.MaLoaiHang == bg.MaLoaiHang)
+                    .Max(x => x.TrongLuongToiDaKg ?? 0);
 
-            // 3. Tính toán chi phí dựa trên các bảng giá tìm được
+                    return (trongLuongDeTinh >= (bg.TrongLuongToiThieuKg ?? 0) && trongLuongDeTinh <= (bg.TrongLuongToiDaKg ?? 0))
+                           || (trongLuongDeTinh > (decimal)maxTrongLuongCuaTuyen && (bg.TrongLuongToiDaKg ?? 0) == maxTrongLuongCuaTuyen);
+                })
+                // QUAN TRỌNG: Khử trùng dữ liệu tại đây
+                // Nếu có nhiều dòng cùng Tuyến, cùng Khoảng cân, cùng Giá -> Chỉ lấy 1 dòng đầu tiên
+                .GroupBy(x => new {
+                    x.KhuVucLay,
+                    x.KhuVucGiao,
+                    x.TrongLuongToiThieuKg,
+                    x.TrongLuongToiDaKg,
+                    x.DonGiaCoBan,
+                    x.LoaiTinhGia,
+                    x.MaLoaiHang // Nếu muốn tách biệt giá theo loại hàng thì giữ lại trường này trong GroupBy
+                })
+                .Select(g => g.First())
+                .ToList();
+
+            // Thay thế biến danhSachBangGia cũ bằng danhSachLoc
+            var danhSachBangGia = danhSachLoc;
+
+            // --- 5. TÍNH TOÁN CHI TIẾT VÀ TRẢ KẾT QUẢ ---
             var ketQua = danhSachBangGia.Select(bg =>
             {
                 decimal tongTien = 0;
-                decimal phuPhiKg = 0;
                 string chiTietGia = "";
+                string tenDichVu = "";
 
-                if (bg.LoaiTinhGia == 2) // VẬN TẢI CHUYẾN
+                if (bg.LoaiTinhGia == 2) // Vận tải nguyên chuyến
                 {
+                    tenDichVu = $"Vận tải nguyên chuyến ";
                     decimal kmThucTe = (decimal)(request.SoKm ?? 0);
                     decimal kmTinhPhi = Math.Max(kmThucTe, (decimal)(bg.KmToiThieu ?? 0));
 
-                    tongTien = (kmTinhPhi * (bg.DonGiaKm ?? 0)) + (bg.PhiDungDiem ?? 0);
-                    chiTietGia = $"{kmTinhPhi}km x {bg.DonGiaKm:N0}đ + Phí dừng {bg.PhiDungDiem:N0}đ";
+                    tongTien = (kmTinhPhi * (bg.DonGiaCoBan ?? 0)) + (bg.PhiDungDiem ?? 0);
+                    chiTietGia = $"Lộ trình: {kmTinhPhi}km x {bg.DonGiaCoBan:N0}đ/km + Phí dừng: {bg.PhiDungDiem:N0}đ";
                 }
-                // Thay đoạn tính BƯU KIỆN bằng đoạn này:
-                else // BƯU KIỆN
+                else // Chuyển phát bưu kiện
                 {
-                    decimal giaCoBan = bg.DonGiaCoBan ?? 0;
+                    tenDichVu = "Chuyển phát bưu kiện";
+                    decimal giaGoc = bg.DonGiaCoBan ?? 0;
+                    decimal mucToiDa = (decimal)(bg.TrongLuongToiDaKg ?? 0);
+                    decimal khoiLuongVuot = Math.Max(0, trongLuongDeTinh - mucToiDa);
 
-                    // Giả sử DonGiaCoBan áp dụng cho khối lượng từ 0 đến TrongLuongToiDaKg
-                    // Nếu hàng nặng hơn mốc ToiDa, mới tính phụ phí
-                    decimal mocTinhPhuPhi = (decimal)(bg.TrongLuongToiDaKg ?? 0);
-                    decimal khoiLuongVuot = Math.Max(0, trongLuongDeTinh - mocTinhPhuPhi);
+                    decimal phuPhi = khoiLuongVuot * (bg.PhuPhiMoiKg ?? 0);
+                    tongTien = giaGoc + phuPhi;
 
-                    phuPhiKg = khoiLuongVuot * (bg.PhuPhiMoiKg ?? 0);
-                    tongTien = giaCoBan + phuPhiKg;
-
-                    chiTietGia = phuPhiKg > 0
-                        ? $"Giá gốc {giaCoBan:N0}đ (cho {mocTinhPhuPhi}kg) + Phụ phí vượt {khoiLuongVuot:N2}kg x {bg.PhuPhiMoiKg:N0}đ"
-                        : $"Giá trọn gói: {giaCoBan:N0}đ";
+                    chiTietGia = phuPhi > 0
+                        ? $"Giá mốc ({mucToiDa}kg): {giaGoc:N0}đ + Vượt mốc: {khoiLuongVuot:N2}kg x {bg.PhuPhiMoiKg:N0}đ"
+                        : $"Giá trọn gói cho {trongLuongDeTinh:N2}kg: {giaGoc:N0}đ";
                 }
 
                 return new
                 {
-                    bg.MaBangGia,
-                    bg.MaLoaiHang,
-                    TenDichVu = bg.LoaiTinhGia == 1 ? "Giao hàng bưu kiện" : "Vận tải chuyến",
-                    TrongLuongApDung = trongLuongDeTinh,
+                    MaBangGia = bg.MaBangGia,
+                    TenDichVu = tenDichVu,
+                    LoaiHinh = bg.LoaiTinhGia,
+                    TrongLuongTinhPhi = trongLuongDeTinh,
                     TongTienDuKien = tongTien,
                     MoTaGia = chiTietGia,
-                    GhiChu = $"Tuyến: {bg.KhuVucLay} -> {bg.KhuVucGiao} | Loại hàng: {bg.MaLoaiHang}"
+                    KhuVuc = $"{nhanLay} -> {nhanGiao}"
                 };
             }).OrderBy(x => x.TongTienDuKien).ToList();
 
@@ -612,8 +654,34 @@ public class QuanLyBangGiaVung : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi phân tích giá.");
-            return StatusCode(500, "Lỗi hệ thống khi tính toán giá cước.");
+            return StatusCode(500, $"Lỗi hệ thống: {ex.Message}");
         }
+    }
+
+    // --- CÁC HÀM BỔ TRỢ (HELPER METHODS) ---
+
+    private async Task<bool> KiemTraVungSauVungXa(string? tinh, string? phuong)
+    {
+        if (string.IsNullOrEmpty(tinh) || string.IsNullOrEmpty(phuong)) return false;
+
+        // Logic: Truy vấn vào bảng danh mục địa chính nội bộ
+        // Nếu Phường/Xã này được đánh dấu là 'IsRemote' hoặc 'IsHuyenXa' thì trả về true
+        return await _context.DiaChis
+            .AnyAsync(x => x.ThanhPho == tinh && x.Phuong == phuong);
+    }
+
+    private string LayMienTuTenTinh(string? tenTinh)
+    {
+        if (string.IsNullOrEmpty(tenTinh)) return "KHAC";
+
+        var mienBac = new List<string> { "Hà Nội", "Bắc Giang", "Hải Phòng", "Quảng Ninh", "Bắc Ninh", "Vĩnh Phúc" };
+        var mienNam = new List<string> { "TP. Hồ Chí Minh", "Bình Dương", "Đồng Nai", "Long An", "Cần Thơ", "Vũng Tàu" };
+        var mienTrung = new List<string> { "Đà Nẵng", "Huế", "Nghệ An", "Quảng Nam", "Khánh Hòa" };
+
+        if (mienBac.Any(t => tenTinh.Contains(t, StringComparison.OrdinalIgnoreCase))) return "MIEN_BAC";
+        if (mienNam.Any(t => tenTinh.Contains(t, StringComparison.OrdinalIgnoreCase))) return "MIEN_NAM";
+        if (mienTrung.Any(t => tenTinh.Contains(t, StringComparison.OrdinalIgnoreCase))) return "MIEN_TRUNG";
+
+        return "KHAC";
     }
 }

@@ -17,5 +17,7 @@ public partial class DangKyCaTruc
 
     public virtual CaLamViec MaCaNavigation { get; set; } = null!;
 
+    public virtual TaiXe MaNguoiDung1 { get; set; } = null!;
+
     public virtual NguoiDung MaNguoiDungNavigation { get; set; } = null!;
 }

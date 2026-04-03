@@ -13,5 +13,7 @@ public partial class ChiTietLoTrinhKienHang
 
     public int MaChiTietLoTrinh { get; set; }
 
+    public DateTime? ThoiGianCapNhat { get; set; }
+
     public virtual LoTrinh MaLoTrinhNavigation { get; set; } = null!;
 }

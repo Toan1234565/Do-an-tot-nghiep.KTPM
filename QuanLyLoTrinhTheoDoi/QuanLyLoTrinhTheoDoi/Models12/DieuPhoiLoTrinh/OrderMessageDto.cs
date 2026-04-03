@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using System.Text.Json.Serialization;
 
 namespace QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh
 {
@@ -41,7 +42,7 @@ namespace QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh
         // Thuộc tính tính toán nhanh tổng khối lượng cụm
         public double TongKhoiLuong => KienHangs?.Sum(kh => kh.KhoiLuong ?? 0) ?? 0;
 
-        public int MaDiaChiGiao { get; set; }
+        public int MaDiaChiNhanHang { get; set; }
         public int MaDiaChiLayHang { get; set; }
     }
 
@@ -55,6 +56,10 @@ namespace QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh
         public int MaKho { get; set; }
         public string? TenKho { get; set; }
         public string? Distance { get; set; }
+
+        public int MaDiaChi { get; set; }
+        public string? MaVungH3 { get; set; }
+       
     }
     // Dữ liệu nhận từ RabbitMQ
     public class OrderMessageDto
@@ -68,6 +73,7 @@ namespace QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh
         [JsonPropertyName("MaDiaChiLay")] // Map từ "MaDiaChiLay" trên RabbitMQ
         public int MaDiaChiLayHang { get; set; }
 
+        public int MaDiaChiNhanHang { get; set; }
         public double KhoiLuong { get; set; } // Đảm bảo bên gửi có thuộc tính này
         public DateTime ThoiGian { get; set; }
     }
@@ -79,6 +85,7 @@ namespace QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh
         public string? BienSo { get; set; }
         public double TaiTrongToiDaKg { get; set; }
         public string? TrangThai {  get; set; }
+        public double? MucTieuHaoNhienLieu { get; set; }
     }
 
     // Dữ liệu hứng từ API Server Nhân sự
@@ -98,16 +105,14 @@ namespace QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh
         public double TongKhoiLuong { get; set; }
         public double TongTheTich { get; set; }
         public string? MaVungH3 { get; set; }
+       
+        public int MaDiaChiNhanHang { get; set; }
         public int MaDiaChiLayHang { get; set; }
     }
     public class UpdateTrangThaiXeDto
     {
         public string TrangThai { get; set; } = string.Empty;
     }
-
-    /// <summary>
-    /// DTO dùng để gửi cập nhật trạng thái Tài xế qua POST
-    /// </summary>
     public class UpdateTaiXeTrangThaiDto
     {
         public int MaNguoiDung { get; set; }

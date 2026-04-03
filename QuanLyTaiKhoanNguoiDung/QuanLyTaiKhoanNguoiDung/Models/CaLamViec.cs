@@ -13,7 +13,5 @@ public partial class CaLamViec
 
     public TimeOnly? GioKetThuc { get; set; }
 
-    public int? MaKho { get; set; }
-
     public virtual ICollection<DangKyCaTruc> DangKyCaTrucs { get; set; } = new List<DangKyCaTruc>();
 }

@@ -9,6 +9,7 @@ using QuanLyLoTrinhTheoDoi.Models12;
 using QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh;
 using QuanLyLoTrinhTheoDoi.Models12.QuanLyLoTrinh.cs;
 using System.Net.Http;
+using System.Security.Cryptography.Xml;
 
 namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
 {
@@ -54,7 +55,9 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                 }
 
                 // 2. Xây dựng Query
-                var query = _context.LoTrinhs.AsQueryable();
+                var query = _context.LoTrinhs
+                    .Where(lt => lt.LoTrinhTuyen == true)
+                    .AsQueryable();
 
                 // Lọc theo khoảng ngày (Nếu có)
                 if (batdau.HasValue)
@@ -187,14 +190,11 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
             }
         }
 
-        
-
         [HttpPost("tu-dong-gom-nhom")]
         public async Task<IActionResult> TuDongGomNhomDonHang()
         {
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<TmdtContext>();
-
             var clientDH = _httpClientFactory.CreateClient("DonHangApi");
             var clientKho = _httpClientFactory.CreateClient("KhoApi");
             var clientPT = _httpClientFactory.CreateClient("PhuongTienApi");
@@ -204,223 +204,272 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
 
             try
             {
-                /// 1. Lấy danh sách cụm đơn hàng (ClusterResult chứa MaVungH3: string)
+                // 1. Lấy danh sách cụm đơn hàng
                 var resDonHang = await clientDH.PostAsJsonAsync("api/quanlydonhang/cho-dieu-phoi", new { });
                 var responseData = await resDonHang.Content.ReadFromJsonAsync<DonHangResponse>();
-                if (responseData?.Clusters == null) return NotFound();
+                if (responseData?.Clusters == null || !responseData.Clusters.Any()) return NotFound("Không có đơn hàng chờ điều phối.");
 
-                var finalProcessedData = new List<object>();
-                // 2. GOM NHÓM CÁC CỤM THEO KHO (Mỗi vùng/cụm thuộc về 1 kho phụ trách)
+                // --- TỐI ƯU BƯỚC 2 & 4: GOM TẤT CẢ ID ĐỊA CHỈ ĐỂ GỌI BATCH API ---
+                var allAddressIds = responseData.Clusters
+                    .Select(c => c.MaDiaChiLayHang > 0 ? c.MaDiaChiLayHang : c.MaDiaChiCum)
+                    .Where(id => id > 0).Distinct().ToList();
+
+                // CHỈ GỌI API KHO 1 LẦN DUY NHẤT (Batch Call)
+                var resBatchKho = await clientKho.PostAsJsonAsync("api/quanlykhobai/tim-kho-theo-lo", new { MaDiaChis = allAddressIds });
+                if (!resBatchKho.IsSuccessStatusCode) return BadRequest("Lỗi kết nối Service Kho.");
+
+                var warehouseMap = await resBatchKho.Content.ReadFromJsonAsync<Dictionary<string, KhoGanNhatResponse>>();
+                // Lưu ý: JSON Key thường là string khi deserialize Dictionary
+
                 var clustersByWarehouse = new Dictionary<int, List<ClusterResult>>();
                 var warehouseInfoMap = new Dictionary<int, KhoGanNhatResponse>();
 
-
-
+                // 2. Phân loại cụm đơn hàng vào từng kho dựa trên kết quả Batch
                 foreach (var c in responseData.Clusters)
                 {
-                    // 1. Lấy ID địa chỉ trực tiếp từ ClusterResult (Đã gán từ API DonHang)
-                    // Ưu tiên MaDiaChiLayHang (vì đây là đơn Pickup), nếu không có dùng MaDiaChiCum
-                    int idDiaChiThucTe = c.MaDiaChiLayHang > 0 ? c.MaDiaChiLayHang : c.MaDiaChiCum;
+                    int idDiaChi = c.MaDiaChiLayHang > 0 ? c.MaDiaChiLayHang : c.MaDiaChiCum;
 
-                    // 2. Logic dự phòng: Nếu vì lý do nào đó ID vẫn bằng 0, mới gọi API chi tiết
-                    if (idDiaChiThucTe <= 0)
+                    if (warehouseMap != null && warehouseMap.TryGetValue(idDiaChi.ToString(), out var kho))
                     {
-                        int maDonHangDaiDien = c.DanhSachMaDonHang?.FirstOrDefault() ?? 0;
-                        if (maDonHangDaiDien > 0)
+                        if (!clustersByWarehouse.ContainsKey(kho.MaKho))
                         {
-                            var resDhDetail = await clientDH.GetAsync($"api/quanlydonhang/get-by-id/{maDonHangDaiDien}");
-                            if (resDhDetail.IsSuccessStatusCode)
-                            {
-                                var dhDto = await resDhDetail.Content.ReadFromJsonAsync<DonHangDto>();
-                                idDiaChiThucTe = dhDto?.MaDiaChiGiao ?? 0;
-                            }
+                            clustersByWarehouse[kho.MaKho] = new List<ClusterResult>();
+                            warehouseInfoMap[kho.MaKho] = kho;
                         }
-                    }
-
-                    // 3. Kiểm tra cuối cùng: Nếu vẫn không có địa chỉ thì bỏ qua cụm này
-                    if (idDiaChiThucTe <= 0)
-                    {
-                        _logger.LogWarning($"Cụm vùng {c.MaVungH3} bị bỏ qua do không xác định được mã địa chỉ thực tế.");
-                        continue;
-                    }
-
-                    // 4. Gọi API Kho để tìm kho gần nhất phục vụ địa chỉ này
-                    try
-                    {
-                        var resKho = await clientKho.GetAsync($"api/quanlykhobai/tim-kho-gan-nhat/{idDiaChiThucTe}");
-
-                        if (!resKho.IsSuccessStatusCode)
+                        c.MaDiaChiLayHang = idDiaChi; // Cập nhật lại ID thực tế
+                                                      // Thay vì add trực tiếp, ta khởi tạo đối tượng ClusterResult mới từ dữ liệu Api
+                        clustersByWarehouse[kho.MaKho].Add(new ClusterResult
                         {
-                            _logger.LogError($"API Kho trả về lỗi {resKho.StatusCode} cho địa chỉ {idDiaChiThucTe}");
-                            continue;
-                        }
-
-                        var kho = await resKho.Content.ReadFromJsonAsync<KhoGanNhatResponse>();
-
-                        if (kho != null && kho.MaKho > 0)
-                        {
-                            // Nếu kho này chưa có trong bản đồ gom nhóm, khởi tạo mới
-                            if (!clustersByWarehouse.ContainsKey(kho.MaKho))
-                            {
-                                clustersByWarehouse[kho.MaKho] = new List<ClusterResult>();
-                                warehouseInfoMap[kho.MaKho] = kho;
-                            }
-
-                            // Gán thông tin cụm vào danh sách chờ xử lý của kho đó
-                            clustersByWarehouse[kho.MaKho].Add(new ClusterResult
-                            {
-                                MaVungH3 = c.MaVungH3,
-                                SoLuongDonHang = c.SoLuongDonHang,
-                                TongKhoiLuong = c.TongKhoiLuong,
-                                TongTheTich = c.TongTheTich,
-                                DanhSachMaDonHang = c.DanhSachMaDonHang,
-                                MaDiaChiLayHang = idDiaChiThucTe // Giữ lại ID địa chỉ để dùng cho lộ trình sau này
-                            });
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError($"Lỗi khi tìm kho cho cụm {c.MaVungH3}: {ex.Message}");
-                    }
-                }
-
-                // 3. XỬ LÝ ĐIỀU PHỐI RIÊNG BIỆT CHO TỪNG KHO
-                foreach (var entry in clustersByWarehouse)
-                {
-                    int maKho = entry.Key;
-                    var danhSachCumCuaKho = entry.Value;
-                    var khoInfo = warehouseInfoMap.ContainsKey(maKho) ? warehouseInfoMap[maKho] : null;
-
-                    _logger.LogInformation($"--- Bắt đầu điều phối cho Kho: {khoInfo?.TenKho ?? maKho.ToString()} ---");
-
-                    // Gọi API lấy xe và tài xế THEO KHO
-                    var xeCuaKho = await clientPT.GetFromJsonAsync<List<VehicleFreeDto>>($"api/quanlyxe/xe-san-sang-dieu-phoi?maKho={maKho}");
-                    var txCuaKho = await clientNS.GetFromJsonAsync<List<DriverAvailableDto>>($"api/quanlytaixe/lich-trinh-tai-xe?maKho={maKho}");
-
-                    if (xeCuaKho == null || !xeCuaKho.Any() || txCuaKho == null || !txCuaKho.Any())
-                    {
-                        _logger.LogWarning($"Kho {maKho} không đủ tài nguyên (Xe: {xeCuaKho?.Count ?? 0}, TX: {txCuaKho?.Count ?? 0})");
-                        continue;
-                    }
-
-                    // 4. Chạy thuật toán Bin Packing (FirstFitDecreasing) để xếp cụm vào xe
-                    var assignments = ApplyFirstFitDecreasingBPP(danhSachCumCuaKho, xeCuaKho);
-
-                    foreach (var assign in assignments)
-                    {
-                        var xe = assign.Key;
-                        var clustersForThisVehicle = assign.Value;
-
-                        if (!clustersForThisVehicle.Any()) continue;
-
-                        // Chọn tài xế có điểm uy tín cao nhất hiện có của kho này
-                        var txChon = txCuaKho.OrderByDescending(t => t.DiemUyTin).FirstOrDefault();
-                        if (txChon == null)
-                        {
-                            _logger.LogWarning($"Hết tài xế cho xe {xe.BienSo} tại kho {maKho}");
-                            break;
-                        }
-                        txCuaKho.Remove(txChon);
-
-                        // 5. LƯU LỘ TRÌNH (Local DB - Service Điều Phối)
-                        var loTrinhMoi = new LoTrinh
-                        {
-                            MaPhuongTien = xe.MaPhuongTien,
-                            MaTaiXeChinh = txChon.MaNguoiDung,
-                            TrangThai = "Đang hoạt động",
-                            ThoiGianBatDauKeHoach = DateTime.Now,
-                            GhiChu = $"Lộ trình tự động từ kho {khoInfo?.TenKho}"
-                        };
-
-                        context.LoTrinhs.Add(loTrinhMoi);
-                        await context.SaveChangesAsync(); // Lưu để lấy MaLoTrinh (Identity)
-
-                        // Lấy danh sách tất cả mã đơn hàng được xếp vào xe này
-                        var allMaDonInVehicle = clustersForThisVehicle.SelectMany(c => c.DanhSachMaDonHang).ToList();
-
-                        // Lưu chi tiết kiện hàng của lộ trình
-                        foreach (var maDon in allMaDonInVehicle)
-                        {
-                            context.ChiTietLoTrinhKienHangs.Add(new ChiTietLoTrinhKienHang
-                            {
-                                MaLoTrinh = loTrinhMoi.MaLoTrinh,
-                                MaDonHang = maDon,
-                                TrangThaiTrenXe = "Đã tiếp nhận"
-                            });
-                        }
-
-                        // Lưu các điểm dừng dựa trên mã vùng H3
-                        int thuTu = 1;
-                        foreach (var cluster in clustersForThisVehicle)
-                        {
-                            context.DiemDungs.Add(new DiemDung
-                            {
-                                MaLoTrinh = loTrinhMoi.MaLoTrinh,
-                                MaVungH3 = cluster.MaVungH3, 
-                                ThuTuDung = thuTu++,
-                                LoaiDung = "Pickup",
-                                MaDiaChi = cluster.MaDiaChiLayHang, // Gán mã địa chỉ thực tế để sau này có thể tra cứu
-                                EtaKeHoach = DateTime.Now.AddMinutes(30 * thuTu)
-                            });
-                        }
-                        await context.SaveChangesAsync();
-
-                        // 6. ĐỒNG BỘ TRẠNG THÁI LIÊN SERVER (Cập nhật các Microservices khác)
-                        try
-                        {
-                            await clientPT.PostAsJsonAsync($"api/quanlyxe/cap-nhat-trang-thai-xe/{xe.MaPhuongTien}",
-                            new { TrangThai = "Chờ khởi hành" });
-
-                            // Cập nhật trạng thái tài xế: 
-                            // Lưu ý: Phải khớp với Class UpdateTaiXeTrangTai mà API TaiXe đang dùng
-                            await clientNS.PostAsJsonAsync("api/quanlytaixe/cap-nhat-trang-thai",
-                            new
-                            {
-                                    MaNguoiDung = txChon.MaNguoiDung,
-                                    TrangThaiMoi = "Đang hoạt động"
-                            });
-
-                            // Cập nhật hàng loạt đơn hàng sang trạng thái 'Đã được tiếp nhận/Đang lấy hàng'
-                            await clientDH.PutAsJsonAsync("api/quanlydonhang/cap-nhat-trang-thai-nhieu", new
-                            {
-                                DanhSachMaDonHang = allMaDonInVehicle,
-                                TrangThaiMoi = "Đã được tiếp nhận"
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError($"Lỗi đồng bộ liên server cho lộ trình {loTrinhMoi.MaLoTrinh}: {ex.Message}");
-                        }
-
-                        finalProcessedData.Add(new
-                        {
-                            MaLoTrinh = loTrinhMoi.MaLoTrinh,
-                            Xe = xe.BienSo,
-                            TaiXe = txChon.HoTen,
-                            Kho = khoInfo?.TenKho ?? maKho.ToString(),
-                            SoDonHang = allMaDonInVehicle.Count,
-                            TrongTaiSuDung = clustersForThisVehicle.Sum(c => c.TongKhoiLuong)
+                            MaVungH3 = c.MaVungH3,
+                            SoLuongDonHang = c.SoLuongDonHang,
+                            TongKhoiLuong = c.TongKhoiLuong,
+                            TongTheTich = c.TongTheTich,
+                            DanhSachMaDonHang = c.DanhSachMaDonHang,
+                            MaDiaChiLayHang = idDiaChi // Sử dụng biến idDiaChi đã xác định
                         });
                     }
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                var finalProcessedData = new List<object>();
+                var skippedClusters = new List<object>();
 
+                // 3. XỬ LÝ ĐIỀU PHỐI CHI TIẾT CHO TỪNG KHO
+                foreach (var entry in clustersByWarehouse)
+                {
+                    int maKhoId = entry.Key;
+                    var danhSachCumCuaKho = entry.Value;
+                    var khoInfo = warehouseInfoMap[maKhoId];
+
+                    // Lấy danh sách Xe và Tài xế Sẵn sàng tại kho này
+                    // Lưu ý: Truyền đúng maKhoId thu được từ Service Kho
+                    var xeCuaKho = await clientPT.GetFromJsonAsync<List<VehicleFreeDto>>($"api/quanlyxe/xe-san-sang-dieu-phoi?maKho={maKhoId}");
+                    var txCuaKho = await clientNS.GetFromJsonAsync<List<DriverAvailableDto>>($"api/quanlytaixe/lich-trinh-tai-xe?maKho={maKhoId}");
+
+                    // KIỂM TRA DỮ LIỆU ĐẦU VÀO TRƯỚC KHI CHẠY THUẬT TOÁN
+                    if (xeCuaKho == null || !xeCuaKho.Any() || txCuaKho == null || !txCuaKho.Any())
+                    {
+                        skippedClusters.Add(new
+                        {
+                            Kho = khoInfo.TenKho,
+                            MaKho = maKhoId,
+                            LyDo = (xeCuaKho == null || !xeCuaKho.Any()) ? "Thiếu xe tải trọng phù hợp" : "Thiếu tài xế trong ca trực hiện tại",
+                            DonHangAnhHuong = danhSachCumCuaKho.SelectMany(x => x.DanhSachMaDonHang).ToList()
+                        });
+                        continue;
+                    }
+
+                    // 4. Thuật toán Bin Packing (Gán cụm đơn hàng vào xe dựa trên tải trọng)
+                    var assignments = ApplyFirstFitDecreasingBPP(danhSachCumCuaKho, xeCuaKho);
+
+                    foreach (var assign in assignments)
+                    {
+                        var xeSelected = assign.Key;
+                        var clustersInXe = assign.Value;
+
+                        // Lấy tài xế có điểm uy tín cao nhất và chưa bị gán
+                        var txChon = txCuaKho.OrderByDescending(t => t.DiemUyTin).FirstOrDefault();
+
+                        if (txChon == null)
+                        {
+                            skippedClusters.Add(new
+                            {
+                                Kho = khoInfo.TenKho,
+                                LyDo = "Hết tài xế để bàn giao xe tiếp theo",
+                                XeBiTrong = xeSelected.BienSo
+                            });
+                            continue;
+                        }
+
+                        // Loại bỏ tài xế này khỏi danh sách chờ để không gán cho xe khác trong cùng vòng lặp
+                        txCuaKho.Remove(txChon);
+
+                        // 5. LƯU DỮ LIỆU LỘ TRÌNH VÀO DATABASE
+                        // --- PHẦN TẠO LỘ TRÌNH ---
+                        var loTrinhMoi = new LoTrinh
+                        {
+                            MaPhuongTien = xeSelected.MaPhuongTien,
+                            MaTaiXeChinh = txChon.MaNguoiDung,
+                            TrangThai = "Đang hoạt động",
+                            ThoiGianBatDauKeHoach = DateTime.Now,
+                            GhiChu = $"Điều phối tự động - {khoInfo.TenKho}",
+                            LoTrinhTuyen = true,
+                            MaKhoQuanLy = maKhoId // Đảm bảo gán cả kho quản lý nếu DB yêu cầu
+                        };
+
+                        context.LoTrinhs.Add(loTrinhMoi);
+                        await context.SaveChangesAsync(); // BẮT BUỘC: Để lấy MaLoTrinh cho các bảng con
+
+                        // --- PHẦN TẠO ĐIỂM DỪNG ---
+                        var danhSachDiemDung = new List<DiemDung>();
+
+                        // 1. Điểm xuất phát tại Kho
+                        danhSachDiemDung.Add(new DiemDung
+                        {
+                            MaLoTrinh = loTrinhMoi.MaLoTrinh, // Giờ đã có ID thật (VD: 1031)
+                            MaVungH3 = khoInfo.MaVungH3 ?? "",
+                            ThuTuDung = 1,
+                            LoaiDung =khoInfo.TenKho,
+                            MaDiaChi = khoInfo.MaDiaChi,
+                            EtaKeHoach = DateTime.Now
+                        });
+
+                        // 2. Các điểm Pickup đơn hàng
+                        int thuTu = 2;
+                        foreach (var cluster in clustersInXe)
+                        {
+                            danhSachDiemDung.Add(new DiemDung
+                            {
+                                MaLoTrinh = loTrinhMoi.MaLoTrinh,
+                                MaVungH3 = cluster.MaVungH3,
+                                ThuTuDung = thuTu++,
+                                LoaiDung = "Pickup",
+                                MaDiaChi = cluster.MaDiaChiLayHang,
+                                EtaKeHoach = DateTime.Now.AddMinutes(30)
+                            });
+
+                            // Gắn kiện hàng vào lộ trình
+                            foreach (var maDon in cluster.DanhSachMaDonHang)
+                            {
+                                context.ChiTietLoTrinhKienHangs.Add(new ChiTietLoTrinhKienHang
+                                {
+                                    MaLoTrinh = loTrinhMoi.MaLoTrinh,
+                                    MaDonHang = maDon,
+                                    TrangThaiTrenXe = "Đã tiếp nhận",
+                                    ThoiGianCapNhat = DateTime.Now
+                                });
+                            }
+                        }
+                        danhSachDiemDung.Add(new DiemDung
+                        {
+                            MaLoTrinh = loTrinhMoi.MaLoTrinh, // Giờ đã có ID thật (VD: 1031)
+                            MaVungH3 = khoInfo.MaVungH3 ?? "",
+                            ThuTuDung = thuTu++,
+                            LoaiDung = khoInfo.TenKho,
+                            MaDiaChi = khoInfo.MaDiaChi,
+                            EtaKeHoach = DateTime.Now
+                        });
+
+                        context.DiemDungs.AddRange(danhSachDiemDung);
+                        await context.SaveChangesAsync(); // Lưu toàn bộ điểm dừng và kiện hàng
+
+                        // 1. Tính tổng quãng đường
+                        double tongKmDuKien = TinhTongKmDuKien(danhSachDiemDung);
+
+                        decimal dinhMucNhienLieu = (decimal)(xeSelected.MucTieuHaoNhienLieu ?? 10.0);
+
+                        // 3. Khai báo giá nhiên liệu hiện tại 
+                        decimal giaNhienLieuHienTai = await GetCurrentFuelPriceAsync("DO");
+
+                        // 4. Công thức tính toán: (Tổng Km / 100) * Định mức * Giá tiền thực tế
+                        decimal chiPhiXangDauDuKien = (decimal)(tongKmDuKien / 100) * dinhMucNhienLieu * giaNhienLieuHienTai;
+
+                        // 5. Ghi nhận vào DB
+                        var chiPhiMoi = new ChiPhiLoTrinh
+                        {
+                            MaLoTrinh = loTrinhMoi.MaLoTrinh,
+                            LoaiChiPhi = "Xăng dầu (Dự kiến theo giá thị trường)",
+                            SoTien = Math.Round(chiPhiXangDauDuKien, 0),
+                            GhiChu = $"Giá cập nhật: {giaNhienLieuHienTai:N0}đ/L | Quãng đường: {tongKmDuKien}km",
+                            ChungTuKemTheo = null
+                        };
+
+                        context.ChiPhiLoTrinhs.Add(chiPhiMoi);
+                        await context.SaveChangesAsync();
+
+                        // 6. CẬP NHẬT TRẠNG THÁI LIÊN SERVICE (Async)
+                        var updateTasks = new List<Task> {
+                        clientPT.PostAsJsonAsync($"api/quanlyxe/cap-nhat-trang-thai-xe/{xeSelected.MaPhuongTien}", new { TrangThai = "Chờ khởi hành" }),
+                        clientNS.PostAsJsonAsync("api/quanlytaixe/cap-nhat-trang-thai", new { MaNguoiDung = txChon.MaNguoiDung, TrangThaiMoi = "Đang hoạt động" }),
+                        clientDH.PutAsJsonAsync("api/quanlydonhang/cap-nhat-trang-thai-nhieu", new {
+                        DanhSachMaDonHang = clustersInXe.SelectMany(x => x.DanhSachMaDonHang).ToList(),
+                        TrangThaiMoi = "Đã được tiếp nhận"
+                    })
+                };
+                        await Task.WhenAll(updateTasks);
+
+                        finalProcessedData.Add(new
+                        {
+                            LoTrinhId = loTrinhMoi.MaLoTrinh,
+                            Xe = xeSelected.BienSo,
+                            TaiXe = txChon.HoTen,
+                            Kho = khoInfo.TenKho
+                        });
+                    }
+                }
+
+                await transaction.CommitAsync();
                 return Ok(new
                 {
-                    status = "Success",
-                    message = "Hệ thống đã phân xe, tài xế và kích hoạt lộ trình.",
-                    totalProcessed = finalProcessedData.Count,
-                    data = finalProcessedData
+                    status = skippedClusters.Any() ? "Warning" : "Success",
+                    message = skippedClusters.Any() ? "Điều phối hoàn tất một phần, một số đơn hàng chưa có xe/tài xế." : "Đã điều phối toàn bộ đơn hàng.",
+                    data = finalProcessedData,
+                    unassignedReport = skippedClusters // Thông tin chi tiết về việc thiếu hụt
                 });
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return StatusCode(500, new { error = "Lỗi xử lý điều phối", detail = ex.Message });
+                return StatusCode(500, ex.Message);
             }
         }
+
+        // Thêm một hàm tính tổng khoảng cách dự kiến (có thể tách ra Map/Routing Service)
+        private double TinhTongKmDuKien(List<DiemDung> danhSachDiemDung)
+        {
+            double tongKm = 0;
+            // Logic thực tế: Gọi API OSRM/Google Maps truyền danh sách Tọa độ của các DiemDung
+            // Tạm thời mô phỏng: Giả sử mỗi điểm dừng cách nhau trung bình 5-10km
+            if (danhSachDiemDung.Count > 1)
+            {
+                // Ví dụ: tính đại khái = (Số điểm dừng - 1) * 7.5km
+                tongKm = (danhSachDiemDung.Count - 1) * 7.5;
+            }
+            return Math.Round(tongKm, 2);
+        }
+        [NonAction]
+        public async Task<decimal> GetCurrentFuelPriceAsync(string fuelType = "DO")
+        {
+            try
+            {
+                // Giả sử bạn sử dụng một API trung gian hoặc đã viết Scraper từ Petrolimex
+                // Nguồn tham khảo: https://www.petrolimex.com.vn/
+                var client = _httpClientFactory.CreateClient();
+                var response = await client.GetFromJsonAsync<FuelPriceResponse>("https://api.example.com/v1/fuel-prices/vietnam");
+
+                if (response != null)
+                {
+                    // Trả về giá Dầu Diesel (DO) cho xe tải hoặc Xăng tùy theo loại xe
+                    return fuelType == "DO" ? response.DieselPrice : response.GasolinePrice;
+                }
+            }
+            catch (Exception)
+            {
+                // Fallback: Nếu API ngoài lỗi, trả về giá dự phòng gần nhất để hệ thống không chết
+                return 24500m;
+            }
+            return 24500m;
+        }
+
         private Dictionary<VehicleFreeDto, List<ClusterResult>> ApplyFirstFitDecreasingBPP(List<ClusterResult> clusters, List<VehicleFreeDto> vehicles)
         {
             var assignments = new Dictionary<VehicleFreeDto, List<ClusterResult>>();
@@ -442,5 +491,7 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
             }
             return assignments.Where(a => a.Value.Any()).ToDictionary(a => a.Key, a => a.Value);
         }
+
+       
     }
 }

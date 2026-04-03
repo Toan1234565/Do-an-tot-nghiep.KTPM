@@ -18,4 +18,6 @@ public partial class NhatKyTheoDoi
     public double? TocDoKmh { get; set; }
 
     public string? MaVungH3 { get; set; }
+
+    public int? MaLoTrinh { get; set; }
 }

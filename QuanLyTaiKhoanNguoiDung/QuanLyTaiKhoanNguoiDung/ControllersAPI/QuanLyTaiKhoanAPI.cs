@@ -106,12 +106,15 @@ namespace TaiKhoan1.ControllersAPI
                 // 6. Lấy thông tin an toàn từ bảng liên kết NguoiDung
                 string emailNguoiDung = taiKhoan.NguoiDung?.Email ?? "";
                 string hoTen = taiKhoan.NguoiDung?.HoTenNhanVien ?? taiKhoan.TenDangNhap;
+                string maKho = taiKhoan.NguoiDung?.MaKho?.ToString() ?? "";
+
 
                 // 7. Thiết lập Claims (Xác thực Cookie)
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, hoTen),                
                     new Claim(ClaimTypes.NameIdentifier, taiKhoan.MaNguoiDung.ToString()),
+                    new Claim("MaKho", maKho),
                     new Claim("Username", taiKhoan.TenDangNhap)
                 };
 
@@ -125,12 +128,14 @@ namespace TaiKhoan1.ControllersAPI
                 );
                 HttpContext.Session.SetString("MaNguoiDung", taiKhoan.MaNguoiDung.ToString());
                 HttpContext.Session.SetString("HoTenNhanVien", hoTen);
+                HttpContext.Session.SetString("MaKho", maKho);
                 // 8. Trả về JSON chuẩn
                 return Ok(new
                 {
                     message = "Đăng nhập thành công",
                     userId = taiKhoan.MaNguoiDung,
                     userName = taiKhoan.TenDangNhap,
+                    maKho= taiKhoan.NguoiDung?.MaKho,
                     fullName = hoTen // Trả thêm họ tên về cho Client nếu cần dùng ngay
                 });
             }
@@ -140,6 +145,7 @@ namespace TaiKhoan1.ControllersAPI
                 return StatusCode(500, new { message ="Lỗi hệ thống khi truy vấn dữ liệu", detail = ex.Message });
             }
         }
+        
         [HttpGet("check-auth-info")]
         public IActionResult CheckAuthInfo()
         {

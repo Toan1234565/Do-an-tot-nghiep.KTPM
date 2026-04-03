@@ -8,7 +8,9 @@
         public double TongKhoiLuong { get; set; }
         public double TongTheTich { get; set; }
         public string? MaVungH3 { get; set; }
-        public int MaDiaChiGiao { get; set; }
+
+        public int MaDiaChiNhanHang { get; set; }
+
         public int MaDiaChiLayHang { get; set; }
     }
 }

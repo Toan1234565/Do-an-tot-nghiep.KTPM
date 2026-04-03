@@ -24,8 +24,7 @@ namespace QuanLyDonHang.Models1
 
         public string? GhiChuDacBiet { get; set; }
 
-        public int? MaVung { get; set; }
-
+       
         public int? MaDiaChiLayHang { get; set; }
 
         public string? TenNguoiNhan { get; set; }
@@ -43,6 +42,12 @@ namespace QuanLyDonHang.Models1
         public string? MaVungH3Nhan { get; set; }
 
         public string? MaVungH3Giao { get; set; }
+
+        public int? MaKhoHienTai { get; set; }
+
+        public string? TrangThaiThanhToanTong { get; set; }
+
+        public string? TenPhuongThucTT { get; set; }
 
         public virtual ICollection<KienHangModels> KienHangs { get; set; } = new List<KienHangModels>();
     }

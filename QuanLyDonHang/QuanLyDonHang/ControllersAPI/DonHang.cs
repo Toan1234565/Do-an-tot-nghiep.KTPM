@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -94,11 +95,10 @@ namespace QuanLyDonHang.ControllersAPI
                     .OrderByDescending(dh => dh.ThoiGianTao)
                     .Skip((page - 1) * pageSize) // Phân trang tại đây
                     .Take(pageSize)
-                    .Select(dh => new DonHangModels
+                    .Select(dh => new DSDonHangModels
                     {
                         MaDonHang = dh.MaDonHang,
                         MaKhachHang = dh.MaKhachHang,
-
                         MaDiaChiLayHang = dh.MaDiaChiLayHang,
                         // Kiểm tra null để tránh lỗi nếu KienHangs trống                     
                         TenDonHang = dh.TenDonHang,
@@ -107,16 +107,7 @@ namespace QuanLyDonHang.ControllersAPI
                         MaLoaiDv = dh.MaLoaiDv,
                         LaDonGiaoThang = dh.LaDonGiaoThang,
                         MaDiaChiNhanHang = dh.MaDiaChiNhanHang ?? 0,
-
-                        KienHangs = dh.KienHangs.Select(kh => new KienHangModels
-                        {
-                            MaVach = kh.MaVach,
-
-                            KhoiLuong = kh.KhoiLuong,
-                            TheTich = kh.TheTich,
-                            DaThuGom = kh.DaThuGom,
-                            SoTien = kh.SoTien,
-                        }).ToList()
+                        
                     })
                     .ToListAsync();
 
@@ -200,6 +191,8 @@ namespace QuanLyDonHang.ControllersAPI
             }
         }
 
+
+        // xem chi tiet don hang o quan ly don  hang
         [HttpGet("thongtindonhang/{madonhang}")]
         public async Task<IActionResult> GetThongTinDonHang(int? madonhang)
         {
@@ -226,6 +219,7 @@ namespace QuanLyDonHang.ControllersAPI
                     .ThenInclude(dm => dm.MaLoaiHangNavigation)
                     .Select(dh => new DonHangModels
                     {
+                        MaDonHang = dh.MaDonHang,
                         MaKhachHang = dh.MaKhachHang,
                         TenDonHang = dh.TenDonHang,
                         ThoiGianTao = dh.ThoiGianTao,
@@ -235,23 +229,28 @@ namespace QuanLyDonHang.ControllersAPI
                         MaHopDongNgoai = dh.MaHopDongNgoai,
                         GhiChuDacBiet = dh.GhiChuDacBiet,
                         LaDonGiaoThang = dh.LaDonGiaoThang,
-                        MaVung = dh.MaVung,
+                       
                         MaDiaChiNhanHang = dh.MaDiaChiNhanHang ?? 0,
                         TenNguoiNhan = dh.TenNguoiNhan,
                         SdtNguoiNhan = dh.SdtNguoiNhan,
                         TongTienDuKien = dh.TongTienDuKien,
                         TongTienThucTe = dh.TongTienThucTe,
                         MaMucDoDv = dh.MaMucDoDv,
+                        TrangThaiThanhToanTong = dh.TrangThaiThanhToanTong,
+                        TenPhuongThucTT = dh.MaPtttNavigation.LoaiThanhToan,
+                        MaKhoHienTai = dh.MaKhoHienTai,
+                        MaVungH3Giao =dh.MaVungH3Giao,
+                        MaVungH3Nhan = dh.MaVungH3Nhan,
+                        
                         KienHangs = dh.KienHangs.Select(kh => new KienHangModels
                         {
                             MaVach = kh.MaVach,
-
                             KhoiLuong = kh.KhoiLuong,
                             TheTich = kh.TheTich,
                             DaThuGom = kh.DaThuGom,
                             SoTien = kh.SoTien,
-
-                            MaKhoHienTai = kh.MaKhoHienTai,
+                            MaBangGiaVung = kh.MaBangGiaVung,
+                            //SoLuongKienHang = kh.SoLuongKienHang,
                             MaLoaiHangNavigation = new DanhMucLoaiHangModels
                             {
                                 TenLoaiHang = kh.MaLoaiHangNavigation.TenLoaiHang,
@@ -324,7 +323,7 @@ namespace QuanLyDonHang.ControllersAPI
                         TrangThaiHienTai = dh.TrangThaiHienTai,
                         MaLoaiDv = dh.MaLoaiDv,
                         LaDonGiaoThang = dh.LaDonGiaoThang,
-                        MaVung = dh.MaVung,
+                       
                         MaDiaChiLayHang = dh.MaDiaChiLayHang,                       
                        
                         TenNguoiNhan = dh.TenNguoiNhan,
@@ -376,7 +375,6 @@ namespace QuanLyDonHang.ControllersAPI
 
             try
             {
-                
                 // --- BƯỚC 1: ĐỒNG BỘ KHÁCH HÀNG & ĐỊA CHỈ ---
                 var resKh = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlykhachhang/check_so_dien_thoai", new
                 {
@@ -385,47 +383,34 @@ namespace QuanLyDonHang.ControllersAPI
                     DiaChi = request.DiaChiLay
                 });
 
-                // KIỂM TRA LỖI TRƯỚC KHI ĐỌC JSON
                 if (!resKh.IsSuccessStatusCode)
                 {
-                    // Đọc dưới dạng chuỗi để xem lỗi thực sự là gì (thường là chữ 'S' nằm ở đây)
                     var errorRaw = await resKh.Content.ReadAsStringAsync();
                     _logger.LogError($"API Khách hàng trả về lỗi 400: {errorRaw}");
                     return BadRequest(new { message = "Thông tin khách hàng không hợp lệ", detail = errorRaw });
                 }
 
-                // Nếu thành công thì mới đọc Json
                 var khData = await resKh.Content.ReadFromJsonAsync<JsonElement>();
                 int maKhachHang = khData.GetProperty("maKhachHang").GetInt32();
 
                 // --- BƯỚC 2: XỬ LÝ ĐỊA CHỈ & LẤY MÃ VÙNG H3 ---
-                // Gọi Service Địa chỉ cho bên LẤY
                 var resDcLay = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlydiachi/check_dia_chi", request.DiaChiLay);
                 if (!resDcLay.IsSuccessStatusCode) return BadRequest("Địa chỉ LẤY không hợp lệ.");
 
-                // ĐỌC OBJECT: { maDiaChi, maVungH3 }
                 var dataDcLay = await resDcLay.Content.ReadFromJsonAsync<JsonElement>();
                 int maDcLay = dataDcLay.GetProperty("maDiaChi").GetInt32();
-                if (maDcLay <= 0)
-                {
-                    return BadRequest("Mã địa chỉ không hợp lệ (ID=0).");
-                }
-
+                if (maDcLay <= 0) return BadRequest("Mã địa chỉ không hợp lệ (ID=0).");
                 string maH3Nhan = dataDcLay.GetProperty("maVungH3").GetString() ?? "";
 
-                // Gọi Service Địa chỉ cho bên GIAO
                 var resDcGiao = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlydiachi/check_dia_chi", request.DiaChiGiao);
                 if (!resDcGiao.IsSuccessStatusCode) return BadRequest("Địa chỉ GIAO không hợp lệ.");
 
                 var dataDcGiao = await resDcGiao.Content.ReadFromJsonAsync<JsonElement>();
                 int maDcGiao = dataDcGiao.GetProperty("maDiaChi").GetInt32();
-                if (maDcGiao <= 0)
-                {
-                    return BadRequest("Mã địa chỉ không hợp lệ (ID=0).");
-                }
+                if (maDcGiao <= 0) return BadRequest("Mã địa chỉ không hợp lệ (ID=0).");
                 string maH3Giao = dataDcGiao.GetProperty("maVungH3").GetString() ?? "";
 
-                // --- BƯỚC 3: TÌM KHO PHỤ TRÁCH (Dùng ID địa chỉ để tính khoảng cách) ---
+                // --- BƯỚC 3: TÌM KHO PHỤ TRÁCH ---
                 int? maKhoGanNhat = null;
                 var resKho = await client.GetAsync($"https://localhost:7286/api/quanlykhobai/tim-kho-gan-nhat/{maDcLay}");
                 if (resKho.IsSuccessStatusCode)
@@ -434,42 +419,50 @@ namespace QuanLyDonHang.ControllersAPI
                     maKhoGanNhat = khoJson.GetProperty("maKho").GetInt32();
                 }
 
-                // --- BƯỚC 2: TÍNH TOÁN GIÁ CƠ BẢN TỪNG KIỆN ---
+                // --- BƯỚC 4: TÍNH TOÁN GIÁ & HỆ SỐ ---
                 decimal tongTienGocCacKien = 0;
                 var danhSachGiaGoc = new List<decimal>();
 
+                // --- BƯỚC 4: TÍNH TOÁN GIÁ & HỆ SỐ ---
                 foreach (var kien in request.DanhSachKienHang)
                 {
                     var payloadGia = new
                     {
-                        ThanhPhoLay = request.DiaChiLay.ThanhPho,
-                        ThanhPhoGiao = request.DiaChiGiao.ThanhPho,
+                        ThanhPhoLay = request.DiaChiLay.ThanhPho?.Trim(),
+                        ThanhPhoGiao = request.DiaChiGiao.ThanhPho?.Trim(),
                         KhoiLuongTong = kien.KhoiLuong,
                         TheTichTong = kien.TheTich,
-                        MaLoaiHang = kien.MaLoaiHang,
-                        MaBangGiaVung = kien.MaBangGiaVung
+                        MaLoaiHang = kien.MaLoaiHang
+                        // Lưu ý: Không truyền MaBangGiaVung vào payload nếu API phân tích không dùng nó làm tham số đầu vào để lọc
                     };
 
-                    var resGiaVung = await client.PostAsJsonAsync($"{baseServiceUrl}/quanlybangiavung/phan-tich-dich-vu-phu-hop", payloadGia);
+                    var resGiaVung = await client.PostAsJsonAsync($"https://localhost:7149/api/quanlybangiavung/phan-tich-dich-vu-phu-hop", payloadGia);
 
                     if (resGiaVung.IsSuccessStatusCode)
                     {
                         var options = await resGiaVung.Content.ReadFromJsonAsync<List<JsonElement>>();
                         if (options != null && options.Count > 0)
                         {
-                            decimal giaDonVi = options[0].GetProperty("tongTienDuKien").GetDecimal();
+                            // SỬA TẠI ĐÂY: Tìm đúng Option mà khách hàng đã chọn dựa trên MaBangGiaVung
+                            var selectedOption = options.FirstOrDefault(o => o.GetProperty("maBangGia").GetInt32() == kien.MaBangGiaVung);
+
+                            // Nếu không tìm thấy mã khớp (do dữ liệu cũ hoặc lệch), mặc định lấy cái đầu tiên nhưng nên báo lỗi
+                            if (selectedOption.ValueKind == JsonValueKind.Undefined)
+                            {
+                                return BadRequest(new { message = $"Mã bảng giá {kien.MaBangGiaVung} không còn hiệu lực cho kiện hàng này." });
+                            }
+
+                            decimal giaDonVi = selectedOption.GetProperty("tongTienDuKien").GetDecimal();
                             int soLuong = (kien.SoLuongKienHang ?? 0) > 0 ? kien.SoLuongKienHang.Value : 1;
                             decimal tongGiaKien = giaDonVi * soLuong;
 
                             danhSachGiaGoc.Add(tongGiaKien);
                             tongTienGocCacKien += tongGiaKien;
                         }
-                        else return BadRequest(new { message = $"Không tìm thấy bảng giá cho loại hàng {kien.MaLoaiHang}." });
+                        else return BadRequest(new { message = "Không tìm thấy bảng giá phù hợp." });
                     }
-                    else return BadRequest(new { message = "Lỗi khi kết nối API tính giá." });
                 }
 
-                // --- BƯỚC 3: HỆ SỐ DỊCH VỤ & GIẢM GIÁ ---
                 decimal heSoDichVu = 1.0m;
                 var resMucDo = await client.GetAsync($"{baseServiceUrl}/mucdichvu/get-by-id/{request.MaMucDoDv}");
                 if (resMucDo.IsSuccessStatusCode)
@@ -501,14 +494,14 @@ namespace QuanLyDonHang.ControllersAPI
 
                 decimal tongTienThucTe = Math.Max(0, tongTienDuKien - soTienGiam);
 
-                // --- BƯỚC 4: LƯU ĐƠN HÀNG ---
+                // --- BƯỚC 5: LƯU ĐƠN HÀNG, KIỆN HÀNG, HÓA ĐƠN ---
                 var newDonHang = new QuanLyDonHang.Models.DonHang
                 {
                     TenDonHang = request.TenDonHang ?? $"Đơn {DateTime.Now:HHmm}",
                     MaKhachHang = maKhachHang,
-                    MaDiaChiNhanHang = maDcLay,
-                    MaDiaChiLayHang = maDcGiao,
-
+                    MaDiaChiNhanHang = maDcGiao,
+                    MaKhoHienTai = maKhoGanNhat ?? request.MaKhoHienTai,
+                    MaDiaChiLayHang = maDcLay,
                     MaMucDoDv = request.MaMucDoDv,
                     TongTienDuKien = tongTienDuKien,
                     TongTienThucTe = tongTienThucTe,
@@ -520,7 +513,6 @@ namespace QuanLyDonHang.ControllersAPI
                     MaKhuyenMai = maKhuyenMai,
                     MaVungH3Giao = maH3Giao,
                     MaVungH3Nhan = maH3Nhan,
-
                     MaPttt = request.MaPTTT,
                     TrangThaiThanhToanTong = "Chưa thanh toán"
                 };
@@ -528,7 +520,6 @@ namespace QuanLyDonHang.ControllersAPI
                 _context.DonHangs.Add(newDonHang);
                 await _context.SaveChangesAsync();
 
-                // --- BƯỚC 5: LƯU KIỆN HÀNG ---
                 for (int i = 0; i < request.DanhSachKienHang.Count; i++)
                 {
                     var kienReq = request.DanhSachKienHang[i];
@@ -545,8 +536,8 @@ namespace QuanLyDonHang.ControllersAPI
                         SoTien = danhSachGiaGoc[i],
                         DaThuGom = false
                     });
-                }             
-               var newHoaDon = new HoaDon  
+                }
+                var newHoaDon = new HoaDon
                 {
                     MaDonHang = newDonHang.MaDonHang,
                     MaPttt = request.MaPTTT,
@@ -558,54 +549,32 @@ namespace QuanLyDonHang.ControllersAPI
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                var responseData = new
-                {
-                    Success = true,
-                    MaDonHang = newDonHang.MaDonHang,
-                    MaKho = maKhoGanNhat,
-                    TongTien = tongTienThucTe
-                };
-
-                // --- LUỒNG HỎA TỐC (Mức độ 3) ---
-                if (request.MaMucDoDv?.ToString() == "3")
-                {
-                    try
-                    {
-                        var rabbitMQ = new RabbitMQProducer(); // Tốt nhất nên dùng DI (Dependency Injection)
-                        var message = new
-                        {
-                            MaDonHang = newDonHang.MaDonHang,
-                            MaKhoVao = maKhoGanNhat,
-                            MaDiaChiLay = maDcLay,
-                            TongKhoiLuong = request.DanhSachKienHang.Sum(k => k.KhoiLuong),
-                            TongTheTich = request.DanhSachKienHang.Sum(k => k.TheTich),
-                            ThoiGian = DateTime.Now
-                        };
-                        await rabbitMQ.SendOrderMessageAsync(message);
-                    }
-                    catch (Exception ex)
-                    {
-                        // Chỉ log lỗi RabbitMQ, không làm fail cả request vì DB đã lưu thành công
-                        _logger.LogError($"Lỗi gửi tin nhắn RabbitMQ cho đơn {newDonHang.MaDonHang}: {ex.Message}");
-                    }
-                }
-
-                
-                // --- BƯỚC 6: TẠO LINK THANH TOÁN MOMO TRỰC TIẾP ---
+                // --- BƯỚC 6: XỬ LÝ THANH TOÁN & QR CODE ---
                 string paymentUrl = "";
+                string qrCodeUrl = ""; // Thêm biến chứa link QR Code
 
-                if (request.MaPTTT == 3) // Giả sử ID 3 là thanh toán qua Ví Momo
+                // Giả sử MaPTTT == 2 là Chuyển khoản ngân hàng
+                if (request.MaPTTT == 2)
                 {
-                    // 1. Chuẩn bị dữ liệu gửi sang Momo
-                    string orderId = newDonHang.MaDonHang.ToString() + "_" + DateTime.Now.Ticks; // Đảm bảo Unique
+                    string bankId = "MB"; // Mã ngân hàng (Thay bằng mã NH thực tế của bạn, ví dụ: MB, VCB, CTG, TCB)
+                    string accountNo = "0833508903"; // Số tài khoản nhận tiền
+                    string accountName = "NGUYEN DUC TOAN"; // Tên chủ tài khoản
+                    string addInfo = $"Thanh toan don hang {newDonHang.MaDonHang}"; // Nội dung CK
+
+                    // Build link API VietQR
+                    qrCodeUrl = $"https://img.vietqr.io/image/{bankId}-{accountNo}-compact2.png?amount={(long)tongTienThucTe}&addInfo={Uri.EscapeDataString(addInfo)}&accountName={Uri.EscapeDataString(accountName)}";
+                }
+                // MaPTTT == 3 là Ví Momo
+                else if (request.MaPTTT == 3)
+                {
+                    string orderId = newDonHang.MaDonHang.ToString() + "_" + DateTime.Now.Ticks;
                     string requestId = Guid.NewGuid().ToString();
                     string orderInfo = "Thanh toán đơn hàng #" + newDonHang.MaDonHang;
-                    string redirectUrl = "https://localhost:7149/api/thanhtoan/momo-callback"; // Link quay lại web sau khi thanh toán
-                    string ipnUrl = "https://your-domain.com/api/thanhtoan/momo-ipn"; // Link Momo gọi ngầm để cập nhật DB
+                    string redirectUrl = "https://localhost:7149/api/thanhtoan/momo-callback";
+                    string ipnUrl = "https://your-domain.com/api/thanhtoan/momo-ipn";
                     string amount = ((long)tongTienThucTe).ToString();
-                    string extraData = ""; // Có thể để trống hoặc lưu thông tin thêm dạng Base64
+                    string extraData = "";
 
-                    // 2. Tạo chuỗi dữ liệu để ký tên (Raw Signature) theo thứ tự bảng chữ cái của Key
                     string rawHash = "accessKey=" + accessKey +
                         "&amount=" + amount +
                         "&extraData=" + extraData +
@@ -617,7 +586,6 @@ namespace QuanLyDonHang.ControllersAPI
                         "&requestId=" + requestId +
                         "&requestType=captureWallet";
 
-                    // 3. Ký số SHA256 với Secret Key
                     string signature = "";
                     using (HMACSHA256 hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secretKey)))
                     {
@@ -625,7 +593,6 @@ namespace QuanLyDonHang.ControllersAPI
                         signature = BitConverter.ToString(hashValue).Replace("-", "").ToLower();
                     }
 
-                    // 4. Tạo Object JSON để gửi POST sang Momo
                     var message = new
                     {
                         partnerCode = partnerCode,
@@ -641,104 +608,118 @@ namespace QuanLyDonHang.ControllersAPI
                         lang = "vi"
                     };
 
-                    // 5. Gọi API Momo để lấy link thanh toán (PayUrl)
                     var responseMomo = await client.PostAsJsonAsync(endpoint, message);
                     if (responseMomo.IsSuccessStatusCode)
                     {
                         var resultMomo = await responseMomo.Content.ReadFromJsonAsync<JsonElement>();
-                        // Momo trả về 'payUrl' nếu thành công
+
                         if (resultMomo.TryGetProperty("payUrl", out var urlElement))
                         {
                             paymentUrl = urlElement.GetString();
                         }
+
+                        // Trích xuất thêm mã QR mà MoMo trả về
+                        if (resultMomo.TryGetProperty("qrCodeUrl", out var qrElement))
+                        {
+                            qrCodeUrl = qrElement.GetString();
+                        }
                     }
                 }
 
-                
+                // --- LUỒNG HỎA TỐC (Mức độ 3) ---
+                if (request.MaMucDoDv?.ToString() == "3")
+                {
+                    try
+                    {
+                        var rabbitMQ = new RabbitMQProducer();
+                        var message = new
+                        {
+                            MaDonHang = newDonHang.MaDonHang,
+                            MaDiaChiLayHang = maDcLay,
+                            MaDiaChiGiaoHang = maDcGiao,
+                            MaKhoVao = maKhoGanNhat ?? request.MaKhoHienTai,
+                            TongKhoiLuong = request.DanhSachKienHang.Sum(k => k.KhoiLuong),
+                            TongTheTich = request.DanhSachKienHang.Sum(k => k.TheTich),
+                            ThoiGian = DateTime.Now
+                        };
+                        await rabbitMQ.SendOrderMessageAsync(message);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Lỗi gửi tin nhắn RabbitMQ cho đơn {newDonHang.MaDonHang}: {ex.Message}");
+                    }
+                }
 
+                // --- TRẢ VỀ CHO FRONT-END ---
                 return Ok(new
                 {
                     Success = true,
                     MaDonHang = newDonHang.MaDonHang,
                     H3 = maH3Nhan,
                     TongTien = tongTienThucTe,
-                    PaymentUrl = paymentUrl // Trả về URL để FE redirect người dùng đi thanh toán (nếu rỗng thì thôi)
+                    PaymentUrl = paymentUrl,
+                    QrCodeUrl = qrCodeUrl // Frontend sẽ hứng biến này để nhúng vào thẻ <img>
                 });
             }
-
-
             catch (Exception ex)
             {
-
                 _logger.LogError($"[Fatal Error] TaoDonHang: {ex.Message}");
                 return StatusCode(500, new { message = "Lỗi hệ thống", detail = ex.Message });
             }
         }
 
-        private bool VerifyMomoSignature(MomoIPNRequest request)
+       
+
+        [HttpGet("PTTT")]
+        public async Task<IActionResult> PTTT()
         {
-            // 1. Thông tin SecretKey (Phải khớp với key lúc bạn gửi đi)
-            string secretKey = "at67bcvdghas78nhj";
-
-            // 2. Tạo chuỗi rawHash theo đúng thứ tự Momo quy định (A-Z)
-            // Lưu ý: Không được thiếu bất kỳ trường nào dưới đây
-            string rawHash = $"accessKey={accessKey}" + // Bạn cần biến accessKey ở đây
-                             $"&amount={request.amount}" +
-                             $"&extraData={request.extraData}" +
-                             $"&message={request.message}" +
-                             $"&orderId={request.orderId}" +
-                             $"&orderInfo={request.orderInfo}" +
-                             $"&partnerCode={request.partnerCode}" +
-                             $"&requestId={request.requestId}" +
-                             $"&responseTime={request.responseTime}" +
-                             $"&resultCode={request.resultCode}" +
-                             $"&transId={request.transId}";
-
-            // 3. Tính toán lại chữ ký từ chuỗi rawHash
-            string checkSignature = "";
-            using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secretKey)))
+            try
             {
-                byte[] hashValue = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawHash));
-                checkSignature = BitConverter.ToString(hashValue).Replace("-", "").ToLower();
-            }
+                var cachekey = $"PTTT";
+                // 1. Thử lấy dữ liệu từ Cache
+                if (!_cache.TryGetValue(cachekey, out List<DanhMucPTTTModels> dsPttt))
+                {
+                    // 2. Nếu Cache không có, truy vấn Database
+                    dsPttt = await _context.DanhMucPhuongThucThanhToans
+                        .AsNoTracking()
+                        .Where(tt =>tt.TrangThai == true)
+                        .Select(pt => new DanhMucPTTTModels
+                        {
+                            MaPttt = pt.MaPttt,
+                            TenPttt = pt.TenPttt
+                        })
+                        .ToListAsync(); // Thực thi truy vấn tại đây
 
-            // 4. So sánh chữ ký mình vừa tính với chữ ký Momo gửi sang
-            return checkSignature == request.signature;
+                    // 3. Thiết lập cấu hình Cache (ví dụ lưu trong 30 phút)
+                    var cacheOptions = new MemoryCacheEntryOptions()
+                        .SetSlidingExpiration(TimeSpan.FromMinutes(30));
+
+                    // 4. Lưu vào Cache
+                    _cache.Set(cachekey, dsPttt, cacheOptions);
+                }
+
+                return Ok(dsPttt);
+            }
+            catch (Exception ex)
+            {
+                // 5. Log lỗi và trả về thông báo lỗi
+                // _logger.LogError(ex, "Lỗi lấy danh sách PTTT");
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
-        [HttpPost("momo-ipn")]
-        public async Task<IActionResult> MomoIPN([FromBody] MomoIPNRequest request)
+        [HttpGet("trang-thai/{maDonHang}")]
+        public async Task<IActionResult> GetTrangThai(int maDonHang)
         {
-            // 1. Kiểm tra chữ ký (Signature) để đảm bảo tin nhắn này đúng là từ Momo gửi, không phải hacker
-            bool isValid = VerifyMomoSignature(request);
-            if (!isValid) return BadRequest();
+            var donHang = await _context.DonHangs
+                .FirstOrDefaultAsync(d => d.MaDonHang == maDonHang);
 
-            // 2. Kiểm tra mã kết quả (resultCode == 0 là thành công)
-            if (request.resultCode == 0)
+            if (donHang == null) return NotFound();
+
+            return Ok(new
             {
-                // Tìm đơn hàng dựa trên MaDonHang (TxnRef) mà Momo gửi về
-                var donHang = await _context.DonHangs.FirstOrDefaultAsync(d => d.MaDonHang == request.orderId);
-                var hoaDon = await _context.HoaDons.FirstOrDefaultAsync(h => h.MaDonHang == request.orderId);
-
-                if (donHang != null && hoaDon != null)
-                {
-                    // BƯỚC CẬP NHẬT TRẠNG THÁI:
-
-                    // 1. Cập nhật bảng Hóa đơn (Lưu vết giao dịch chi tiết)
-                    hoaDon.TrangThaiThanhToan = "Thanh_Cong";
-                    hoaDon.MaGiaoDichNgoai = request.transId; // Lưu mã của Momo để đối soát
-                    hoaDon.NgayThanhToan = DateTime.Now;
-
-                    // 2. Cập nhật bảng Đơn hàng (Để quản lý tổng thể)
-                    donHang.TrangThaiThanhToanTong = "Đã thanh toán";
-                    donHang.TrangThaiHienTai = "Đang xử lý"; // Có thể chuyển luôn sang trạng thái chuẩn bị kho
-
-                    await _context.SaveChangesAsync();
-                }
-            }
-
-            // Trả về cho Momo biết bạn đã nhận được thông tin (để họ không gọi lại nữa)
-            return NoContent();
+                trangThaiThanhToan = donHang.TrangThaiThanhToanTong // Trả về "Đã thanh toán" hoặc "Chưa thanh toán"
+            });
         }
 
         [HttpPost("cho-dieu-phoi")]
@@ -771,13 +752,10 @@ namespace QuanLyDonHang.ControllersAPI
                         {
                             MaVungH3 = group.Key!,
                             SoLuongDonHang = group.Count(),
-
-                            // QUAN TRỌNG: Bắn mã địa chỉ về để phía Điều phối tìm được Kho gần nhất
-                            // Sử dụng MaDiaChiNhanHang (nơi lấy hàng) làm điểm mốc tìm kho
-                            MaDiaChiCum = representativeOrder.MaDiaChiNhanHang ?? 0,
-                            MaDiaChiLayHang = representativeOrder.MaDiaChiNhanHang ?? 0,
-                            MaDiaChiGiao = representativeOrder.MaDiaChiLayHang,
-
+                            // Đảm bảo gán MaDiaChiLayHang vì bên kia dùng trường này ưu tiên
+                            MaDiaChiLayHang = representativeOrder.MaDiaChiLayHang ,
+                            MaDiaChiCum = representativeOrder.MaDiaChiLayHang ,
+                            MaDiaChiNhanHang = (int)(representativeOrder.MaDiaChiNhanHang ?? 0),
                             DanhSachMaDonHang = group.Select(dh => dh.MaDonHang).ToList(),
                             TongKhoiLuong = allKienHangs.Sum(kh => kh.KhoiLuong ?? 0),
                             TongTheTich = allKienHangs.Sum(kh => kh.TheTich ?? 0)
@@ -848,6 +826,76 @@ namespace QuanLyDonHang.ControllersAPI
             {
                 _logger.LogError(ex, "Lỗi khi cập nhật trạng thái hàng loạt.");
                 return StatusCode(500, "Lỗi hệ thống khi cập nhật trạng thái.");
+            }
+        }
+
+        [HttpPut("cap-nhat-trang-thai/{madonhang}")]
+        public async Task<IActionResult> CapNhatTrangThaiDonHang(int madonhang, [FromBody] string trangThaiMoi)
+        {
+            if (string.IsNullOrEmpty(trangThaiMoi) || madonhang <= 0)
+                return BadRequest(new { Success = false, Message = "Dữ liệu không hợp lệ." });
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                // 1. Lấy thông tin đơn hàng
+                var dbDonHang = await _context.DonHangs
+                    .Include(dh => dh.KienHangs)
+                    .FirstOrDefaultAsync(dh => dh.MaDonHang == madonhang);
+
+                if (dbDonHang == null) return NotFound(new { Success = false, Message = "Không tìm thấy đơn hàng." });
+                // 1. Kiểm tra trạng thái mới có giống trạng thái hiện tại không
+                if (dbDonHang.TrangThaiHienTai == trangThaiMoi)
+                {
+                    return BadRequest(new
+                    {
+                        Success = false,
+                        Message = $"Đơn hàng đã ở trạng thái '{trangThaiMoi}' rồi, không cần cập nhật."
+                    });
+                }
+                // 2. Cập nhật trạng thái tại Local DB (Server Đơn hàng)
+                dbDonHang.TrangThaiHienTai = trangThaiMoi;
+
+                await _context.SaveChangesAsync();
+                // 3. Commit DB trước khi gửi tin nhắn (Đảm bảo dữ liệu thật đã nằm trong DB)
+                await transaction.CommitAsync();
+
+                // 4. BẮN TIN NHẮN SANG RABBITMQ (Thay thế hoàn toàn cho HTTP Call)
+                // Đây là cách làm "Event-Driven" chuẩn Microservices
+                try
+                {
+                    var rabbitMQ = new RabbitMQProducer(); // Hoặc dùng Dependency Injection
+                    var message = new RoutingOrderMessage
+                    {
+                        MaDonHang = dbDonHang.MaDonHang,
+                        MaKhoVao = dbDonHang.MaKhoHienTai,
+                        
+                        MaDiaChiNhanHang = dbDonHang.MaDiaChiNhanHang,
+                        MaVungH3Nhan = dbDonHang.MaVungH3Nhan,
+                        MaVungH3Giao = dbDonHang.MaVungH3Giao,
+                        TongKhoiLuong = (double)dbDonHang.KienHangs.Sum(k => k.KhoiLuong),
+                        TongTheTich = (double)dbDonHang.KienHangs.Sum(k => k.TheTich),
+                        TrangThaiMoi = trangThaiMoi,
+                        ThoiGian = DateTime.Now
+                    };
+
+                    await rabbitMQ.SendOrderMessageAsync(message);
+                }
+                catch (Exception ex)
+                {
+                    // Nếu RabbitMQ lỗi, ta vẫn không báo lỗi cho User vì DB đã lưu xong.
+                    // Có thể dùng một bảng 'Outbox' để gửi lại sau nếu cần cực kỳ chính xác.
+                    _logger.LogError($"Lỗi gửi tin nhắn RabbitMQ: {ex.Message}");
+                }
+
+                return Ok(new { Success = true, Message = "Cập nhật thành công và đã đẩy vào hàng đợi điều phối." });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError($"Lỗi: {ex.Message}");
+                return StatusCode(500, "Lỗi hệ thống.");
             }
         }
     }

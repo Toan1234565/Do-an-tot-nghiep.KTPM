@@ -566,57 +566,67 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                 return StatusCode(500, $"Lỗi hệ thống: {ex.Message}");
             }
         }
-
-        [HttpGet("lich-trinh-tai-xe")]
-        public async Task<IActionResult> GetLichTrinhTaiXe([FromQuery] int maKho, [FromQuery] string? loaiXeYeuCau)
+        [HttpGet("Lich-trinh-theo-chuyen")]
+        public async Task<IActionResult> LichTrinhTheoChuyen([FromQuery] int maKho, [FromQuery] string? loaiXeYeuCau)
         {
             try
             {
-                var today = DateOnly.FromDateTime(DateTime.Now);
-                var currentTime = TimeOnly.FromDateTime(DateTime.Now);
+                var now = DateTime.Now;
+                var today = DateOnly.FromDateTime(now);
+                var yesterday = today.AddDays(-1);
+                var currentTime = TimeOnly.FromDateTime(now);
 
-                var query = _context.TaiXes.AsNoTracking().AsQueryable();
+                var query = _context.TaiXes.AsNoTracking()
+                    .Include(tx => tx.MaNguoiDungNavigation)
+                    .ThenInclude(n => n.DangKyCaTrucs)
+                    .ThenInclude(dk => dk.MaCaNavigation)
+                    .AsQueryable();
 
-                // 1. Lọc theo loại xe/bằng lái nếu có yêu cầu từ điều phối
+                // 1. Lọc cơ bản: Đúng kho, đang sẵn sàng và bằng lái còn hạn
+                query = query.Where(tx => tx.MaNguoiDungNavigation.MaKho == maKho
+                                        && tx.TrangThaiHoatDong == "Sẵn sàng"
+                                        && tx.NgayHetHanBang > today);
+
+                // 2. Lọc theo loại xe/bằng lái
                 if (!string.IsNullOrEmpty(loaiXeYeuCau))
                 {
-                    query = query.Where(tx => tx.LoaiBangLai.Contains(loaiXeYeuCau));
+                    var req = loaiXeYeuCau.ToUpper();
+                    query = query.Where(tx => tx.LoaiBangLai.ToUpper().Contains(req));
                 }
 
-                var danhSachTaiXe = await query
-                    .Where(tx => tx.NgayHetHanBang > today
-                        && tx.TrangThaiHoatDong == "Sẵn sàng"
-                        // Truy cập qua MaNguoiDungNavigation vì DangKyCaTrucs đã chuyển sang NguoiDung
-                        && tx.MaNguoiDungNavigation.DangKyCaTrucs.Any(dk =>
-                            dk.NgayTruc == today
-                            && dk.TrangThai == "Đã duyệt"
-                            && dk.MaCaNavigation.MaKho == maKho
-                            && (
-                                // Trường hợp 1: Ca trong ngày (VD: 08:00 - 17:00)
-                                (dk.MaCaNavigation.GioBatDau <= dk.MaCaNavigation.GioKetThuc
-                                    && currentTime >= dk.MaCaNavigation.GioBatDau
-                                    && currentTime <= dk.MaCaNavigation.GioKetThuc)
-                                ||
-                                // Trường hợp 2: Ca xuyên đêm (VD: 22:00 - 06:00 sáng hôm sau)
-                                (dk.MaCaNavigation.GioBatDau > dk.MaCaNavigation.GioKetThuc
-                                    && (currentTime >= dk.MaCaNavigation.GioBatDau || currentTime <= dk.MaCaNavigation.GioKetThuc))
-                            )
-                        ))
-                    .Select(tx => new
-                    {
-                        tx.MaNguoiDung,
-                        HoTen = tx.MaNguoiDungNavigation.HoTenNhanVien,
-                        SoDienThoai = tx.MaNguoiDungNavigation.SoDienThoai,
-                        tx.LoaiBangLai,
-                        tx.KinhNghiemNam,
-                        tx.DiemUyTin,
-                        TenCa = tx.MaNguoiDungNavigation.DangKyCaTrucs
-                                .Where(dk => dk.NgayTruc == today)
+                var tatCaTaiXePhuHop = await query.ToListAsync();
+
+                // 3. Lọc tài xế đang trong ca trực hợp lệ
+                var danhSachTaiXe = tatCaTaiXePhuHop.Where(tx =>
+                    tx.MaNguoiDungNavigation.DangKyCaTrucs.Any(dk =>
+                        dk.TrangThai == "Đã duyệt" && (
+                            // TH1: Ca làm việc trong ngày hôm nay
+                            (dk.NgayTruc == today && (
+                                // Nếu là ca "Vận chuyển theo chuyến" (00:00 - 23:59) thì luôn đúng
+                                dk.MaCa == 1068 ||
+                                // Hoặc các ca thường: Giờ hiện tại nằm trong khoảng bắt đầu và kết thúc
+                                (currentTime >= dk.MaCaNavigation.GioBatDau && currentTime <= dk.MaCaNavigation.GioKetThuc)
+                            ))                           
+                        )
+                    )
+                )
+                .Select(tx => new
+                {
+                    tx.MaNguoiDung,
+                    HoTen = tx.MaNguoiDungNavigation.HoTenNhanVien,
+                    SoDienThoai = tx.MaNguoiDungNavigation.SoDienThoai,
+                    tx.LoaiBangLai,
+                    tx.KinhNghiemNam,
+                    tx.DiemUyTin,
+                    // Lấy tên ca hiện tại để hiển thị lên UI cho điều phối viên dễ nhìn
+                    TenCaHienTai = tx.MaNguoiDungNavigation.DangKyCaTrucs
+                                .Where(dk => dk.TrangThai == "Đã duyệt" &&
+                                       (dk.NgayTruc == today || (dk.NgayTruc == yesterday && dk.MaCaNavigation.GioBatDau > dk.MaCaNavigation.GioKetThuc)))
                                 .Select(dk => dk.MaCaNavigation.TenCa)
                                 .FirstOrDefault()
-                    })
-                    .OrderByDescending(tx => tx.DiemUyTin) // Ưu tiên tài xế uy tín cao lên đầu để điều phối
-                    .ToListAsync();
+                })
+                .OrderByDescending(tx => tx.DiemUyTin) // Ưu tiên tài xế uy tín trước
+                .ToList();
 
                 return Ok(danhSachTaiXe);
             }
@@ -625,7 +635,74 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                 return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
             }
         }
+        [HttpGet("lich-trinh-tai-xe")]
+        public async Task<IActionResult> GetLichTrinhTaiXe([FromQuery] int maKho, [FromQuery] string? loaiXeYeuCau)
+        {
+            try
+            {
+                var now = DateTime.Now;
+                var today = DateOnly.FromDateTime(now);
+                var yesterday = today.AddDays(-1);
+                var currentTime = TimeOnly.FromDateTime(now);
 
+                var query = _context.TaiXes.AsNoTracking()
+                    .Include(tx => tx.MaNguoiDungNavigation)
+                    .ThenInclude(n => n.DangKyCaTrucs)
+                    .ThenInclude(dk => dk.MaCaNavigation)
+                    .AsQueryable();
+
+                // 1. Lọc theo kho và trạng thái cơ bản của tài xế
+                query = query.Where(tx => tx.MaNguoiDungNavigation.MaKho == maKho
+                                       && tx.TrangThaiHoatDong == "Sẵn sàng"
+                                       && tx.NgayHetHanBang > today);
+
+                // 2. Lọc theo loại xe/bằng lái nếu có yêu cầu (Sử dụng ToUpper để tránh lệch chữ hoa/thường)
+                if (!string.IsNullOrEmpty(loaiXeYeuCau))
+                {
+                    var req = loaiXeYeuCau.ToUpper();
+                    query = query.Where(tx => tx.LoaiBangLai.ToUpper().Contains(req));
+                }
+
+                var tatCaTaiXePhuHop = await query.ToListAsync();
+
+                // 3. Lọc thủ công trong bộ nhớ để xử lý logic ca trực phức tạp (Xuyên đêm)
+                var danhSachTaiXe = tatCaTaiXePhuHop.Where(tx =>
+                    tx.MaNguoiDungNavigation.DangKyCaTrucs.Any(dk =>
+                        dk.TrangThai == "Đã duyệt" && (
+                            // TH1: Ca trực thuộc ngày hôm nay
+                            (dk.NgayTruc == today && (
+                                (dk.MaCaNavigation.GioBatDau <= dk.MaCaNavigation.GioKetThuc && currentTime >= dk.MaCaNavigation.GioBatDau && currentTime <= dk.MaCaNavigation.GioKetThuc) ||
+                                (dk.MaCaNavigation.GioBatDau > dk.MaCaNavigation.GioKetThuc && (currentTime >= dk.MaCaNavigation.GioBatDau || currentTime <= dk.MaCaNavigation.GioKetThuc))
+                            ))
+                            ||
+                            // TH2: Ca trực xuyên đêm bắt đầu từ hôm qua nhưng kết thúc vào hôm nay
+                            (dk.NgayTruc == yesterday && dk.MaCaNavigation.GioBatDau > dk.MaCaNavigation.GioKetThuc && currentTime <= dk.MaCaNavigation.GioKetThuc)
+                        )
+                    )
+                )
+                .Select(tx => new
+                {
+                    tx.MaNguoiDung,
+                    HoTen = tx.MaNguoiDungNavigation.HoTenNhanVien,
+                    SoDienThoai = tx.MaNguoiDungNavigation.SoDienThoai,
+                    tx.LoaiBangLai,
+                    tx.KinhNghiemNam,
+                    tx.DiemUyTin,
+                    TenCa = tx.MaNguoiDungNavigation.DangKyCaTrucs
+                                .Where(dk => dk.NgayTruc == today || (dk.NgayTruc == yesterday && dk.MaCaNavigation.GioBatDau > dk.MaCaNavigation.GioKetThuc))
+                                .Select(dk => dk.MaCaNavigation.TenCa)
+                                .FirstOrDefault()
+                })
+                .OrderByDescending(tx => tx.DiemUyTin)
+                .ToList();
+
+                return Ok(danhSachTaiXe);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
+            }
+        }
         [HttpPost("cap-nhat-trang-thai")]
         public async Task<IActionResult> UpdateTrangThaiTaiXe([FromBody] UpdateTaiXeTrangTai model)
         {

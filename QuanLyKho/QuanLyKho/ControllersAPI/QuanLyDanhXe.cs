@@ -148,6 +148,7 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
             }
         }
+
         [HttpGet("danhsachloaixe")]
         public async Task<IActionResult> GetDanhSachLoaiXe([FromQuery] string? searchTerm, [FromQuery] int page = 1)
         {
@@ -234,6 +235,7 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
             }
         }
+
         [HttpPost("themxemoi")]
         public async Task<IActionResult> ThemXe([FromBody] PhuongTienModels model)
         {
@@ -405,6 +407,7 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, "Đã xảy ra lỗi khi thêm loại xe mới");
             }
         }
+
         [HttpPut("capnhatxe/{maPhuongTien}")]
         public async Task<IActionResult> CapNhatXe(int maPhuongTien, [FromBody] PhuongTienModels model)
         {
@@ -470,6 +473,7 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, "Đã xảy ra lỗi khi cập nhật xe");
             }
         }
+
         //[HttpGet("chitietphuongtien/{maPhuongTien}")]
         //public async Task<IActionResult> GetChiTietXe(int maPhuongTien)
         //{
@@ -1423,48 +1427,47 @@ namespace QuanLyKho.ControllersAPI
         [HttpGet("xe-san-sang-dieu-phoi")]
         public async Task<IActionResult> GetXeSanSang([FromQuery] double khoiLuongHang, [FromQuery] int maKho)
         {
-            // 1. Tạo Cache Key dựa trên mã kho và khối lượng hàng (làm tròn để tăng hiệu quả cache)
-            // Ví dụ: Đơn hàng 1.2 tấn và 1.3 tấn có thể dùng chung kết quả lọc nếu ta làm tròn lên 0.5
-            string cacheKey = $"dispatch_vehicles_k{maKho}_w{Math.Ceiling(khoiLuongHang)}";
+            // Cập nhật Cache Key: Chỉ cần theo mã kho vì ta sẽ lấy "tập hợp xe sẵn sàng" của kho đó
+            string cacheKey = $"dispatch_vehicles_v2_k{maKho}";
 
             try
             {
-                // 2. Thử lấy dữ liệu từ Cache
-                if (!_cacheKey.TryGetValue(cacheKey, out var cachedXe))
+                if (!_cacheKey.TryGetValue(cacheKey, out List<PhuongTienDTO> cachedXe))
                 {
-                    _logger.LogInformation("Cache miss cho điều phối tại kho {MaKho}", maKho);
+                    _logger.LogInformation("Cache miss - Lấy danh sách xe sẵn sàng tại kho {MaKho}", maKho);
 
-                    // 3. Truy vấn Database nếu không có cache
+                    // Thay vì lọc x.TaiTrongToiDaKg >= khoiLuongHang (lọc tổng), 
+                    // Ta chỉ lọc những xe đang RẢNH tại kho đó.
                     var query = _context.PhuongTiens
                         .AsNoTracking()
-                        .Where(x => x.TrangThai == "Không hoạt động"
-                                 && x.MaKho == maKho
-                                 && x.TaiTrongToiDaKg >= khoiLuongHang);
+                        .Where(x => x.TrangThai == "Không hoạt động" && x.MaKho == maKho);
 
-                    var xePhuHop = await query
-                        .Select(x => new
+                    var xeSanSang = await query
+                        .Select(x => new PhuongTienDTO
                         {
-                            x.MaPhuongTien,
-                            x.BienSo,
-                            x.TaiTrongToiDaKg,
-                            x.TheTichToiDaM3, // Thêm thể tích để điều phối chính xác hơn
+                            MaPhuongTien = x.MaPhuongTien,
+                            BienSo = x.BienSo,
+                            TaiTrongToiDaKg = x.TaiTrongToiDaKg,
+                            TheTichToiDaM3 = x.TheTichToiDaM3,
+                            MucTieuHaoNhienLieu = x.MucTieuHaoNhienLieu,
                             TenLoaiXe = x.MaLoaiXeNavigation != null ? x.MaLoaiXeNavigation.TenLoai : "N/A",
                             TenKho = x.MaKhoNavigation != null ? x.MaKhoNavigation.TenKhoBai : "N/A"
                         })
                         .ToListAsync();
 
-                    // 4. Thiết lập Options cho Cache
                     var cacheOptions = new MemoryCacheEntryOptions()
-                        // Thời gian cache ngắn (2 phút) vì xe di chuyển liên tục
                         .SetAbsoluteExpiration(TimeSpan.FromMinutes(2))
-                        // Xóa cache ngay lập tức nếu có lệnh reset (khi thêm xe/đổi trạng thái xe)
                         .AddExpirationToken(new CancellationChangeToken(_resetCacheToken.Token));
 
-                    _cacheKey.Set(cacheKey, xePhuHop, cacheOptions);
-                    cachedXe = xePhuHop;
+                    _cacheKey.Set(cacheKey, xeSanSang, cacheOptions);
+                    cachedXe = xeSanSang;
                 }
 
-                return Ok(cachedXe);
+                // TỐI ƯU: Chỉ trả về những xe có tải trọng "đủ dùng" để tránh đưa xe máy đi chở 1 tấn hàng
+                // Giả sử lấy những xe có tải trọng tối thiểu 50kg (tùy nghiệp vụ của Hoàng Đế)
+                var ketQuaLoc = cachedXe.Where(x => x.TaiTrongToiDaKg > 0).OrderBy(x => x.TaiTrongToiDaKg).ToList();
+
+                return Ok(ketQuaLoc);
             }
             catch (Exception ex)
             {
@@ -1472,6 +1475,28 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, "Lỗi hệ thống khi điều phối lộ trình");
             }
         }
+
+        [HttpGet("get-xe-phu-hop")]
+        public async Task<List<PhuongTienDTO>> GetXePhuHopTaiTrong(int maKho, double khoiLuongHang)
+        {
+            // Logic: Lấy các xe có tải trọng từ lớn đến bé để ưu tiên xe to chở được nhiều cụm
+            return await _context.PhuongTiens
+                .AsNoTracking()
+                .Where(x => x.MaKho == maKho
+                         && x.TrangThai == "Không hoạt động")
+                .OrderByDescending(x => x.TaiTrongToiDaKg) // Ưu tiên xe tải trọng lớn trước cho BPP
+                .Select(x => new PhuongTienDTO
+                {
+                    MaPhuongTien = x.MaPhuongTien,
+                    BienSo = x.BienSo,
+                    TaiTrongToiDaKg = x.TaiTrongToiDaKg,
+                    TheTichToiDaM3 = x.TheTichToiDaM3,
+                    TenLoaiXe = x.MaLoaiXeNavigation != null ? x.MaLoaiXeNavigation.TenLoai : "N/A",
+                    TenKho = x.MaKhoNavigation != null ? x.MaKhoNavigation.TenKhoBai : "N/A"
+                })
+                .ToListAsync();
+        }
+
         [HttpPost("cap-nhat-trang-thai-xe/{maPhuongTien}")]
         public async Task<IActionResult> UpdateTrangThaiXe(int maPhuongTien, [FromBody] UpdateTrangThaiXeDto model)
         {

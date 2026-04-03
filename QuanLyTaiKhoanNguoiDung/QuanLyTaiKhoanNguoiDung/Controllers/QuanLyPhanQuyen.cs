@@ -42,6 +42,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
             public int userId { get; set; }
             public string? userName { get; set; }
             public string? fullName { get; set; } // Thêm dòng này để lấy họ tên từ API
+            public int? maKho { get; set; } // Thêm dòng này để lấy mã kho từ API
         }
 
         [HttpPost]
@@ -68,6 +69,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
                         HttpContext.Session.SetString("MaNguoiDung", result.userId.ToString());
                         HttpContext.Session.SetString("TenDangNhap", result.userName ?? "");
                         HttpContext.Session.SetString("HoTenNhanVien", result.fullName ?? result.userName ?? "Thành viên");
+                        HttpContext.Session.SetString("MaKho", result.maKho?.ToString() ?? "");
 
                         // 2. TẠO CLAIMS VÀ SIGNIN (Để kích hoạt isAuth = true)
                         // Bước này cực kỳ quan trọng để các [Authorize] và User.Identity hoạt động
@@ -75,7 +77,9 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
                         {
                             new Claim(ClaimTypes.Name, result.fullName ?? result.userName ?? "Thành viên"),
                             new Claim(ClaimTypes.NameIdentifier, result.userId.ToString()),
-                            new Claim("Username", result.userName ?? "")
+                            new Claim("Username", result.userName ?? ""),
+                            new Claim("MaKho", result.maKho?.ToString() ?? "")
+
                         };
 
                         var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);

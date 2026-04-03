@@ -10,6 +10,6 @@ namespace QuanLyDonHang.Models1
 
         public string? MoTa { get; set; }
 
-        public virtual ICollection<KienHangModels> KienHangs { get; set; } = new List<KienHangModels>();
+
     }
 }

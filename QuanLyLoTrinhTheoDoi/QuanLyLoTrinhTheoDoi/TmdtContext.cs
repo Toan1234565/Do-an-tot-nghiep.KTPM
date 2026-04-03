@@ -22,6 +22,8 @@ public partial class TmdtContext : DbContext
 
     public virtual DbSet<DiemDung> DiemDungs { get; set; }
 
+    public virtual DbSet<LichSuHanhTrinhDonHang> LichSuHanhTrinhDonHangs { get; set; }
+
     public virtual DbSet<LoTrinh> LoTrinhs { get; set; }
 
     public virtual DbSet<LoaiSuCo> LoaiSuCos { get; set; }
@@ -67,6 +69,10 @@ public partial class TmdtContext : DbContext
 
             entity.Property(e => e.MaDonHang).HasColumnName("ma_don_hang");
             entity.Property(e => e.MaLoTrinh).HasColumnName("ma_lo_trinh");
+            entity.Property(e => e.ThoiGianCapNhat)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime")
+                .HasColumnName("thoi_gian_cap_nhat");
             entity.Property(e => e.TrangThaiTrenXe)
                 .HasMaxLength(50)
                 .HasColumnName("trang_thai_tren_xe");
@@ -107,6 +113,38 @@ public partial class TmdtContext : DbContext
                 .HasConstraintName("FK_DiemDung_LoTrinh");
         });
 
+        modelBuilder.Entity<LichSuHanhTrinhDonHang>(entity =>
+        {
+            entity.HasKey(e => e.MaLichSu).HasName("PK__Lich_Su___4C9D7F29E2B9442D");
+
+            entity.ToTable("Lich_Su_Hanh_Trinh_Don_Hang");
+
+            entity.HasIndex(e => e.MaDonHang, "IX_MaDonHang");
+
+            entity.Property(e => e.MaLichSu).HasColumnName("ma_lich_su");
+            entity.Property(e => e.GhiChu)
+                .HasMaxLength(500)
+                .HasColumnName("ghi_chu");
+            entity.Property(e => e.MaDonHang).HasColumnName("ma_don_hang");
+            entity.Property(e => e.MaKho).HasColumnName("ma_kho");
+            entity.Property(e => e.MaLoTrinh).HasColumnName("ma_lo_trinh");
+            entity.Property(e => e.ThoiGianCapNhat)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime")
+                .HasColumnName("thoi_gian_cap_nhat");
+            entity.Property(e => e.TrangThai)
+                .HasMaxLength(50)
+                .HasColumnName("trang_thai");
+            entity.Property(e => e.ViTriHienTai)
+                .HasMaxLength(255)
+                .HasColumnName("vi_tri_hien_tai");
+
+            entity.HasOne(d => d.MaLoTrinhNavigation).WithMany(p => p.LichSuHanhTrinhDonHangs)
+                .HasForeignKey(d => d.MaLoTrinh)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_LichSu_LoTrinh");
+        });
+
         modelBuilder.Entity<LoTrinh>(entity =>
         {
             entity.HasKey(e => e.MaLoTrinh).HasName("PK__Lo_Trinh__FD9AB53F3322776C");
@@ -115,6 +153,8 @@ public partial class TmdtContext : DbContext
 
             entity.Property(e => e.MaLoTrinh).HasColumnName("ma_lo_trinh");
             entity.Property(e => e.GhiChu).HasColumnName("ghi_chu");
+            entity.Property(e => e.LoTrinhTuyen).HasColumnName("lo_trinh_tuyen");
+            entity.Property(e => e.MaKhoQuanLy).HasColumnName("ma_kho_quan_ly");
             entity.Property(e => e.MaPhuongTien).HasColumnName("ma_phuong_tien");
             entity.Property(e => e.MaTaiXeChinh).HasColumnName("ma_tai_xe_chinh");
             entity.Property(e => e.MaTaiXePhu).HasColumnName("ma_tai_xe_phu");
@@ -124,6 +164,9 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.ThoiGianBatDauThucTe)
                 .HasColumnType("datetime")
                 .HasColumnName("thoi_gian_bat_dau_thuc_te");
+            entity.Property(e => e.ThoiGianKetThucThucTe)
+                .HasColumnType("datetime")
+                .HasColumnName("thoi_gian_ket_thuc_thuc_te");
             entity.Property(e => e.TrangThai)
                 .HasMaxLength(50)
                 .HasColumnName("trang_thai");
@@ -153,8 +196,11 @@ public partial class TmdtContext : DbContext
 
             entity.ToTable("Nhat_Ky_Theo_Doi");
 
+            entity.HasIndex(e => e.MaLoTrinh, "IX_MaLoTrinh_NhatKy");
+
             entity.Property(e => e.MaNhatKy).HasColumnName("ma_nhat_ky");
             entity.Property(e => e.KinhDo).HasColumnName("kinh_do");
+            entity.Property(e => e.MaLoTrinh).HasColumnName("ma_lo_trinh");
             entity.Property(e => e.MaTaiXe).HasColumnName("ma_tai_xe");
             entity.Property(e => e.MaVungH3)
                 .HasMaxLength(20)

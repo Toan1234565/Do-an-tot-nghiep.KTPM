@@ -47,7 +47,6 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.MaCa).HasColumnName("ma_ca");
             entity.Property(e => e.GioBatDau).HasColumnName("gio_bat_dau");
             entity.Property(e => e.GioKetThuc).HasColumnName("gio_ket_thuc");
-            entity.Property(e => e.MaKho).HasColumnName("ma_kho");
             entity.Property(e => e.TenCa)
                 .HasMaxLength(50)
                 .HasColumnName("ten_ca");
@@ -94,7 +93,10 @@ public partial class TmdtContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_DangKyCaTruc_NguoiDung");
 
-            
+            entity.HasOne(d => d.MaNguoiDung1).WithMany(p => p.DangKyCaTrucs)
+                .HasForeignKey(d => d.MaNguoiDung)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_DangKy_TaiXe");
         });
 
         modelBuilder.Entity<LichSuViPham>(entity =>
