@@ -1,10 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
-using QuanLyDonHang;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.DependencyInjection;
+using QuanLyDonHang;
 using QuanLyDonHang.Models;
+using QuanLyDonHang.Models1.LienServer;
+using QuanLyDonHang.Models1.QuanLyDonHang.Models1;
+using Tmdt.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 // Thêm dòng này để đăng ký IHttpClientFactory
@@ -72,7 +75,23 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 
 builder.Services.AddAuthorization();
+// Đăng ký Service Khách hàng (Port 7149)
+builder.Services.AddHttpClient<IKhachHangService, KhachHangServiceClient>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7149/");
+});
 
+// Đăng ký Service Địa chỉ (Port 7149 - dùng chung server khách hàng)
+builder.Services.AddHttpClient<IDiaChiService, DiaChiServiceClient>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7149/");
+});
+
+// Đăng ký Service Kho bãi (Port 7286)
+builder.Services.AddHttpClient<IKhoBaiService, KhoBaiServiceClient>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7286/");
+});
 // --- 5. CẤU HÌNH SESSION & REDIS ---
 builder.Services.AddStackExchangeRedisCache(options =>
 {
@@ -91,7 +110,15 @@ builder.Services.AddMemoryCache();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<RabbitMQProducer>();
+// 1. Bắt buộc phải có để SystemService lấy được HttpContext (User ID, IP...)
+builder.Services.AddHttpContextAccessor();
+
+// 2. Các Service dùng chung toàn hệ thống (Singleton)
+builder.Services.AddSingleton<RabbitMQClient>();
+builder.Services.AddSingleton<CacheSignalService>();
+
+// 3. Đăng ký SystemService là Scoped vì nó cần truy cập dữ liệu người dùng theo từng Request
+builder.Services.AddScoped<ISystemService, SystemService>();
 var app = builder.Build();
 
 // THỨ TỰ MIDDLEWARE (QUAN TRỌNG)

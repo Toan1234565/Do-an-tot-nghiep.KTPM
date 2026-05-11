@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLTMS Performance Dashboard - Nguyễn Đức Toán</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 40px 20px; line-height: 1.6; }
+        .container { max-width: 1400px; margin: auto; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+        h1 { color: #1a1a1a; text-align: center; margin-bottom: 5px; font-size: 2.2em; }
+        p.subtitle { text-align: center; color: #636e72; margin-bottom: 40px; font-size: 1.2em; }
+        
+        .chart-stack { display: flex; flex-direction: column; gap: 40px; }
+        
+        .chart-box { 
+            background: #fff; 
+            border: 1px solid #e1e8ed; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            position: relative;
+            height: 500px; 
+        }
+
+        .evaluation-section { background-color: #f8f9fa; border-left: 6px solid #0984e3; padding: 25px; border-radius: 4px 12px 12px 4px; margin-bottom: 40px; }
+        .evaluation-section h2 { color: #2d3436; margin-top: 0; font-size: 1.6em; display: flex; align-items: center; gap: 10px; }
+        .eval-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
+        .eval-card { background: white; padding: 20px; border-radius: 10px; border: 1px solid #dfe6e9; transition: transform 0.2s; }
+        .eval-card:hover { transform: translateY(-5px); }
+        .eval-card h3 { margin-top: 0; font-size: 1.2em; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        /* Màu sắc các trạng thái */
+        .eval-card.green h3 { color: #00b894; }
+        .eval-card.yellow h3 { color: #fdcb6e; }
+        .eval-card.orange h3 { color: #e17055; }
+        .eval-card.red h3 { color: #d63031; }
+        
+        .eval-card p { padding-left: 10px; margin: 15px 0 0 0; color: #4b4b4b; font-size: 0.95em; }
+        
+        .footer { margin-top: 50px; text-align: center; font-size: 1em; color: #b2bec3; border-top: 1px solid #eee; padding-top: 30px; }
+
+        @media (max-width: 768px) {
+            .chart-box { height: 400px; padding: 15px; }
+            .container { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Báo cáo Hiệu năng Hệ thống SLTMS</h1>
+    <p class="subtitle">Phân tích chuyên sâu về Quy mô Đơn hàng & Sức chịu tải</p>
+
+    <div class="evaluation-section">
+        <h2>📊 Nhận xét Trạng thái Hệ thống</h2>
+        <div class="eval-grid">
+            <div class="eval-card green">
+                <h3>100 đơn (Ổn định)</h3>
+                <p>API xử lý tốt, thời gian phản hồi ở mức chấp nhận được (1.4s) cho môi trường localhost.</p>
+            </div>
+            <div class="eval-card yellow">
+                <h3>1000 đơn (Cảnh báo)</h3>
+                <p>Thời gian phản hồi tăng đột biến (gấp 7 lần lên ~7.2s). Có dấu hiệu nghẽn tại Database hoặc Service trung gian.</p>
+            </div>
+            <div class="eval-card orange">
+                <h3>1500 đơn (Vượt kiểm soát)</h3>
+                <p>Hiệu suất giảm nghiêm trọng (~21.5s), dễ gây lỗi tràn bộ nhớ (Out of Memory) và treo hệ thống.</p>
+            </div>
+            <div class="eval-card red">
+                <h3>5000 đơn (Báo động)</h3>
+                <p>Đạt kỷ lục về độ trễ (~32.2s). Hệ thống bị nghẽn cổ chai (bottleneck) nghiêm trọng, dễ dẫn đến Client Timeout.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-stack">
+        <!-- Biểu đồ 1 -->
+        <div class="chart-box">
+            <canvas id="responseTimeChart"></canvas>
+        </div>
+
+        <!-- Biểu đồ 2 -->
+        <div class="chart-box">
+            <canvas id="throughputChart"></canvas>
+        </div>
+
+        <!-- Biểu đồ 3 -->
+        <div class="chart-box">
+            <canvas id="errorRateChart"></canvas>
+        </div>
+    </div>
+
+    <div class="footer">
+        <strong>Đồ án Tốt nghiệp</strong><br>
+        Sinh viên thực hiện: Nguyễn Đức Toán - Đại học Công nghiệp Hà Nội (HaUI)
+    </div>
+</div>
+
+<script>
+    // Dữ liệu từ bảng
+    const labels = ['100 đơn', '1000 đơn', '1500 đơn', '5000 đơn'];
+    const responseTimes = [1414, 7218, 21526, 32223];
+    const throughputs = [42.4, 8.3, 2.8, 1.9];
+    const errorRates = [0, 0, 0, 0];
+
+    const commonOptions = { 
+        responsive: true, 
+        maintainAspectRatio: false,
+        plugins: { 
+            legend: { 
+                position: 'top', 
+                labels: { padding: 25, font: { size: 14, weight: '600' }, usePointStyle: true } 
+            },
+            tooltip: { 
+                padding: 15,
+                titleFont: { size: 16 },
+                bodyFont: { size: 14 },
+                backgroundColor: 'rgba(45, 52, 54, 0.9)'
+            }
+        },
+        scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 13 } }, title: { display: true, text: 'Quy mô (Số lượng đơn hàng)', font: { weight: 'bold', size: 14 } } },
+            y: { grid: { color: '#f0f0f0' }, ticks: { font: { size: 13 } } }
+        }
+    };
+
+    // --- 1. Thời gian phản hồi ---
+    new Chart(document.getElementById('responseTimeChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { 
+                    label: 'Thời gian phản hồi (ms)', 
+                    data: responseTimes, 
+                    borderColor: '#0984e3', 
+                    backgroundColor: 'rgba(9, 132, 227, 0.1)', 
+                    fill: true, 
+                    tension: 0.3, 
+                    pointRadius: 8, 
+                    borderWidth: 3 
+                }
+            ]
+        },
+        options: { 
+            ...commonOptions, 
+            plugins: { ...commonOptions.plugins, title: { display: true, text: 'BIỂU ĐỒ THỜI GIAN PHẢN HỒI TRUNG BÌNH (MS)', font: { size: 18, weight: 'bold' }, color: '#2d3436' } }
+        }
+    });
+
+    // --- 2. Thông lượng (Throughput) ---
+    new Chart(document.getElementById('throughputChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { 
+                    label: 'Thông lượng (Requests/phút)', 
+                    data: throughputs, 
+                    borderColor: '#00b894', 
+                    backgroundColor: 'rgba(0, 184, 148, 0.1)',
+                    fill: true,
+                    pointStyle: 'rectRot', 
+                    pointRadius: 8,
+                    borderWidth: 3
+                }
+            ]
+        },
+        options: { 
+            ...commonOptions, 
+            plugins: { ...commonOptions.plugins, title: { display: true, text: 'THÔNG LƯỢNG XỬ LÝ (REQUESTS / PHÚT)', font: { size: 18, weight: 'bold' } } }
+        }
+    });
+
+    // --- 3. Tỷ lệ lỗi ---
+    new Chart(document.getElementById('errorRateChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { 
+                    label: 'Tỷ lệ lỗi (%)', 
+                    data: errorRates, 
+                    backgroundColor: '#d63031',
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: { 
+            ...commonOptions,
+            scales: {
+                ...commonOptions.scales,
+                y: { ...commonOptions.scales.y, min: 0, max: 100 } // Fix cứng trục Y tới 100% để hiển thị rõ ràng dù lỗi đang là 0%
+            },
+            plugins: { ...commonOptions.plugins, title: { display: true, text: 'TỶ LỆ LỖI HỆ THỐNG (%)', font: { size: 18, weight: 'bold' } } }
+        }
+    });
+</script>
+</body>
+</html>

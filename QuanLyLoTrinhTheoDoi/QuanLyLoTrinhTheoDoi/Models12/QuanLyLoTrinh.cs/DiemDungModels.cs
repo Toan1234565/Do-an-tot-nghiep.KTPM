@@ -1,4 +1,5 @@
 ﻿using QuanLyLoTrinhTheoDoi.Models;
+using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer;
 
 namespace QuanLyLoTrinhTheoDoi.Models12
 {
@@ -18,7 +19,8 @@ namespace QuanLyLoTrinhTheoDoi.Models12
 
         public string? MaVungH3 { get; set; }
 
-      
-        
+        public DiaChiModel? DiaChi { get; set; }
+
+
     }
 }

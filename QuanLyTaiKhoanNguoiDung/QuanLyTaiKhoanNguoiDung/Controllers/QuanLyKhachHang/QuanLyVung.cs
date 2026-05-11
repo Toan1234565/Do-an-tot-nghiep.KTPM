@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyBangGiaVung;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang;
+using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyBangGiaVung;
 using System.Net.Http.Json;
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyKhachHang
@@ -10,7 +9,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyKhachHang
     {
         private readonly ILogger<QuanLyVung> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly string apiBaseUrl = "https://localhost:7149/api/quanlybangiavung";
+        private readonly string apiBaseUrl = "https://localhost:7264/api/quanlybangiavung";
         private readonly string apiDonhang = "https://localhost:7264/api/danhmucloaihang";
 
         public QuanLyVung(ILogger<QuanLyVung> logger, IHttpClientFactory httpClientFactory)

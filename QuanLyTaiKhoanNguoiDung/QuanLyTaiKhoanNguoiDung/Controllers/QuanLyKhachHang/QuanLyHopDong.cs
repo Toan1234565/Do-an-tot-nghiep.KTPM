@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using QuanLyTaiKhoanNguoiDung.Models12;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang;
+using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyKhachHang;
 using System.Text;
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyKhachHang

@@ -220,6 +220,9 @@ public partial class TmdtContext : DbContext
                 .HasMaxLength(20)
                 .IsUnicode(false)
                 .HasColumnName("loai_bang_lai");
+            entity.Property(e => e.LoaiTaiXe)
+                .HasMaxLength(50)
+                .HasColumnName("loai_tai_xe");
             entity.Property(e => e.NgayCapBang).HasColumnName("ngay_cap_bang");
             entity.Property(e => e.NgayHetHanBang).HasColumnName("ngay_het_han_bang");
             entity.Property(e => e.SoBangLai)
@@ -230,6 +233,7 @@ public partial class TmdtContext : DbContext
                 .HasMaxLength(50)
                 .HasDefaultValue("Sẵn sàng")
                 .HasColumnName("trang_thai_hoat_dong");
+            entity.Property(e => e.Trangthaigan).HasColumnName("trangthaigan");
 
             entity.HasOne(d => d.MaNguoiDungNavigation).WithOne(p => p.TaiXe)
                 .HasForeignKey<TaiXe>(d => d.MaNguoiDung)

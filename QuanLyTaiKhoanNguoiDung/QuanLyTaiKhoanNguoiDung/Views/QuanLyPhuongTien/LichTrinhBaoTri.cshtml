@@ -1,10 +1,10 @@
-﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien
-@using Microsoft.AspNetCore.Routing
+﻿@using Microsoft.AspNetCore.Routing
+@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyPhuongTien
 @{
     // 1. Ép kiểu dữ liệu từ ViewBag
-    var dsSapBT = ViewBag.DsSapBaoTri as List<PhuongTienModel> ?? new List<PhuongTienModel>();
-    var dsSapDK = ViewBag.DsSapHetDangKiem as List<PhuongTienModel> ?? new List<PhuongTienModel>();
-    var dsSapPDB = ViewBag.DsSapHetPhiDuongBo as List<PhuongTienModel> ?? new List<PhuongTienModel>();
+    var dsSapBT = ViewBag.DsSapBaoTri as List<BaoTriModel> ?? new List<BaoTriModel>();
+    var dsSapDK = ViewBag.DsSapHetDangKiem as List<BaoTriModel> ?? new List<BaoTriModel>();
+    var dsSapPDB = ViewBag.DsSapHetPhiDuongBo as List<BaoTriModel> ?? new List<BaoTriModel>();
 
     // 2. Thông số phân trang & lọc
     int pBT = ViewBag.CurrentPageBT ?? 1;

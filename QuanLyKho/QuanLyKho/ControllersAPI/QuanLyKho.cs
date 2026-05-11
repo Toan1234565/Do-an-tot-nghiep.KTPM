@@ -180,7 +180,7 @@ namespace QuanLyKho.ControllersAPI
         {
             try
             {
-                var dsTen = await _context.KhoBais.AsNoTracking().Select(tenKho => new KhoBaiModels
+                var dsTen = await _context.KhoBais.AsNoTracking().Select(tenKho => new TenKhobaiModels
                 {
                     TenKhoBai = tenKho.TenKhoBai,
                     MaKho = tenKho.MaKho
@@ -233,7 +233,7 @@ namespace QuanLyKho.ControllersAPI
         }
 
         [HttpPost("themkhomoi")]
-        public async Task<IActionResult> ThemKhoMoi([FromBody] KhoBaiModels newKho)
+        public async Task<IActionResult> ThemKhoMoi([FromBody] KhoBaiInputModel newKho)
         {
             try
             {
@@ -288,7 +288,7 @@ namespace QuanLyKho.ControllersAPI
         }
 
         [HttpPost("themloaikhomoi")]
-        public async Task<IActionResult> ThemLoaiKhoMoi([FromBody] LoaiKhoModels newLoaiKho)
+        public async Task<IActionResult> ThemLoaiKhoMoi([FromBody] LoaiKhoInputModel newLoaiKho)
         {
             try
             {
@@ -342,7 +342,7 @@ namespace QuanLyKho.ControllersAPI
         }
 
         [HttpPut("cap-nhat-kho/{maKho}")]
-        public async Task<IActionResult> CapNhatKhoBai(int maKho, [FromBody] KhoBaiModels updateModel)
+        public async Task<IActionResult> CapNhatKhoBai(int maKho, [FromBody] KhoBaiInputModel updateModel)
         {
             try
             {

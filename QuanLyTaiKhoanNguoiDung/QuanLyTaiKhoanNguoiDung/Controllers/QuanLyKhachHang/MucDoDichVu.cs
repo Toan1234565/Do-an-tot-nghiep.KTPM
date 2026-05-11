@@ -3,8 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using QuanLyTaiKhoanNguoiDung.Models12;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDonHang;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang;
+using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyKhachHang;
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyKhachHang
 {
@@ -12,7 +11,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyKhachHang
     {
         private readonly ILogger<MucDoDichVu> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly string _apiBaseUrl = "https://localhost:7149/api/mucdichvu";
+        private readonly string _apiBaseUrl = "https://localhost:7264/api/mucdichvu";
         private readonly string _apiBaseUrlDH = "https://localhost:7264/api/quanlydonhang";
 
         public MucDoDichVu(ILogger<MucDoDichVu> logger, IHttpClientFactory httpClientFactory)

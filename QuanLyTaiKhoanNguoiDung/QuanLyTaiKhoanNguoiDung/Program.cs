@@ -2,12 +2,11 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
-using QuanLyTaiKhoanNguoiDung.BackgroundTasks;
 using QuanLyTaiKhoanNguoiDung.Models12;
 using QuanLyTaiKhoanNguoiDung.Models12._1234;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyLichLamViec;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyNguoiDung.QuanLyLichLamViec;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyPhanQuyen;
 using Tmdt.Shared.Services;
 
 namespace QuanLyTaiKhoanNguoiDung
@@ -97,7 +96,7 @@ namespace QuanLyTaiKhoanNguoiDung
             builder.Services.AddScoped<ISystemService, SystemService>(); 
             builder.Services.AddHttpContextAccessor(); 
             OfficeOpenXml.ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
-
+                  
             var app = builder.Build();
 
             // 6. Thứ tự Middleware (CỰC KỲ QUAN TRỌNG)

@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyLoTrinhTheoDoi;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyLoTrinh.QuanLyLoTrinhTheoDoi;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyNguoiDung.QuanLyNhanVien;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyPhuongTien;
 using System.Collections.Generic;
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi
@@ -122,7 +122,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi
                 {
                     // 2. Định nghĩa hàm gọi API Phương tiện an toàn
                     // Nếu API sập hoặc không tìm thấy, hệ thống vẫn chạy tiếp
-                    async Task<PhuongTienModel?> GetPhuongTienSafe(int maPhuongTien)
+                    async Task<PhuongTienDetailModel?> GetPhuongTienSafe(int maPhuongTien)
                     {
                         try
                         {
@@ -131,7 +131,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi
                             if (ptRes.IsSuccessStatusCode)
                             {
                                 var ptContent = await ptRes.Content.ReadAsStringAsync();
-                                return JsonConvert.DeserializeObject<PhuongTienModel>(ptContent);
+                                return JsonConvert.DeserializeObject<PhuongTienDetailModel>(ptContent);
                             }
                         }
                         catch (Exception ex)
@@ -140,7 +140,8 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi
                         }
                         return null;
                     }
-                    async Task<NguoiDungModel?> GetNguoiDungSafe(int maNguoiDung)
+
+                    async Task<NguoiDungDetailModel?> GetNguoiDungSafe(int maNguoiDung)
                     {
                         try
                         {
@@ -149,7 +150,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi
                             if (ndRes.IsSuccessStatusCode)
                             {
                                 var ndContent = await ndRes.Content.ReadAsStringAsync();
-                                return JsonConvert.DeserializeObject<NguoiDungModel>(ndContent);
+                                return JsonConvert.DeserializeObject<NguoiDungDetailModel>(ndContent);
                             }
                         }
                         catch (Exception ex)
@@ -168,7 +169,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi
                     }
                     ViewBag.PhuongTien = await GetPhuongTienSafe(maPT);
 
-                    int maTaiXe = suCo.MaLoTrinhNavigation.MaTaiXeChinh ??0;
+                    int maTaiXe = suCo.MaLoTrinhNavigation.MaNguoiDung ??0;
                     if(maTaiXe > 0)
                     {
                         ViewBag.TaiXe = await GetNguoiDungSafe(maTaiXe);

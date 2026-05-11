@@ -15,7 +15,10 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi
             _httpClientFactory = httpClientFactory;
             _logger = logger;
         }
-
+        public IActionResult QuanLyDieuPhoiLoTrinh12()
+        {
+            return View();
+        }
         public async Task<IActionResult> QuanLyDieuPhoiLoTrinh()
         {
             try

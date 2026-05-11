@@ -1,4 +1,5 @@
 ﻿using QuanLyDonHang.Models;
+using QuanLyDonHang.Models1.ServerKhachHang;
 
 namespace QuanLyDonHang.Models1
 {
@@ -48,6 +49,14 @@ namespace QuanLyDonHang.Models1
         public string? TrangThaiThanhToanTong { get; set; }
 
         public string? TenPhuongThucTT { get; set; }
+
+        // Thông tin từ Server Khách Hàng
+        public KhachHangModels ThongTinKhachHang { get; set; }
+
+        // Thông tin từ Server Địa Chỉ (Để hiện lộ trình)
+        public DiaChiModel DiaChiLayHang { get; set; }
+        public DiaChiModel DiaChiNhanHang { get; set; }
+        public DiaChiModel DiaChiKhoHienTai { get; set; } // Vị trí hiện tại trên timeline
 
         public virtual ICollection<KienHangModels> KienHangs { get; set; } = new List<KienHangModels>();
     }

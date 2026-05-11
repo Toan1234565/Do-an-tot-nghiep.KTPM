@@ -4,10 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi;
+using QuanLyTaiKhoanNguoiDung.Models;
 using QuanLyTaiKhoanNguoiDung.Models12._1234;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyTaiKhoan;
-using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyPhanQuyen;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyTaiKhoan;
 using System.Security.Claims;
 using System.Text;
 
@@ -43,6 +43,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
             public string? userName { get; set; }
             public string? fullName { get; set; } // Thêm dòng này để lấy họ tên từ API
             public int? maKho { get; set; } // Thêm dòng này để lấy mã kho từ API
+            public int? maChucVu { get; set; } // Thêm dòng này để lấy mã chức vụ từ API
         }
 
         [HttpPost]
@@ -70,7 +71,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
                         HttpContext.Session.SetString("TenDangNhap", result.userName ?? "");
                         HttpContext.Session.SetString("HoTenNhanVien", result.fullName ?? result.userName ?? "Thành viên");
                         HttpContext.Session.SetString("MaKho", result.maKho?.ToString() ?? "");
-
+                        HttpContext.Session.SetString("MaChucVu", result.maChucVu?.ToString() ?? "");
                         // 2. TẠO CLAIMS VÀ SIGNIN (Để kích hoạt isAuth = true)
                         // Bước này cực kỳ quan trọng để các [Authorize] và User.Identity hoạt động
                         var claims = new List<Claim>
@@ -78,7 +79,8 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers
                             new Claim(ClaimTypes.Name, result.fullName ?? result.userName ?? "Thành viên"),
                             new Claim(ClaimTypes.NameIdentifier, result.userId.ToString()),
                             new Claim("Username", result.userName ?? ""),
-                            new Claim("MaKho", result.maKho?.ToString() ?? "")
+                            new Claim("MaKho", result.maKho?.ToString() ?? ""),
+                            new Claim("MaChucVu", result.maChucVu?.ToString() ?? "")
 
                         };
 

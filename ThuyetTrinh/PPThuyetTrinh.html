@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đồ án tốt nghiệp - Nguyễn Đức Toán</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #003366; /* Màu xanh HaUI */
+            --accent-color: #f1c40f;  /* Màu vàng nhấn */
+            --text-dark: #1a252f;
+            --line-color: rgba(0, 51, 102, 0.1);
+            --sidebar-bg: rgba(0, 51, 102, 0.95);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body, html {
+            height: 100%; width: 100%;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+        }
+
+        /* --- NÚT MENU 3 GẠCH --- */
+        .menu-btn {
+            position: fixed;
+            top: 25px;
+            left: 25px;
+            z-index: 1001;
+            cursor: pointer;
+            background: var(--primary-color);
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .menu-btn:hover { background: #004a94; transform: scale(1.05); }
+
+        .menu-btn span {
+            display: block;
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: 0.3s;
+        }
+
+        /* --- SIDEBAR DANH SÁCH SLIDE --- */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -320px; /* Ẩn sidebar */
+            width: 320px;
+            height: 100%;
+            background: var(--sidebar-bg);
+            z-index: 1000;
+            transition: all 0.4s cubic-bezier(0.77, 0, 0.175, 1);
+            padding: 80px 20px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            box-shadow: 10px 0 30px rgba(0,0,0,0.3);
+        }
+
+        .sidebar.active { left: 0; }
+
+        .sidebar h4 {
+            color: var(--accent-color);
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 10px;
+        }
+
+        .slide-list {
+            list-style: none;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .slide-list li { margin-bottom: 8px; }
+
+        .slide-list a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            font-size: 0.95rem;
+            display: block;
+            padding: 10px 15px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            border-left: 0px solid var(--accent-color);
+        }
+
+        .slide-list a:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left: 4px solid var(--accent-color);
+            padding-left: 20px;
+        }
+
+        /* Overlay khi mở menu */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            z-index: 999;
+        }
+
+        /* --- GIAO DIỆN CHÍNH (GIỮ NGUYÊN TỪ BẢN CŨ) --- */
+        .full-screen-slide {
+            width: 100vw; height: 100vh;
+            display: flex; flex-direction: column;
+            justify-content: space-between;
+            padding: 5vh 5vw;
+            position: relative;
+            background-image: 
+                linear-gradient(var(--line-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--line-color) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .top-bar { position: absolute; top: 0; left: 0; width: 100%; height: 12px; background: var(--primary-color); }
+
+        header { text-align: center; }
+        header h2 { font-size: 1.8rem; font-weight: 700; color: var(--primary-color); text-transform: uppercase; letter-spacing: 2px; }
+        header h3 { font-size: 1.4rem; margin-top: 10px; font-weight: 500; color: #444; }
+        .divider { width: 200px; height: 4px; background: var(--accent-color); margin: 20px auto; }
+
+        .main-content { text-align: center; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
+        .project-type { font-size: 2.2rem; font-weight: 700; color: #e67e22; margin-bottom: 10px; text-transform: uppercase; }
+        .major { font-size: 1.4rem; color: #7f8c8d; margin-bottom: 40px; letter-spacing: 1px; }
+
+        .title-box { padding: 40px; border-top: 2px solid var(--primary-color); border-bottom: 2px solid var(--primary-color); background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(5px); margin-bottom: 50px; }
+        h1.project-title { font-size: 3.2rem; color: var(--primary-color); line-height: 1.2; text-transform: uppercase; font-weight: 800; }
+
+        .info-container { display: flex; justify-content: space-around; max-width: 1200px; margin: 0 auto; width: 100%; text-align: left; }
+        .info-group { font-size: 1.3rem; line-height: 1.8; }
+        .info-label { font-weight: 700; color: var(--primary-color); display: inline-block; width: 160px; }
+
+        footer { text-align: center; font-size: 1.3rem; font-weight: 600; color: #555; padding-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <!-- Menu Button -->
+    <div class="menu-btn" onclick="toggleMenu()">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <h4>Danh sách Slide</h4>
+        <ul class="slide-list">
+            <li><a href="PPThuyetTrinh.html">Tiêu đề</a></li>
+            <li><a href="1_slide_LyDo.html">1. Lý do chọn đề tài</a></li>
+            <li><a href="2_slide_gioithieuduan.html">2. Giới thiệu dự án</a></li>
+            <li><a href="3_slide_congNghe.html">3. Công nghệ sử dụng</a></li>
+            <li><a href="4_slide_usecase_TQ.html">4. Use Case tổng quát</a></li>
+            <li><a href="5_slide_DanhSachChucNang.html">5. Danh sách chức năng</a></li>
+            <li><a href="6_slide_ChucNangDonHang.html">6. Quản lý đơn hàng</a></li>
+            <li><a href="7_slide_ChucNangDieuPhoi.html">7. Điều phối vận tải</a></li>
+            <li><a href="8_slide_ChucNangQuanLyLoTrinh.html">8. Giám sát lộ trình</a></li>
+            <li><a href="9_silde_ThietKeDuLieu.html">9. Thiết kế dữ liệu</a></li>
+            <li><a href="10_slide_CaiDat.html">10. Cài đặt hệ thống</a></li>
+            <li><a href="11_slide_kiemThu01.html">11. Kiểm thử ghi dữ liệu đồng thời </a></li>
+            <li><a href="12_slide_kiemThu02.html">12. Kiểm thử sức bền và độ ổn định</a></li>
+            <li><a href="13_slide_kiemThu03.html">13. Kiểm thử chức năng Điều phối và lập lộ trình vận tải tự động </a></li>
+            <li><a href="14_slide_Kiemthu_04.html">14. RabbitMQ khi server sập</a></li>
+        </ul>
+    </div>
+
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <div class="top-bar"></div>
+
+    <div class="full-screen-slide">
+        <header>
+            <h2>Đại học Công nghiệp Hà Nội</h2>
+            <h3>Trường Công nghệ Thông tin và Truyền thông</h3>
+            <div class="divider"></div>
+        </header>
+
+        <div class="main-content">
+            <div class="project-type">Đồ án tốt nghiệp</div>
+            <div class="major">Ngành Kỹ thuật Phần mềm</div>
+            
+            <div class="title-box">
+                <h1 class="project-title">
+                    XÂY DỰNG HỆ THỐNG QUẢN LÝ VẬN TẢI VÀ<br>
+                    ĐIỀU PHỐI LOGISTICS THÔNG MINH
+                </h1>
+            </div>
+
+            <div class="info-container">
+                <div class="info-group">
+                    <p><span class="info-label">GV hướng dẫn:</span> PGS.TS. Nguyễn Thị Mỹ Bình</p>
+                </div>
+                <div class="info-group">
+                    <p><span class="info-label">Sinh viên:</span> Nguyễn Đức Toán</p>
+                    <p><span class="info-label">Mã sinh viên:</span> 2022605450</p>
+                    <p><span class="info-label">Lớp:</span> 20252IT6009001 - K17</p>
+                </div>
+            </div>
+        </div>
+
+       
+    </div>
+
+    <script>
+    /**
+     * 1. XỬ LÝ MENU & SIDEBAR
+     * Đảm bảo menu hoạt động ngay cả khi HTML thiếu thẻ overlay
+     */
+    function toggleMenu() {
+        const sidebar = document.getElementById('sidebar');
+        let overlay = document.getElementById('overlay');
+
+        if (sidebar) {
+            sidebar.classList.toggle('active');
+            
+            // Nếu không tìm thấy overlay trong HTML, tự tạo mới để menu hoạt động
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'overlay';
+                overlay.className = 'overlay'; // Đảm bảo trùng class CSS của bạn
+                overlay.onclick = toggleMenu;
+                document.body.appendChild(overlay);
+            }
+
+            const isActive = sidebar.classList.contains('active');
+            overlay.style.display = isActive ? 'block' : 'none';
+        } else {
+            console.error("Lỗi: Không tìm thấy ID 'sidebar'. Hãy kiểm tra lại HTML của slide.");
+        }
+    }
+
+    /**
+     * 2. ĐIỀU CHỈNH FONT SIZE (RESPONSIVE)
+     */
+    function adjustLayout() {
+        const width = window.innerWidth;
+        // Kiểm tra cả .project-title và .main-title để tránh lỗi
+        const title = document.querySelector('.project-title') || document.querySelector('.main-title');
+        
+        if (title) {
+            title.style.fontSize = width < 1200 ? '2.2rem' : '3.2rem';
+        }
+    }
+
+    /**
+     * 3. ĐỒNG BỘ PHÍM BẤM VỚI TRANG CHỦ
+     * Giúp phím mũi tên vẫn hoạt động sau khi bạn click vào slide
+     */
+    function syncKeys() {
+        window.addEventListener('keydown', (e) => {
+            window.parent.postMessage({
+                type: 'keydown',
+                key: e.key,
+                keyCode: e.keyCode
+            }, '*');
+        });
+    }
+
+    /**
+     * 4. KHỞI CHẠY HỆ THỐNG
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+        adjustLayout();
+        syncKeys();
+
+        // Tự động gán sự kiện click cho các nút menu có sẵn
+        const btn = document.querySelector('.menu-icon') || document.querySelector('.menu-btn');
+        if (btn) {
+            btn.onclick = (e) => {
+                e.stopPropagation(); // Ngăn sự kiện nổi bọt
+                toggleMenu();
+            };
+        }
+    });
+
+    window.addEventListener('resize', adjustLayout);
+</script>
+</body>
+</html>

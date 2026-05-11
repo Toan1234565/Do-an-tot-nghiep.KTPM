@@ -5,7 +5,7 @@ using Microsoft.Extensions.Caching.Memory;
 using QuanLyTaiKhoanNguoiDung.Models;
 using QuanLyTaiKhoanNguoiDung.Models12._1234;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyPhanQuyen;
 using System.Security.Claims;
 using TaiKhoan1.ControllersAPI;
 using Tmdt.Shared.Services;

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Kịch bản 2: Kiểm thử sức bền và độ ổn định</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        :root {
+            --primary: #003366;
+            --secondary: #3498db;
+            --accent: #e67e22;
+            --success: #27ae60;
+            --bg: #f4f7f9;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; padding: 20px 4vw; }
+
+        header { border-bottom: 5px solid var(--primary); padding-bottom: 10px; margin-bottom: 20px; }
+        header h2 { font-size: 2.2rem; color: var(--primary); text-transform: uppercase; font-weight: 800; }
+
+        .main-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 25px; flex: 1; }
+        .box { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; display: flex; flex-direction: column; }
+        
+        .result-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; }
+        .result-table th { background: #f8f9fa; color: var(--primary); text-align: left; padding: 12px; border: 1px solid #dee2e6; }
+        .result-table td { padding: 12px; border: 1px solid #dee2e6; vertical-align: top; }
+
+        /* Biểu đồ */
+        .charts-preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .chart-card { 
+            background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px; 
+            cursor: zoom-in; transition: 0.3s; height: 160px; position: relative; overflow: hidden; 
+        }
+        .chart-card:hover { transform: translateY(-3px); box-shadow: 0 5px 10px rgba(0,0,0,0.1); }
+        .chart-card h4 { font-size: 0.7rem; text-align: center; margin-bottom: 5px; color: #666; text-transform: uppercase; }
+
+        /* Chế độ Fullscreen */
+        .chart-card.fullscreen { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+            z-index: 9999; padding: 5vw; background: white; 
+            cursor: zoom-out; 
+            display: flex; flex-direction: column; transform: none !important;
+        }
+        .chart-card.fullscreen h4 { font-size: 1.8rem; margin-bottom: 20px; color: var(--primary); }
+
+        .status-badge { padding: 3px 8px; border-radius: 4px; color: #fff; font-weight: bold; font-size: 0.8rem; }
+        .bg-success { background: var(--success); }
+        .bg-info { background: var(--secondary); }
+        
+        footer { margin-top: 20px; text-align: right; color: #999; font-size: 0.9rem; border-top: 1px solid #eee; padding-top: 10px; }
+                .menu-btn {
+            position: fixed;
+            top: 25px;
+            left: 25px;
+            z-index: 1001;
+            cursor: pointer;
+            background: #003366; /* Màu xanh chủ đạo */
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: 0.3s;
+        }
+
+        .menu-btn:hover { transform: scale(1.05); background: #004a94; }
+
+        .menu-btn span {
+            display: block;
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+        }
+
+        /* --- CSS CHO SIDEBAR DANH SÁCH --- */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -320px; /* Trạng thái ẩn bên trái */
+            width: 320px;
+            height: 100%;
+            background: rgba(0, 51, 102, 0.98); /* Nền xanh trong suốt nhẹ */
+            z-index: 1000;
+            transition: 0.4s cubic-bezier(0.77, 0, 0.175, 1);
+            padding: 80px 20px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.3);
+        }
+
+        /* Class kích hoạt để hiện Sidebar */
+        .sidebar.active { left: 0; }
+
+        .sidebar h4 {
+            color: #f1c40f; /* Màu vàng nhấn */
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 10px;
+        }
+
+        .slide-list {
+            list-style: none;
+            overflow-y: auto; /* Cuộn danh sách nếu quá dài */
+            flex-grow: 1;
+        }
+
+        .slide-list a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            font-size: 0.95rem;
+            display: block;
+            padding: 12px 15px;
+            border-radius: 6px;
+            transition: 0.2s;
+            margin-bottom: 5px;
+        }
+
+        .slide-list a:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            padding-left: 25px;
+            border-left: 4px solid #f1c40f;
+        }
+
+        /* Lớp phủ mờ nền khi mở menu */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+        <h4>Danh sách Slide</h4>
+        <ul class="slide-list">
+            <li><a href="PPThuyetTrinh.html">Tiêu đề</a></li>
+            <li><a href="1_slide_LyDo.html">1. Lý do chọn đề tài</a></li>
+            <li><a href="2_slide_gioithieuduan.html">2. Giới thiệu dự án</a></li>
+            <li><a href="3_slide_congNghe.html">3. Công nghệ sử dụng</a></li>
+            <li><a href="4_slide_usecase_TQ.html">4. Use Case tổng quát</a></li>
+            <li><a href="5_slide_DanhSachChucNang.html">5. Danh sách chức năng</a></li>
+            <li><a href="6_slide_ChucNangDonHang.html">6. Quản lý đơn hàng</a></li>
+            <li><a href="7_slide_ChucNangDieuPhoi.html">7. Điều phối vận tải</a></li>
+            <li><a href="8_slide_ChucNangQuanLyLoTrinh.html">8. Giám sát lộ trình</a></li>
+            <li><a href="9_silde_ThietKeDuLieu.html">9. Thiết kế dữ liệu</a></li>
+            <li><a href="10_slide_CaiDat.html">10. Cài đặt hệ thống</a></li>
+            <li><a href="11_slide_kiemThu01.html">11. Kiểm thử ghi dữ liệu đồng thời </a></li>
+            <li><a href="12_slide_kiemThu02.html">12. Kiểm thử sức bền và độ ổn định</a></li>
+            <li><a href="13_slide_kiemThu03.html">13. Kiểm thử chức năng Điều phối và lập lộ trình vận tải tự động </a></li>
+            <li><a href="14_slide_Kiemthu_04.html">14. RabbitMQ khi server sập</a></li>
+        </ul>
+    </div>
+    <header>
+        <div class="menu-btn" onclick="toggleMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <h2 style="margin-left: 60px;">.3.3. Kiểm thử chức năng tạo đơn hàng</h2>
+        
+        <p style="font-weight: bold; color: var(--secondary);">Kịch bản 2: Kiểm thử sức bền và độ ổn định (Soak Test)</p>
+    </header>
+
+    <div class="main-grid">
+        <div class="box">
+            <h2 style="color: var(--accent); margin-bottom: 15px;">📝 Thiết kế kịch bản</h2>
+            <div style="margin-bottom: 20px;">
+                <strong style="font-size: 24px; color: var(--primary);">1. Mục tiêu thực nghiệm</strong>
+                <p style="font-size: 20px; margin-top: 10px;">Đảm bảo hệ thống vận hành ổn định liên tục trong thời gian dài, không rò rỉ bộ nhớ (Memory Leak) và Connection Pool được giải phóng đúng cách.</p>
+            </div>
+            <div>
+                <strong style="font-size: 24px; color: var(--primary);">2. Thông số vận hành</strong>
+                <ul style="list-style: none; margin-top: 10px; font-size: 20px; line-height: 1.8;">
+                    <li>• <b style="color: var(--primary)">Tải duy trì:</b> 50 người dùng song hành</li>
+                    <li>• <b style="color: var(--primary)">Thời gian:</b> 60 phút (01 tiếng)</li>
+                    <li>• <b style="color: var(--primary)">Môi trường:</b> Server .NET 8, RAM 16GB</li>
+                </ul>
+            </div>           
+        </div>
+
+        <div class="box">
+            <h3 style="color: var(--success); margin-bottom: 15px;">📊 Bảng 4.5. Kết quả kiểm thử ổn định</h3>
+            <table class="result-table">
+                <thead>
+                    <tr>
+                        <th width="25%">KPIs</th>
+                        <th width="20%">Giá trị</th>
+                        <th width="15%">Trạng thái</th>
+                        <th>Phân tích chi tiết</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Số lượng mẫu</td>
+                        <td>3,560 requests</td>
+                        <td><span class="status-badge bg-success">Xong</span></td>
+                        <td>Xử lý thành công lượng lớn đơn hàng liên tục trong 1 giờ.</td>
+                    </tr>
+                    <tr>
+                        <td>Tỷ lệ lỗi</td>
+                        <td>0.14%</td>
+                        <td><span class="status-badge bg-success">Rất tốt</span></td>
+                        <td>Chỉ có 5 yêu cầu bị lỗi, độ tin cậy mã nguồn cực cao.</td>
+                    </tr>
+                    <tr>
+                        <td>Memory Usage</td>
+                        <td>~318 MB</td>
+                        <td><span class="status-badge bg-info">Ổn định</span></td>
+                        <td>Đồ thị đi ngang, không có dấu hiệu tăng tiến tuyến tính.</td>
+                    </tr>
+                    <tr>
+                        <td>Thời gian TB</td>
+                        <td>6,225 ms</td>
+                        <td><span class="status-badge bg-info">Đạt</span></td>
+                        <td>Phù hợp logic phức tạp (DB + Redis + Tính cước).</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="charts-preview-grid">
+                <div class="chart-card" onclick="toggleChart(this)">
+                    <h4>Bộ nhớ (Private Bytes)</h4>
+                    <canvas id="memChart"></canvas>
+                </div>
+                <div class="chart-card" onclick="toggleChart(this)">
+                    <h4>Thông lượng (Req/min)</h4>
+                    <canvas id="tpsChart"></canvas>
+                </div>
+                <div class="chart-card" onclick="toggleChart(this)">
+                    <h4>Tỷ lệ thành công (%)</h4>
+                    <canvas id="successChart"></canvas>
+                </div>
+            </div>
+            <p style="font-size: 0.85rem; color: #888; margin-top: 10px; text-align: center;"><i>Nhấn vào biểu đồ để phóng to hoặc thu nhỏ</i></p>
+        </div>
+    </div>
+
+    <footer>Trang 92 | Báo cáo Cài đặt và Kiểm thử phần mềm - Hệ thống SLTMS</footer>
+
+    <script>
+        Chart.register(ChartDataLabels);
+
+        // Hàm click một cái là bật/tắt fullscreen
+        function toggleChart(element) {
+            element.classList.toggle('fullscreen');
+
+            // Cập nhật lại kích thước biểu đồ bên trong
+            const canvas = element.querySelector('canvas');
+            const chartInstance = Chart.getChart(canvas.id);
+            if (chartInstance) {
+                // Sử dụng timeout ngắn để chờ CSS transition (0.3s) hoàn thành 1 phần
+                setTimeout(() => {
+                    chartInstance.resize();
+                }, 100);
+            }
+        }
+
+        const timeLabels = ['0m', '10m', '20m', '30m', '40m', '50m', '60m'];
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                datalabels: { 
+                    anchor: 'end', 
+                    align: 'top', 
+                    font: { size: 10, weight: 'bold' },
+                    formatter: (v) => v 
+                }
+            },
+            scales: { 
+                y: { beginAtZero: false, grid: { display: false } }, 
+                x: { grid: { display: false } } 
+            }
+        };
+
+        // 1. Biểu đồ Bộ nhớ
+        new Chart(document.getElementById('memChart'), {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    data: [310, 318, 315, 320, 317, 319, 318],
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: { ...commonOptions, plugins: { ...commonOptions.plugins, datalabels: { ...commonOptions.plugins.datalabels, formatter: (v) => v + 'MB' } } }
+        });
+
+        // 2. Biểu đồ Thông lượng
+        new Chart(document.getElementById('tpsChart'), {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    data: [58.5, 60.2, 59.8, 59.3, 60.5, 59.1, 59.3],
+                    borderColor: '#e67e22',
+                    tension: 0.1
+                }]
+            },
+            options: commonOptions
+        });
+
+        // 3. Biểu đồ Tỷ lệ thành công
+        new Chart(document.getElementById('successChart'), {
+            type: 'bar',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    data: [100, 99.9, 100, 99.8, 100, 99.9, 99.86],
+                    backgroundColor: '#27ae60'
+                }]
+            },
+            options: { ...commonOptions, scales: { y: { min: 99 } } }
+        });
+    </script>
+    <script>
+        /**
+         * 1. XỬ LÝ MENU & SIDEBAR
+         * Đảm bảo menu hoạt động ngay cả khi HTML thiếu thẻ overlay
+         */
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            let overlay = document.getElementById('overlay');
+
+            if (sidebar) {
+                sidebar.classList.toggle('active');
+                
+                // Nếu không tìm thấy overlay trong HTML, tự tạo mới để menu hoạt động
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.id = 'overlay';
+                    overlay.className = 'overlay'; // Đảm bảo trùng class CSS của bạn
+                    overlay.onclick = toggleMenu;
+                    document.body.appendChild(overlay);
+                }
+
+                const isActive = sidebar.classList.contains('active');
+                overlay.style.display = isActive ? 'block' : 'none';
+            } else {
+                console.error("Lỗi: Không tìm thấy ID 'sidebar'. Hãy kiểm tra lại HTML của slide.");
+            }
+        }
+
+        /**
+         * 2. ĐIỀU CHỈNH FONT SIZE (RESPONSIVE)
+         */
+        function adjustLayout() {
+            const width = window.innerWidth;
+            // Kiểm tra cả .project-title và .main-title để tránh lỗi
+            const title = document.querySelector('.project-title') || document.querySelector('.main-title');
+            
+            if (title) {
+                title.style.fontSize = width < 1200 ? '2.2rem' : '3.2rem';
+            }
+        }
+
+        /**
+         * 3. ĐỒNG BỘ PHÍM BẤM VỚI TRANG CHỦ
+         * Giúp phím mũi tên vẫn hoạt động sau khi bạn click vào slide
+         */
+        function syncKeys() {
+            window.addEventListener('keydown', (e) => {
+                window.parent.postMessage({
+                    type: 'keydown',
+                    key: e.key,
+                    keyCode: e.keyCode
+                }, '*');
+            });
+        }
+
+        /**
+         * 4. KHỞI CHẠY HỆ THỐNG
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            adjustLayout();
+            syncKeys();
+
+            // Tự động gán sự kiện click cho các nút menu có sẵn
+            const btn = document.querySelector('.menu-icon') || document.querySelector('.menu-btn');
+            if (btn) {
+                btn.onclick = (e) => {
+                    e.stopPropagation(); // Ngăn sự kiện nổi bọt
+                    toggleMenu();
+                };
+            }
+        });
+
+        window.addEventListener('resize', adjustLayout);
+    </script>
+</body>
+</html>

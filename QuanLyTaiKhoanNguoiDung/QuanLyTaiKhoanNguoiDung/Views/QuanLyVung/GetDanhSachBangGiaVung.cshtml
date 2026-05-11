@@ -1,4 +1,4 @@
-﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyBangGiaVung
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyBangGiaVung
 @model IEnumerable<BangGiaVungModels>
 @{
     // Lấy danh sách loại hàng từ ViewBag để tra cứu tên
@@ -290,92 +290,101 @@
     </main>
 
     <div class="modal fade" id="addPriceModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-                <div class="modal-header bg-primary text-white" style="border-radius: 20px 20px 0 0;">
-                    <h5 class="modal-title fw-bold" id="modalTitle">Cấu Hình Bảng Giá Mới</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <form id="priceForm">
-                    <input type="hidden" name="MaBangGia" id="input_MaBangGia">
-                    <div class="modal-body p-4">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold text-muted">Hình thức tính giá</label>
-                                <select name="LoaiTinhGia" id="input_LoaiTinhGia" class="form-select bg-light border-0" onchange="toggleFormFields()">
-                                    <option value="1">Theo Vùng (Bưu kiện)</option>
-                                    <option value="2">Theo Km (Xe tải/Hàng tấn)</option>
-                                </select>
-                            </div>
-                         
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-muted">Loại hàng áp dụng</label>
-                                <select name="MaLoaiHang" id="input_MaLoaiHang" class="form-select border-primary" required>
-                                    <option value="">-- Chọn loại hàng --</option>
-                                    @if (listLoaiHang != null)
-                                    {
-                                        foreach (var lh in listLoaiHang)
-                                        {
-                                            <option value="@lh.MaLoaiHang">@lh.TenLoaiHang</option>
-                                        }
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="modalTitle">
+                    <i class="fa-solid fa-file-invoice-dollar me-2"></i>Cấu Hình Bảng Giá
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="priceForm" novalidate>
+                <input type="hidden" name="MaBangGia" id="input_MaBangGia">
+                
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold"><i class="fa-solid fa-layer-group me-1"></i>Hình thức tính giá</label>
+                            <select name="LoaiTinhGia" id="input_LoaiTinhGia" class="form-select border-primary" onchange="toggleFormFields()">
+                                <option value="1">Theo Vùng (Bưu kiện/Kg)</option>
+                                <option value="2">Theo Km (Xe tải/Hàng tấn)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold"><i class="fa-solid fa-box me-1"></i>Loại hàng áp dụng</label>
+                            <select name="MaLoaiHang" id="input_MaLoaiHang" class="form-select border-primary" required>
+                                <option value="">-- Chọn loại hàng --</option>
+                                @if (listLoaiHang != null) {
+                                    foreach (var lh in listLoaiHang) {
+                                        <option value="@lh.MaLoaiHang">@lh.TenLoaiHang</option>
                                     }
-                                </select>
-                            </div>
-                            <div class="col-md-12" id="section-lydo">
-                                <label class="form-label fw-bold text-muted">Lý do thay đổi (Bắt buộc)</label>
-                                <input type="text" name="LyDoThayDoi" id="input_LyDoThayDoi" class="form-control bg-light border-0" placeholder="Nhập lý do điều chỉnh giá...">
-                            </div>
+                                }
+                            </select>
+                        </div>
+                    </div>
 
-                            <hr class="my-3">
+                    <div class="row g-3 mb-4 p-3 bg-light rounded-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-success">Điểm Lấy hàng</label>
+                            <input type="text" name="KhuVucLay" id="input_KhuVucLay" class="form-control border-success" placeholder="Tỉnh/Thành phố lấy" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-danger">Điểm Giao hàng</label>
+                            <input type="text" name="KhuVucGiao" id="input_KhuVucGiao" class="form-control border-danger" placeholder="Tỉnh/Thành phố giao" required>
+                        </div>
+                    </div>
 
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-muted">Điểm Lấy hàng</label>
-                                <input type="text" name="KhuVucLay" id="input_KhuVucLay" class="form-control" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-muted">Điểm Giao hàng</label>
-                                <input type="text" name="KhuVucGiao" id="input_KhuVucGiao" class="form-control" required>
-                            </div>
+                    <div class="row g-3 border-start border-primary border-4 ms-1 ps-3">
+                        
+                        <div class="col-md-6 section-vung">
+                            <label class="form-label fw-bold">Trọng lượng từ (Kg)</label>
+                            <input type="number" step="0.01" name="TrongLuongToiThieuKg" id="input_MinKg" class="form-control">
+                        </div>
+                        <div class="col-md-6 section-vung">
+                            <label class="form-label fw-bold">Trọng lượng đến (Kg)</label>
+                            <input type="number" step="0.01" name="TrongLuongToiDaKg" id="input_MaxKg" class="form-control">
+                        </div>
 
-                            <div class="col-md-6 section-vung">
-                                <label class="form-label fw-bold text-muted">Trọng lượng từ (Kg)</label>
-                                <input type="number" step="0.01" name="TrongLuongToiThieuKg" id="input_MinKg" class="form-control">
-                            </div>
-                            <div class="col-md-6 section-vung">
-                                <label class="form-label fw-bold text-muted">Trọng lượng đến (Kg)</label>
-                                <input type="number" step="0.01" name="TrongLuongToiDaKg" id="input_MaxKg" class="form-control">
-                            </div>
+                        <div class="col-md-4 section-km">
+                            <label class="form-label fw-bold text-primary">Đơn giá/Km (VNĐ)</label>
+                            <input type="number" name="DonGiaKm" id="input_DonGiaKm" class="form-control border-primary">
+                        </div>
+                        <div class="col-md-4 section-km">
+                            <label class="form-label fw-bold text-primary">Phí dừng điểm (VNĐ)</label>
+                            <input type="number" name="PhiDungDiem" id="input_PhiDungDiem" class="form-control border-primary">
+                        </div>
+                        <div class="col-md-4 section-km">
+                            <label class="form-label fw-bold text-primary">Km tối thiểu</label>
+                            <input type="number" name="KmToiThieu" id="input_KmToiThieu" class="form-control border-primary">
+                        </div>
 
-                            <div class="col-md-4 section-km">
-                                <label class="form-label fw-bold text-primary">Đơn giá/Km (VNĐ)</label>
-                                <input type="number" name="DonGiaKm" id="input_DonGiaKm" class="form-control border-primary">
-                            </div>
-                            <div class="col-md-4 section-km">
-                                <label class="form-label fw-bold text-primary">Phí dừng điểm (VNĐ)</label>
-                                <input type="number" name="PhiDungDiem" id="input_PhiDungDiem" class="form-control border-primary">
-                            </div>
-                            <div class="col-md-4 section-km">
-                                <label class="form-label fw-bold text-primary">Km tối thiểu</label>
-                                <input type="number" name="KmToiThieu" id="input_KmToiThieu" class="form-control border-primary">
-                            </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold" id="label_GiaCoBan">Giá cơ bản / Phí mở cửa (VNĐ)</label>
+                            <input type="number" name="DonGiaCoBan" id="input_DonGiaCoBan" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold" id="label_PhuPhi">Phụ phí phát sinh / Mỗi Kg</label>
+                            <input type="number" name="PhuPhiMoiKg" id="input_PhuPhiMoiKg" class="form-control">
+                        </div>
+                    </div>
 
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-muted">Phí mở cửa / Giá cơ bản (VNĐ)</label>
-                                <input type="number" name="DonGiaCoBan" id="input_DonGiaCoBan" class="form-control" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-muted">Phụ phí phát sinh / Phụ phí Kg</label>
-                                <input type="number" name="PhuPhiMoiKg" id="input_PhuPhiMoiKg" class="form-control">
+                    <div class="row mt-4" id="section-lydo" style="display:none;">
+                        <div class="col-12">
+                            <div class="alert alert-warning py-2 mb-0">
+                                <label class="form-label fw-bold small mb-1">LÝ DO ĐIỀU CHỈNH GIÁ *</label>
+                                <textarea name="LyDoThayDoi" id="input_LyDoThayDoi" class="form-control form-control-sm" rows="2"></textarea>
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer border-0 p-4">
-                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Hủy bỏ</button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold">Xác nhận Lưu</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold">Lưu Thông Tin</button>
+                </div>
+            </form>
         </div>
+    </div>
     </div>
     <div class="modal fade" id="historyModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-xl">
@@ -426,300 +435,282 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        document.querySelectorAll('#filterForm select').forEach(select => {
-            select.addEventListener('change', function() {
-                document.getElementById('filterForm').submit();
-            });
-        });
+   <script>
+       /**
+ * TOÀN BỘ LOGIC JAVASCRIPT QUẢN LÝ BẢNG GIÁ VÙNG (SLTMS)
+ * Author: Toán (HaUI)
+ */
 
-        // Đối với ô nhập tìm kiếm, có thể để người dùng nhấn Enter
-        document.querySelector('input[name="searchTerm"]').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                document.getElementById('filterForm').submit();
-            }
-        });
-    </script>
-    <script>
-        // 1. Cấu hình dùng chung
-        const API_BASE = "https://localhost:7149/api/quanlybangiavung";
+// 1. Cấu hình dùng chung
+const API_BASE = "https://localhost:7264/api/quanlybangiavung";
 
-        $(document).ready(function () {
-            toggleFormFields();
+$(document).ready(function () {
+    // Khởi tạo trạng thái form ban đầu
+    toggleFormFields();
 
-            // Tự động lọc khi thay đổi dropdown
-            $('#filterForm select').on('change', function () {
-                $('#filterForm').submit();
-            });
-        });
+    // Tự động lọc khi thay đổi dropdown trong form Filter
+    $('#filterForm select').on('change', function () {
+        $('#filterForm').submit();
+    });
 
-        // 2. Xử lý hiển thị Form theo loại hình
-        function toggleFormFields() {
-            const loai = $('#input_LoaiTinhGia').val();
-            if (loai == "2") { // Theo KM
-                $('.section-km').show();
-                $('.section-vung').hide();
-                $('#input_MinKg, #input_MaxKg').val(0);
-            } else { // Theo Vùng
-                $('.section-km').hide();
-                $('.section-vung').show();
-                $('#input_DonGiaKm, #input_KmToiThieu').val(0);
-            }
-        }
-
-        // 3. Hàm định dạng tiền tệ
-        function formatVND(amount) {
-            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
-        }
-
-        // 4. Mở modal thêm mới
-               
-        $('[data-bs-target="#addPriceModal"]').click(function() {
-            $('#priceForm')[0].reset();
-            $('#input_MaBangGia').val('');
-            $('#modalTitle').text('Thêm Cấu Hình Bảng Giá Mới');
-
-            // Ẩn thanh lý do và bỏ thuộc tính required
-            $('#section-lydo').hide();
-            $('#input_LyDoThayDoi').removeAttr('required');
-
-            toggleFormFields();
-        });
-
-        // 5. Mở modal cập nhật (Chuyển thành Versioning)
-                
-        function editPrice(item) {
-            $('#priceForm')[0].reset();
-            $('#modalTitle').text('Cập nhật phiên bản MAV-' + item.maBangGia);
-
-            // Map dữ liệu vào Form
-            $('#input_MaLoaiHang').val(item.maLoaiHang);
-            $('#input_MaBangGia').val(item.maBangGia);
-            $('#input_LoaiTinhGia').val(item.loaiTinhGia);
-            $('#input_KhuVucLay').val(item.khuVucLay);
-            $('#input_KhuVucGiao').val(item.khuVucGiao);
-            $('#input_MinKg').val(item.trongLuongToiThieuKg);
-            $('#input_MaxKg').val(item.trongLuongToiDaKg);
-            $('#input_DonGiaCoBan').val(item.donGiaCoBan);
-            $('#input_PhuPhiMoiKg').val(item.phuPhiMoiKg);
-            $('#input_DonGiaKm').val(item.donGiaKm);
-            $('#input_PhiDungDiem').val(item.phiDungDiem);
-            $('#input_KmToiThieu').val(item.kmToiThieu);
-
-            // Hiện thanh lý do và bắt buộc nhập
-            $('#section-lydo').show();
-            $('#input_LyDoThayDoi').attr('required', true).focus();
-
-            toggleFormFields();
-            $('#addPriceModal').modal('show');
-        }
-
-        // 6. Gửi dữ liệu về API (Submit)
-        $('#priceForm').submit(function (e) {
+    // Xử lý phím Enter cho ô tìm kiếm
+    $('input[name="searchTerm"]').on('keypress', function (e) {
+        if (e.key === 'Enter') {
             e.preventDefault();
+            $('#filterForm').submit();
+        }
+    });
 
-            // Chuyển đổi FormData thành JSON Object
-            const dataArray = $(this).serializeArray();
-            const formData = {};
-            const numericFields = ["MaBangGia", "LoaiTinhGia", "TrongLuongToiThieuKg", "TrongLuongToiDaKg", "DonGiaCoBan", "PhuPhiMoiKg", "DonGiaKm", "PhiDungDiem", "KmToiThieu"];
+    // Lắng nghe sự kiện thay đổi loại tính giá trong Modal
+    $('#input_LoaiTinhGia').on('change', function () {
+        toggleFormFields();
+    });
+});
 
-            dataArray.forEach(item => {
-                if (numericFields.includes(item.name)) {
-                    formData[item.name] = parseFloat(item.value) || 0;
-                } else {
-                    formData[item.name] = item.value;
-                }
-            });
+// 2. Xử lý hiển thị Form theo loại hình (Km vs Vùng/Kiện)
+function toggleFormFields() {
+    const loai = $('#input_LoaiTinhGia').val();
+    const isByKm = (loai === "2"); // 2 là THEO KM
 
-            // Xác định endpoint
-            const isUpdate = formData.MaBangGia > 0;
-            const url = isUpdate ? `${API_BASE}/capnhatgiavung` : `${API_BASE}/themmoibanggia`;
+    if (isByKm) {
+        $('.section-km').slideDown(200);
+        $('.section-vung').hide();
 
-            if (isUpdate) formData.Action = "UPDATE";
+        // Cập nhật nhãn nghiệp vụ cho xe tải
+        $('#label_GiaCoBan').text("Phí mở cửa / Giá sàn (VNĐ)");
+        $('#label_PhuPhi').text("Phụ phí bốc xếp / Khác (VNĐ)");
 
+        // Reset dữ liệu vùng về 0 để tránh gửi dữ liệu thừa về DB
+        $('.section-vung input').val(0);
+    } else {
+        $('.section-vung').slideDown(200);
+        $('.section-km').hide();
+
+        // Cập nhật nhãn nghiệp vụ cho bưu kiện
+        $('#label_GiaCoBan').text("Đơn giá cơ bản / Kiện (VNĐ)");
+        $('#label_PhuPhi').text("Phụ phí vượt cân / Mỗi Kg");
+
+        // Reset dữ liệu Km về 0
+        $('.section-km input').val(0);
+    }
+}
+
+// 3. Xử lý Mở Modal Thêm mới/Cập nhật
+function openAddModal() {
+    $('#priceForm')[0].reset();
+    $('#input_MaBangGia').val(0);
+    $('#modalTitle').text('Thêm mới bảng giá vùng');
+    $('#section-lydo').hide();
+    $('#input_LyDoThayDoi').removeAttr('required');
+    toggleFormFields();
+    $('#addPriceModal').modal('show');
+}
+
+function editPrice(item) {
+    $('#priceForm')[0].reset();
+    $('#modalTitle').text(`Cập nhật phiên bản MAV-${item.maBangGia}`);
+
+    // Map dữ liệu từ item vào Form
+    $('#input_MaBangGia').val(item.maBangGia);
+    $('#input_MaLoaiHang').val(item.maLoaiHang);
+    $('#input_LoaiTinhGia').val(item.loaiTinhGia);
+    $('#input_KhuVucLay').val(item.khuVucLay);
+    $('#input_KhuVucGiao').val(item.khuVucGiao);
+    $('#input_MinKg').val(item.trongLuongToiThieuKg);
+    $('#input_MaxKg').val(item.trongLuongToiDaKg);
+    $('#input_DonGiaCoBan').val(item.donGiaCoBan);
+    $('#input_PhuPhiMoiKg').val(item.phuPhiMoiKg);
+    $('#input_DonGiaKm').val(item.donGiaKm);
+    $('#input_PhiDungDiem').val(item.phiDungDiem);
+    $('#input_KmToiThieu').val(item.kmToiThieu);
+
+    // Hiển thị phần lý do thay đổi (bắt buộc khi cập nhật)
+    $('#section-lydo').show();
+    $('#input_LyDoThayDoi').attr('required', true);
+
+    toggleFormFields();
+    $('#addPriceModal').modal('show');
+}
+
+// 4. Xử lý Gửi dữ liệu (Submit Form - Thêm/Sửa)
+$('#priceForm').on('submit', function (e) {
+    e.preventDefault();
+
+    // Thu thập và ép kiểu dữ liệu
+    const dataArray = $(this).serializeArray();
+    const formData = {};
+    const numericFields = [
+        "MaBangGia", "LoaiTinhGia", "MaLoaiHang", 
+        "TrongLuongToiThieuKg", "TrongLuongToiDaKg", 
+        "DonGiaCoBan", "PhuPhiMoiKg", "DonGiaKm", 
+        "PhiDungDiem", "KmToiThieu"
+    ];
+
+    dataArray.forEach(item => {
+        if (numericFields.includes(item.name)) {
+            formData[item.name] = item.value === "" ? 0 : Number(item.value);
+        } else {
+            formData[item.name] = item.value;
+        }
+    });
+
+    // Validation sơ bộ
+    if (!formData.MaLoaiHang || formData.MaLoaiHang == 0) {
+        return Swal.fire('Chú ý', 'Vui lòng chọn loại hàng áp dụng', 'warning');
+    }
+
+    const isUpdate = formData.MaBangGia > 0;
+    if (isUpdate && (!formData.LyDoThayDoi || formData.LyDoThayDoi.trim().length < 5)) {
+        return Swal.fire('Chú ý', 'Vui lòng nhập lý do thay đổi cụ thể (ít nhất 5 ký tự)', 'warning');
+    }
+
+    const url = isUpdate ? `${API_BASE}/capnhatgiavung` : `${API_BASE}/themmoibanggia`;
+
+    Swal.fire({
+        title: 'Đang lưu dữ liệu...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    $.ajax({
+        url: url,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        xhrFields: { withCredentials: true },
+        success: function (res) {
             Swal.fire({
-                title: 'Đang xử lý...',
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading()
-            });
+                icon: 'success',
+                title: 'Thành công',
+                text: res.message,
+                timer: 2000
+            }).then(() => location.reload());
+        },
+        error: function (xhr) {
+            handleAjaxError(xhr, "Không thể lưu dữ liệu");
+        }
+    });
+});
 
+// 5. Vô hiệu hóa (Delete)
+function deactivatePrice(id) {
+    Swal.fire({
+        title: 'Xác nhận ngừng áp dụng?',
+        text: "Bảng giá này sẽ bị vô hiệu hóa trong hệ thống.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Đồng ý',
+        cancelButtonText: 'Hủy'
+    }).then((result) => {
+        if (result.isConfirmed) {
             $.ajax({
-                url: url,
+                url: `${API_BASE}/vô-hieu-hoa/${id}`,
+                type: 'DELETE',
+                xhrFields: { withCredentials: true },
+                success: function(res) {
+                    Swal.fire('Đã khóa', res.message, 'success').then(() => location.reload());
+                },
+                error: function(xhr) {
+                    handleAjaxError(xhr, "Lỗi khi vô hiệu hóa");
+                }
+            });
+        }
+    });
+}
+
+// 6. Kích hoạt lại
+function reactivatePrice(id) {
+    Swal.fire({
+        title: 'Xác nhận mở lại?',
+        text: "Bảng giá này sẽ hoạt động trở lại cho các đơn hàng mới.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        confirmButtonText: 'Đồng ý mở lại'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: `${API_BASE}/kich-hoat-lai/${id}`,
                 type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(formData),
-                // --- ĐIỂM CỐT YẾU CHO MICROSERVICES ---
-                xhrFields: {
-                    withCredentials: true // Gửi kèm Cookie xác thực sang Port 7149
+                xhrFields: { withCredentials: true },
+                success: function(res) {
+                    Swal.fire('Thành công', res.message, 'success').then(() => location.reload());
                 },
-                success: function (res) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Thành công',
-                        text: res.message,
-                        timer: 2000
-                    }).then(() => location.reload());
-                },
-                error: function (xhr) {
-                    // Xử lý khi hết phiên đăng nhập (Lỗi 401)
-                    if (xhr.status === 401) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Phiên làm việc hết hạn',
-                            text: 'Vui lòng đăng nhập lại để thực hiện thao tác này.',
-                            confirmButtonText: 'Đi tới Đăng nhập'
-                        }).then(() => {
-                            const returnUrl = encodeURIComponent(window.location.href);
-                            // Điều hướng sang App Quản lý phân quyền ở Port 7022
-                            window.location.href = `https://localhost:7022/QuanLyPhanQuyen/DangNhap?ReturnUrl=${returnUrl}`;
-                        });
-                    } else {
-                        // Các lỗi logic khác từ Server (400, 404, 500)
-                        const errorMsg = xhr.responseJSON?.message || "Vui lòng kiểm tra lại dữ liệu hoặc liên hệ Admin";
-                        Swal.fire('Lỗi hệ thống', errorMsg, 'error');
-                    }
+                error: function(xhr) {
+                    handleAjaxError(xhr, "Lỗi khi kích hoạt");
                 }
             });
+        }
+    });
+}
+
+// 7. Xem lịch sử thay đổi (Traceability)
+function showHistory(id) {
+    const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+    const content = $('#historyContent');
+    $('#historyTitle').text(`Truy vết lịch sử: MAV-${id}`);
+    
+    content.html('<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary spinner-border-sm"></div> Đang tải...</td></tr>');
+    historyModal.show();
+
+    $.get(`${API_BASE}/lich-su/${id}`, function (res) {
+        let html = '';
+        if (res && res.length > 0) {
+            res.forEach(item => {
+                const badgeClass = item.isActive ? 'bg-success' : 'bg-secondary';
+                const statusText = item.isActive ? 'Đang chạy' : 'Đã thay thế';
+                const date = new Date(item.ngayCapNhat).toLocaleString('vi-VN');
+
+                html += `
+                    <tr>
+                        <td class="ps-3">
+                            <div class="fw-bold">${date}</div>
+                            <small class="text-muted">ID: #${item.maBangGia}</small>
+                        </td>
+                        <td>
+                            <div class="small">Cơ bản: <b>${formatVND(item.donGiaCoBan)}</b></div>
+                            ${item.donGiaKm > 0 ? `<div class="small">Km: <b>${formatVND(item.donGiaKm)}</b></div>` : ''}
+                        </td>
+                        <td><span class="badge bg-light text-dark">${item.trongLuongToiThieuKg}-${item.trongLuongToiDaKg} kg</span></td>
+                        <td><div class="small text-muted" style="max-width:200px">${item.lyDoThayDoi || '---'}</div></td>
+                        <td class="text-center"><span class="badge ${badgeClass}">${statusText}</span></td>
+                    </tr>`;
+            });
+        }
+        content.html(html || '<tr><td colspan="5" class="text-center">Không có lịch sử biến động</td></tr>');
+    }).fail(xhr => handleAjaxError(xhr, "Không thể tải lịch sử"));
+}
+
+// --- UTILITIES ---
+
+// Hàm định dạng tiền tệ VNĐ
+function formatVND(amount) {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+}
+
+// Hàm xử lý lỗi tập trung
+function handleAjaxError(xhr, defaultTitle) {
+    if (xhr.status === 401) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Hết phiên đăng nhập',
+            text: 'Vui lòng đăng nhập lại để tiếp tục.',
+            confirmButtonText: 'Đăng nhập ngay'
+        }).then(() => {
+            const returnUrl = encodeURIComponent(window.location.href);
+            window.location.href = `https://localhost:7022/QuanLyPhanQuyen/DangNhap?ReturnUrl=${returnUrl}`;
         });
-        // 7. Vô hiệu hóa bảng giá (API Delete)
-        function deactivatePrice(id) {
-            Swal.fire({
-                title: 'Xác nhận ngừng áp dụng?',
-                text: "Bảng giá này sẽ bị vô hiệu hóa và lưu vào nhật ký hệ thống.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Đồng ý',
-                cancelButtonText: 'Hủy'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: `${API_BASE}/vô-hieu-hoa/${id}`,
-                        type: 'DELETE',
-                        xhrFields: {
-                            withCredentials: true // BẮT BUỘC: Để trình duyệt gửi kèm Cookie Shared
-                        },
-                        success: function(res) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Thành công',
-                                text: res.message,
-                                timer: 1500
-                            }).then(() => location.reload());
-                        },
-                        error: function(xhr) {
-                            // THỦ PHẠM 401: Hết hạn phiên đăng nhập
-                            if (xhr.status === 401) {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Hết phiên đăng nhập',
-                                    text: 'Vui lòng đăng nhập lại để thực hiện thao tác này!',
-                                    confirmButtonText: 'Đăng nhập ngay'
-                                }).then(() => {
-                                    // Điều hướng sang App Tài khoản ở Port 7022
-                                    const returnUrl = encodeURIComponent(window.location.href);
-                                    window.location.href = `https://localhost:7022/QuanLyPhanQuyen/DangNhap?ReturnUrl=${returnUrl}`;
-                                });
-                            } else {
-                                // Các lỗi hệ thống khác (500, 404...)
-                                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'Không thể thực hiện thao tác';
-                                Swal.fire('Lỗi', msg, 'error');
-                            }
-                        }
-                    });
-                }
-            });
-        }
-                // 8. Kích hoạt lại bảng giá (Mở khóa)
-        function reactivatePrice(id) {
-            Swal.fire({
-                title: 'Xác nhận mở lại?',
-                text: "Bảng giá này sẽ hoạt động trở lại và áp dụng cho các đơn hàng mới.",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#28a745', // Màu xanh lá cho hành động khôi phục
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Đồng ý mở lại',
-                cancelButtonText: 'Hủy'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: `${API_BASE}/kich-hoat-lai/${id}`, // Khớp với Route [HttpPost("kich-hoat-lai/{id}")]
-                        type: 'POST',
-                        xhrFields: {
-                            withCredentials: true // BẮT BUỘC để gửi kèm Cookie Auth sang Backend
-                        },
-                        success: function(res) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Thành công',
-                                text: res.message,
-                                timer: 1500
-                            }).then(() => location.reload());
-                        },
-                        error: function(xhr) {
-                            // Xử lý lỗi 401 (Hết phiên làm việc)
-                            if (xhr.status === 401) {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Hết phiên đăng nhập',
-                                    text: 'Vui lòng đăng nhập lại để thực hiện thao tác này!',
-                                    confirmButtonText: 'Đăng nhập ngay'
-                                }).then(() => {
-                                    const returnUrl = encodeURIComponent(window.location.href);
-                                    // Điều hướng về cổng đăng nhập của bạn
-                                    window.location.href = `https://localhost:7022/QuanLyPhanQuyen/DangNhap?ReturnUrl=${returnUrl}`;
-                                });
-                            } else {
-                                // Xử lý các lỗi nghiệp vụ (Xung đột dải giá, không tìm thấy...)
-                                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'Không thể thực hiện thao tác';
-                                const detail = xhr.responseJSON && xhr.responseJSON.detail ? `<br><small>${xhr.responseJSON.detail}</small>` : '';
-                        
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Lỗi kích hoạt',
-                                    html: msg + detail
-                                });
-                            }
-                        }
-                    });
-                }
-            });
-        }
-        // 9. Xem lịch sử thay đổi
-        function showHistory(id) {
-            const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
-            const content = $('#historyContent');
-            $('#historyTitle').text(`Truy vết lịch sử: MAV-${id}`);
-            content.html('<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary"></div></td></tr>');
-            historyModal.show();
-
-            $.get(`${API_BASE}/lich-su/${id}`, function (res) {
-                let html = '';
-                res.forEach(item => {
-                    const badgeClass = item.isActive ? 'bg-success' : 'bg-secondary';
-                    const statusText = item.isActive ? 'Đang chạy' : 'Đã thay thế';
-                    const date = new Date(item.ngayCapNhat).toLocaleString('vi-VN');
-
-                    html += `
-                        <tr>
-                            <td class="ps-4">
-                                <div class="fw-bold">${date}</div>
-                                <small class="text-muted">ID: #${item.maBangGia}</small>
-                            </td>
-                            <td>
-                                <div class="small">Cơ bản: <b>${formatVND(item.donGiaCoBan)}</b></div>
-                                ${item.donGiaKm > 0 ? `<div class="small">Đơn giá Km: <b>${formatVND(item.donGiaKm)}</b></div>` : ''}
-                            </td>
-                            <td><span class="badge bg-light text-dark">${item.trongLuongToiThieuKg}-${item.trongLuongToiDaKg} kg</span></td>
-                            <td><div class="small text-muted" style="max-width:200px">${item.lyDoThayDoi || '---'}</div></td>
-                            <td class="text-center"><span class="badge ${badgeClass}">${statusText}</span></td>
-                        </tr>`;
-                });
-                content.html(html || '<tr><td colspan="5" class="text-center">Không có lịch sử</td></tr>');
-            });
-        }
-    </script>
+    } else {
+        const errorMsg = xhr.responseJSON?.message || "Vui lòng liên hệ Admin hệ thống.";
+        const detail = xhr.responseJSON?.detail ? `<br><small class="text-danger">${xhr.responseJSON.detail}</small>` : "";
+        Swal.fire({
+            icon: 'error',
+            title: defaultTitle,
+            html: errorMsg + detail
+        });
+    }
+}
+   </script>
 </body>
 </html>

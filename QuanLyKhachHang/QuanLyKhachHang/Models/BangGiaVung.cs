@@ -25,9 +25,6 @@ public partial class BangGiaVung
 
     public string? LyDoThayDoi { get; set; }
 
-    /// <summary>
-    /// 1: Theo Vùng, 2: Theo Km
-    /// </summary>
     public int? LoaiTinhGia { get; set; }
 
     public decimal? DonGiaKm { get; set; }

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thuyết Trình Đồ Án - Smart Transport Management</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Hiệu ứng mờ dần khi chuyển slide */
+        #slide-container {
+            width: 100%; height: 100%;
+            border: none; display: block;
+            transition: opacity 0.3s ease-in-out;
+            background-color: #fff; /* Tránh bị đen nền khi chưa tải xong */
+        }
+
+        .controls {
+            position: fixed; bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 20, 0.85);
+            padding: 10px 25px; border-radius: 30px;
+            color: #fff; font-size: 13px;
+            border: 1px solid rgba(255,255,255,0.15);
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            pointer-events: none; /* Không cản trở click chuột vào slide */
+            white-space: nowrap;
+        }
+
+        .controls b { color: #00d4ff; margin-left: 10px; }
+
+        .slide-number {
+            position: fixed; top: 15px; right: 20px;
+            background: rgba(0,0,0,0.6); padding: 6px 15px;
+            border-radius: 20px; color: #00d4ff; 
+            font-weight: bold; font-size: 14px;
+            z-index: 1001;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        /* Thanh tiến trình (ProgressBar) ở trên cùng */
+        #progress-bar {
+            position: fixed; top: 0; left: 0;
+            height: 4px; background: #00d4ff;
+            width: 0%; transition: width 0.3s ease;
+            z-index: 1002;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="progress-bar"></div>
+    <div id="status" class="slide-number">Đang tải...</div>
+    
+    <iframe id="slide-container" src="PPThuyetTrinh.html"></iframe>
+
+    <!-- <div class="controls">
+        <b>Home:</b> Đầu | <b>End:</b> Cuối | <b>← →:</b> Chuyển | <b>Space:</b> Tiếp | <b>R:</b> Tải lại
+    </div> -->
+<!-- "5_slide_DanhSachChucNang.html", -->
+    <script>
+        const slides = [
+            "PPThuyetTrinh.html", "1_slide_LyDo.html", "2_slide_gioithieuduan.html",
+             "4_slide_usecase_TQ.html", 
+            "6_slide_ChucNangDonHang.html", "7_slide_ChucNangDieuPhoi.html", "8_slide_ChucNangQuanLyLoTrinh.html",
+            "9_silde_ThietKeDuLieu.html", "10_slide_CaiDat.html", "11_slide_kiemThu01.html",
+            "12_slide_kiemThu02.html", "13_slide_kiemThu03.html", "14_slide_Kiemthu_04.html","Test.html"
+        ];
+
+        let currentIndex = 0;
+        const iframe = document.getElementById('slide-container');
+        const status = document.getElementById('status');
+        const progressBar = document.getElementById('progress-bar');
+
+        function updateSlide(index) {
+            if (index >= 0 && index < slides.length) {
+                currentIndex = index;
+                iframe.style.opacity = "0.5"; // Hiệu ứng mờ khi đang chuyển
+                iframe.src = slides[currentIndex];
+                
+                // Cập nhật thanh tiến trình và số slide
+                const progress = ((currentIndex + 1) / slides.length) * 100;
+                progressBar.style.width = progress + "%";
+                status.innerText = `Slide ${currentIndex + 1} / ${slides.length}`;
+            }
+        }
+
+        const handleKeyDown = (e) => {
+            const key = e.key;
+            
+            // Điều hướng chính
+            if (key === "Home") { e.preventDefault(); updateSlide(0); }
+            else if (key === "End") { e.preventDefault(); updateSlide(slides.length - 1); }
+            else if (["ArrowRight", " ", "PageDown"].includes(key)) {
+                e.preventDefault();
+                if (currentIndex < slides.length - 1) updateSlide(currentIndex + 1);
+            }
+            else if (["ArrowLeft", "PageUp", "Backspace"].includes(key)) {
+                e.preventDefault();
+                if (currentIndex > 0) updateSlide(currentIndex - 1);
+            }
+            else if (key.toLowerCase() === "r") { // Phím R để reset lại slide hiện tại
+                e.preventDefault();
+                iframe.src = slides[currentIndex];
+            }
+        };
+
+        // Lắng nghe phím bấm tại trang chính
+        window.addEventListener('keydown', handleKeyDown);
+
+        iframe.onload = function() {
+            iframe.style.opacity = "1"; // Hiện rõ lại khi tải xong
+            
+            try {
+                const innerWin = iframe.contentWindow;
+
+                // 1. Đồng bộ phím bấm từ slide con lên slide cha
+                innerWin.addEventListener('keydown', handleKeyDown);
+
+                // 2. Xử lý click chuột: Nếu click vào khoảng trống slide, trả focus về cha để phím bấm mượt
+                innerWin.addEventListener('mousedown', function(e) {
+                    // Nếu click vào các thành phần tương tác thì không giật focus
+                    if (!["BUTTON", "A", "INPUT", "SELECT"].includes(e.target.tagName)) {
+                        setTimeout(() => { window.focus(); }, 10);
+                    }
+                });
+
+                // 3. Chặn các lỗi JS nội bộ của slide con để không hiện popup báo lỗi
+                innerWin.onerror = function() { return true; };
+
+                // 4. Ghi đè hàm adjustLayout nếu có lỗi null
+                if (innerWin.adjustLayout) {
+                    const originalFunc = innerWin.adjustLayout;
+                    innerWin.adjustLayout = function() {
+                        try { originalFunc(); } catch (e) { console.warn("Layout fix applied."); }
+                    };
+                }
+            } catch (err) {
+                // Lỗi này thường gặp khi mở trực tiếp file HTML (không qua server)
+                console.warn("Mẹo: Chạy bằng Live Server (VS Code) để điều khiển mượt nhất.");
+            }
+        };
+        // Tự động lấy focus khi khởi động
+        window.focus();
+        // Lắng nghe sự kiện từ slide con gửi lên qua postMessage
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'keydown') {
+                // Tạo một đối tượng giả lập sự kiện để dùng lại hàm handleKeyDown có sẵn
+                const fakeEvent = {
+                    key: event.data.key,
+                    preventDefault: () => {} 
+                };
+                handleKeyDown(fakeEvent);
+            }
+        });
+        
+    </script>
+</body>
+</html>

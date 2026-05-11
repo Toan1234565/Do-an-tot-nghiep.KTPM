@@ -1,4 +1,5 @@
 ﻿using QuanLyKhachHang.Models;
+using QuanLyKhachHang.Models1.LienServer;
 using QuanLyKhachHang.Models1.QuanLyDiaChi;
 
 namespace QuanLyKhachHang.Models1.QuanLyKhachHang
@@ -14,6 +15,8 @@ namespace QuanLyKhachHang.Models1.QuanLyKhachHang
         public string? SoDienThoai { get; set; }
 
         public string? Email { get; set; }
+
+        public PagedDonHangResponse? DanhSachDonHang { get; set; }
 
         public virtual ICollection<HopDongVanChuyen> HopDongVanChuyens { get; set; } = new List<HopDongVanChuyen>();
 

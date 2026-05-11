@@ -1,8 +1,8 @@
-﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhoBai
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyKhoBai
 
-@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien
+@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyPhuongTien
 
-@model IEnumerable<QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien.PhuongTienModel>
+@model IEnumerable<PhuongTienListModel>
 
 <!DOCTYPE html>
 <html lang="vi">
@@ -112,8 +112,8 @@
     </style>
 </head>
 <body>
-        <main class="container-fluid py-4">
-            <div class="main-card">
+    <main class="container-fluid py-4">
+        <div class="main-card">
             <div class="page-header flex-wrap">
                 <h1><i class="fa-solid fa-truck-moving me-2 text-primary"></i>Hệ Thống Quản Lý Phương Tiện</h1>
                 <div class="d-flex gap-2">
@@ -138,127 +138,158 @@
                         </button>
                     </div>
                 </div>
-            </div>             
-                <form method="get" asp-action="DanhSachPhuongTien" class="row g-3 mb-4 p-3 bg-light rounded-4 border mx-0">
-                    <div class="col-md-3">
-                        <div class="input-group">
-                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                            <input type="text" name="searchTerm" class="form-control border-start-0" placeholder="Tìm biển số xe..." value="@ViewBag.CurrentSearch" />
-                        </div>
+            </div>
+            <form method="get" asp-action="DanhSachPhuongTien" class="row g-3 mb-4 p-3 bg-light rounded-4 border mx-0">
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="searchTerm" class="form-control border-start-0" placeholder="Tìm biển số xe..." value="@ViewBag.CurrentSearch" />
                     </div>
-                    <div class="col-md-3">
-                        <select name="maLoaiXe" class="form-select" onchange="this.form.submit()">
-                            <option value="">-- Tất cả loại xe --</option>
-                            @if (ViewBag.DanhSachLoaiXe != null)
+                </div>
+                <div class="col-md-3">
+                    <select name="maLoaiXe" class="form-select" onchange="this.form.submit()">
+                        <option value="">-- Tất cả loại xe --</option>
+                        @if (ViewBag.DanhSachLoaiXe != null)
+                        {
+                            foreach (var cv in (List<LoaiXeModels>)ViewBag.DanhSachLoaiXe)
                             {
-                                foreach (var cv in (List<LoaiXeModels>)ViewBag.DanhSachLoaiXe)
-                                {
-                                    <option value="@cv.MaLoaiXe" selected="@(ViewBag.CurrentMaLoaiXe?.ToString() == cv.MaLoaiXe.ToString())">@cv.TenLoai</option>
-                                }
+                                <option value="@cv.MaLoaiXe" selected="@(ViewBag.CurrentMaLoaiXe?.ToString() == cv.MaLoaiXe.ToString())">@cv.TenLoai</option>
                             }
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <select name="trangThaiDangKiem" class="form-select" onchange="this.form.submit()">
-                            <option value="Tất cả" selected="@(ViewBag.CurrentTrangThaiDangKiem == "Tất cả")">Tất cả đăng kiểm</option>
-                            <option value="Còn hạn" selected="@(ViewBag.CurrentTrangThaiDangKiem == "Còn hạn")">Còn hạn đăng kiểm</option>
-                            <option value="Hết hạn" selected="@(ViewBag.CurrentTrangThaiDangKiem == "Hết hạn")">Hết hạn đăng kiểm</option>
-                        </select>
-                    </div>              
-                    <div class="col-md-3">
-                        <select name="status" class="form-select" onchange="this.form.submit()">
-                            <option value="Tất cả" selected="@(ViewBag.CurrentStatus == "Tất cả")">Tất cả trạng thái</option>
-                            <option value="Đang hoạt động" selected="@(ViewBag.CurrentStatus == "Đang hoạt động")">Đang hoạt động</option>
-                            <option value="Bảo trì" selected="@(ViewBag.CurrentStatus == "Bảo trì")">Bảo trì</option>
-                            <option value="Không hoạt động" selected="@(ViewBag.CurrentStatus == "Không hoạt động")">Không hoạt động</option>
-                        </select>
-                        
-                    </div>
-                </form>
-
-                <div>
-                    <table class="custom-table">
-                        <thead>
-                            <tr>
-                                <th class="text-center">STT</th>
-                                <th>Thông tin xe</th>
-                                <th class="text-center">Thông số kỹ thuật</th>
-                                <th class="text-center">Tiêu hao (L/km)</th>
-                                <th class="text-center">Tình trạng vận hành</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (Model != null && Model.Any())
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="maKho" class="form-select" onchange="this.form.submit()">
+                        <option value="">-- Tất cả kho bãi --</option>
+                        @if (ViewBag.DanhSachKho != null)
+                        {
+                            foreach (var cv in (List<TenKhobaiModels>)ViewBag.DanhSachKho)
                             {
-                                int stt = ((ViewBag.CurrentPage - 1) * 20) + 1;
-                                foreach (var item in Model)
-                                {
+                                <option value="@cv.MaKho" selected="@(ViewBag.CurrentMaKho?.ToString() == cv.MaKho.ToString())">@cv.TenKhoBai</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="trangThaiDangKiem" class="form-select" onchange="this.form.submit()">
+                        <option value="Tất cả" selected="@(ViewBag.CurrentTrangThaiDangKiem == "Tất cả")">Tất cả đăng kiểm</option>
+                        <option value="Còn hạn" selected="@(ViewBag.CurrentTrangThaiDangKiem == "Còn hạn")">Còn hạn đăng kiểm</option>
+                        <option value="Hết hạn" selected="@(ViewBag.CurrentTrangThaiDangKiem == "Hết hạn")">Hết hạn đăng kiểm</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="status" class="form-select" onchange="this.form.submit()">
+                        <option value="Tất cả" selected="@(ViewBag.CurrentStatus == "Tất cả")">Tất cả trạng thái</option>
+                        <option value="Đang hoạt động" selected="@(ViewBag.CurrentStatus == "Đang hoạt động")">Đang hoạt động</option>
+                        <option value="Bảo trì" selected="@(ViewBag.CurrentStatus == "Bảo trì")">Bảo trì</option>
+                        <option value="Không hoạt động" selected="@(ViewBag.CurrentStatus == "Không hoạt động")">Không hoạt động</option>
+                    </select>
+
+                </div>
+            </form>
+
+            <div>
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th class="text-center">STT</th>
+                            <th>Thông tin xe</th>
+                            <th class="text-center">Thông số kỹ thuật</th>
+                            <th class="text-center">Tiêu hao (L/km)</th>
+                            <th class="text-center">Tình trạng vận hành</th>
+                            <th class="text-center">Phân công</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            int stt = ((ViewBag.CurrentPage - 1) * 20) + 1;
+                            foreach (var item in Model)
+                            {
                                 <tr onclick="location.href='@Url.Action("ChiTietPhuongTien", "QuanLyPhuongTien", new { maPhuongTien = item.MaPhuongTien })'"
                                     style="cursor: pointer;"
                                     class="align-middle">
-                                        <td class="text-center fw-bold text-muted">@stt</td>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="bg-primary bg-opacity-10 p-3 rounded-3 me-3 text-primary">
-                                                    <i class="fas fa-truck fa-lg"></i>
-                                                </div>
-                                                <div>
-                                                    <div>
-                                                        @item.BienSo
-                                                        
-                                                         <span class="badge bg-light text-dark border fw-normal">@item.TenLoaiXe</span>
-                                                    </div>
-                                                   
-                                                </div>
+                                    <td class="text-center fw-bold text-muted">@stt</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-primary bg-opacity-10 p-3 rounded-3 me-3 text-primary">
+                                                <i class="fas fa-truck fa-lg"></i>
                                             </div>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="small"><i class="fas fa-weight-hanging me-1 text-muted"></i>@item.TaiTrongToiDaKg kg</div>
-                                            <div class="small"><i class="fas fa-box me-1 text-muted"></i>@item.TheTichToiDaM3 m³</div>
-                                        </td>
-                                        <td class="text-center fw-semibold text-primary">
-                                            @item.MucTieuHaoNhienLieu
-                                        </td>
-                                        <td class="text-center">
-                                            @* Giữ lại hiển thị trạng thái vận hành cũ để theo dõi *@
-                                            @if (item.TrangThai == "Đang hoạt động")
+                                            <div>
+                                                <div>
+                                                    @item.BienSo
+
+                                                    <span class="badge bg-light text-dark border fw-normal">@item.TenLoaiXe</span>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="small"><i class="fas fa-weight-hanging me-1 text-muted"></i>@item.TaiTrongToiDaKg kg</div>
+                                        <div class="small"><i class="fas fa-box me-1 text-muted"></i>@item.TheTichToiDaM3 m³</div>
+                                    </td>
+                                    <td class="text-center fw-semibold text-primary">
+                                        @item.MucTieuHaoNhienLieu
+                                    </td>
+                                    <td class="text-center">
+                                        @* Giữ lại hiển thị trạng thái vận hành cũ để theo dõi *@
+                                        @if (item.TrangThai == "Đang hoạt động")
+                                        {
+                                            <span class="status-badge bg-active">Hoạt động</span>
+                                        }
+                                        else if (item.TrangThai == "Bảo trì")
+                                        {
+                                            <span class="status-badge bg-maintenance">Bảo trì</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-badge bg-inactive">Tạm dừng</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex flex-column align-items-center">
+                                            @if (!string.IsNullOrEmpty(item.TenNguoiPhuTrach) && item.TenNguoiPhuTrach != "Không xác định")
                                             {
-                                                <span class="status-badge bg-active">Hoạt động</span>
+                                                <div class="fw-bold text-dark"><i class="fas fa-user-circle me-1 text-primary"></i>@item.TenNguoiPhuTrach</div>
+                                                <small class="text-muted" style="font-size: 0.75rem;">Mã: @item.MaNguoiDung</small>
                                             }
-                                            else if (item.TrangThai == "Bảo trì")
+                                            else if (item.TenNguoiPhuTrach == "Lỗi kết nối" || item.TenNguoiPhuTrach == "Lỗi API tên")
                                             {
-                                                <span class="status-badge bg-maintenance">Bảo trì</span>
+                                                <span class="text-danger small"><i class="fas fa-exclamation-circle me-1"></i>Lỗi tải tên</span>
                                             }
                                             else
                                             {
-                                                <span class="status-badge bg-inactive">Tạm dừng</span>
+                                                <span class="text-muted small italic"><i>Chưa phân công</i></span>
                                             }
-                                        </td>
-                                        <td class="text-center" onclick="event.stopPropagation();">
-                                            <button type="button"
-                                                    onclick="openEditModal('@item.MaPhuongTien')"
-                                                    class="btn btn-sm btn-outline-primary border-0 shadow-sm"
-                                                    title="Chỉnh sửa thông tin">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    stt++;
-                                }
-                            }
-                            else
-                            {
-                                <tr>
-                                    <td colspan="5" class="text-center py-5">
-                                        <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" width="80" class="mb-3 opacity-25">
-                                        <p class="text-muted">Không tìm thấy dữ liệu phương tiện phù hợp.</p>
+                                        </div>
+                                    </td>
+                                    <td class="text-center" onclick="event.stopPropagation();">
+                                        <button type="button"
+                                                onclick="openEditModal('@item.MaPhuongTien')"
+                                                class="btn btn-sm btn-outline-primary border-0 shadow-sm"
+                                                title="Chỉnh sửa thông tin">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
                                     </td>
                                 </tr>
+                                stt++;
                             }
-                        </tbody>
-                    </table>
-                </div>
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center py-5">
+                                    <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" width="80" class="mb-3 opacity-25">
+                                    <p class="text-muted">Không tìm thấy dữ liệu phương tiện phù hợp.</p>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+
+                </table>
+            </div>
             @if (ViewBag.TotalPages > 1)
             {
                 <div class="d-flex justify-content-between align-items-center mt-4">
@@ -276,10 +307,10 @@
                     </nav>
                 </div>
             }
-            
+
         </div>
         <div class="modal fade" id="ThemPhuongTien" data-bs-backdrop="static" data-bs-keyboard="false">
-       
+
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header bg-light">
@@ -341,14 +372,14 @@
                                         <option value="">-- Chọn kho bãi --</option>
                                         @if (ViewBag.DanhSachKho != null)
                                         {
-                                            foreach (var kho in (List<QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhoBai.QuanLyKhobaiModels>)ViewBag.DanhSachKho)
+                                            foreach (var kho in (List<QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyKhoBai.TenKhobaiModels>)ViewBag.DanhSachKho)
                                             {
                                                 <option value="@kho.MaKho">@kho.TenKhoBai</option>
                                             }
                                         }
                                     </select>
                                 </div>
-                                
+
                             </div>
 
                             <div class="mt-4 pt-3 border-top text-end">
@@ -458,7 +489,7 @@
                                         <option value="">-- Chọn kho --</option>
                                         @if (ViewBag.DanhSachKho != null)
                                         {
-                                            foreach (var kho in (List<QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhoBai.QuanLyKhobaiModels>)ViewBag.DanhSachKho)
+                                            foreach (var kho in (List<QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyKhoBai.TenKhobaiModels>)ViewBag.DanhSachKho)
                                             {
                                                 <option value="@kho.MaKho">@kho.TenKhoBai</option>
                                             }

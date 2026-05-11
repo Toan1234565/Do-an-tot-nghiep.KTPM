@@ -1,6 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using QuanLyLoTrinhTheoDoi.Models;
 using QuanLyLoTrinhTheoDoi;
+using QuanLyLoTrinhTheoDoi.Models;
+using QuanLyLoTrinhTheoDoi.Models12.LienServer;
+using QuanLyLoTrinhTheoDoi.Models12.LienServer.cs;
+using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer;
 // Thêm namespace chứa class Consumer của bạn (nếu khác namespace hiện tại)
 // using QuanLyLoTrinhTheoDoi.Services; 
 
@@ -12,7 +15,10 @@ builder.Services.AddHttpClient("PhuongTienApi", c => c.BaseAddress = new Uri("ht
 builder.Services.AddHttpClient("KhoApi", c => c.BaseAddress = new Uri("https://localhost:7286/"));
 builder.Services.AddHttpClient("NhanSuApi", c => c.BaseAddress = new Uri("https://localhost:7022/"));
 builder.Services.AddHttpClient("DonHangApi", c => c.BaseAddress = new Uri("https://localhost:7264/"));
-
+builder.Services.AddHttpClient("KhachHangApi", client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7149/");
+});
 // --- 2. ĐĂNG KÝ CƠ SỞ DỮ LIỆU ---
 builder.Services.AddDbContext<TmdtContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -40,11 +46,16 @@ builder.Services.AddCors(options =>
                    .AllowCredentials();
     });
 });
+builder.Services.AddScoped<INhanVienService, ThongTinNhanVienClient>();
+builder.Services.AddScoped<IDiaChiService, DiaChiServiceClient>();
+builder.Services.AddScoped<IDonHangService, DonHangServiceClient>();
+builder.Services.AddScoped<IKhachHangServiceClient, ChiTietKhachHangServerClient>();
+builder.Services.AddScoped<IPhuongTienServiceClient, PhuongTienServiceClient>();
 
 // --- 5. ĐĂNG KÝ BACKGROUND SERVICE (Kích hoạt RabbitMQ Consumer) ---
 // Đăng ký class RoutingOrderConsumer để nó tự động chạy khi bật Server
 builder.Services.AddHostedService<RoutingOrderConsumer>();
-
+builder.Services.AddScoped<IPhuongTienTaiXeService, PhuongTienTaiXeService>();
 // Nếu bạn có class Producer ở server này để gửi ngược lại phản hồi:
 // builder.Services.AddScoped<IRabbitMQProducer, RabbitMQProducer>();
 

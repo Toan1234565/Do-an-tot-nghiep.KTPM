@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lời cảm ơn - Nguyễn Đức Toán</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #003366; /* Màu xanh HaUI */
+            --accent-color: #f1c40f;  /* Màu vàng nhấn */
+            --text-dark: #1a252f;
+            --line-color: rgba(0, 51, 102, 0.1);
+            --sidebar-bg: rgba(0, 51, 102, 0.95);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body, html {
+            height: 100%; width: 100%;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+        }
+
+        /* --- NÚT MENU --- */
+        .menu-btn {
+            position: fixed; top: 25px; left: 25px; z-index: 1001;
+            cursor: pointer; background: var(--primary-color);
+            padding: 12px; border-radius: 8px;
+            display: flex; flex-direction: column; gap: 5px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        .menu-btn:hover { background: #004a94; transform: scale(1.05); }
+        .menu-btn span { display: block; width: 25px; height: 3px; background: white; border-radius: 2px; }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            position: fixed; top: 0; left: -320px; width: 320px; height: 100%;
+            background: var(--sidebar-bg); z-index: 1000;
+            transition: all 0.4s cubic-bezier(0.77, 0, 0.175, 1);
+            padding: 80px 20px 20px 20px; display: flex; flex-direction: column;
+            backdrop-filter: blur(10px); box-shadow: 10px 0 30px rgba(0,0,0,0.3);
+        }
+        .sidebar.active { left: 0; }
+        .sidebar h4 { color: var(--accent-color); text-transform: uppercase; font-size: 0.9rem; letter-spacing: 2px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; }
+        .slide-list { list-style: none; overflow-y: auto; flex-grow: 1; }
+        .slide-list a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.95rem; display: block; padding: 10px 15px; border-radius: 6px; transition: all 0.2s; }
+        .slide-list a:hover { background: rgba(255,255,255,0.1); color: white; border-left: 4px solid var(--accent-color); padding-left: 20px; }
+
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; z-index: 999; }
+
+        /* --- GIAO DIỆN CHÍNH --- */
+        .full-screen-slide {
+            width: 100vw; height: 100vh;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 5vh 5vw;
+            position: relative;
+            background-image: 
+                linear-gradient(var(--line-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--line-color) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .top-bar { position: absolute; top: 0; left: 0; width: 100%; height: 12px; background: var(--primary-color); }
+
+        .thanks-container {
+            text-align: center;
+            animation: fadeInScale 0.8s ease-out;
+        }
+
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .thanks-title {
+            font-size: 4.5rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            letter-spacing: -1px;
+        }
+
+        .thanks-subtitle {
+            font-size: 1.8rem;
+            color: #444;
+            margin-bottom: 40px;
+            font-weight: 400;
+        }
+
+        .qa-box {
+            background: var(--primary-color);
+            color: white;
+            padding: 20px 60px;
+            border-radius: 50px;
+            font-size: 2rem;
+            font-weight: 700;
+            display: inline-block;
+            box-shadow: 0 10px 20px rgba(0, 51, 102, 0.2);
+            border: 4px solid var(--accent-color);
+            margin-bottom: 60px;
+        }
+
+        .contact-info {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 30px;
+            width: 80%;
+        }
+
+        .contact-item b { color: var(--primary-color); }
+
+        footer {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            color: #999;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="menu-btn" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <h4>Danh sách Slide</h4>
+        <ul class="slide-list">
+            <li><a href="PPThuyetTrinh.html">Tiêu đề</a></li>
+            <li><a href="1_slide_LyDo.html">1. Lý do chọn đề tài</a></li>
+            <li><a href="4_slide_usecase_TQ.html">4. Use Case tổng quát</a></li>
+            <li><a href="14_slide_Kiemthu_04.html">14. RabbitMQ khi server sập</a></li>
+            <li><a href="#" style="color: var(--accent-color); font-weight: bold;">Kết thúc & Cảm ơn</a></li>
+        </ul>
+    </div>
+
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <div class="top-bar"></div>
+
+    <div class="full-screen-slide">
+        <div class="thanks-container">
+            <h1 class="thanks-title">XIN CHÂN THÀNH CẢM ƠN!</h1>
+            <p class="thanks-subtitle">Quý Thầy/Cô và các bạn đã chú ý lắng nghe phần thuyết trình</p>
+            
+            
+        </div>
+
+        <footer>
+            © 2026 | Đại học Công nghiệp Hà Nội - HaUI
+        </footer>
+    </div>
+
+    <script>
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            let overlay = document.getElementById('overlay');
+            if (sidebar) {
+                sidebar.classList.toggle('active');
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.id = 'overlay';
+                    overlay.className = 'overlay';
+                    overlay.onclick = toggleMenu;
+                    document.body.appendChild(overlay);
+                }
+                overlay.style.display = sidebar.classList.contains('active') ? 'block' : 'none';
+            }
+        }
+
+        // Đồng bộ phím bấm
+        window.addEventListener('keydown', (e) => {
+            window.parent.postMessage({ type: 'keydown', key: e.key, keyCode: e.keyCode }, '*');
+        });
+    </script>
+</body>
+</html>

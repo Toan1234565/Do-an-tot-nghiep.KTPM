@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using QuanLyTaiKhoanNguoiDung.Models12;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDonHang;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyDonHang.QuanLyDonHang;
+using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyKhachHang;
 using System.Net.Http;
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyKhachHang
@@ -59,83 +59,53 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyKhachHang
         public async Task<IActionResult> ChiTietKhachHang(int maKhachHang)
         {
             var client = _httpClientFactory.CreateClient("BypassSSL");
+            var taskResponse = client.GetAsync($"{apiBaseUrl}/khachhang/{maKhachHang}");
 
-            // Khởi tạo các Task gọi song song
-            var taskKH = client.GetAsync($"{apiBaseUrl}/khachhang/{maKhachHang}");
-            var taskDonHang = client.GetAsync($"{apiBaseUrlDonHang}/danhsachdonhangtheokhachhang/{maKhachHang}?pageSize=10");
+            KhachHangModels? model = null;
 
-            // Biến chứa dữ liệu
-            KhachHangModels? khachHangModel = null;
-            var listDonHang = new List<DonHangModels>();
-
-            // CHỜ CẢ 2 API NHƯNG KHÔNG ĐỂ CRASH NẾU 1 BÊN LỖI
             try
             {
-                // Sử dụng Task.WhenAll nhưng bao bọc cẩn thận
-                await Task.WhenAll(taskKH, taskDonHang);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Có lỗi kết nối khi gọi các API cho khách hàng {ID}", maKhachHang);
-                // Không return ở đây, cứ để code chạy tiếp xuống dưới để kiểm tra từng response
-            }
+                var response = await taskResponse;
 
-            // --- XỬ LÝ DỮ LIỆU KHÁCH HÀNG (BẮT BUỘC) ---
-            try
-            {
-                if (taskKH.IsCompletedSuccessfully)
+                if (response.IsSuccessStatusCode)
                 {
-                    var resKH = await taskKH;
-                    if (resKH.IsSuccessStatusCode)
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    // SỬA TẠI ĐÂY: Thêm JsonSerializerSettings để đọc JSON linh hoạt hơn
+                    var settings = new JsonSerializerSettings
                     {
-                        var contentKH = await resKH.Content.ReadAsStringAsync();
-                        khachHangModel = JsonConvert.DeserializeObject<KhachHangModels>(contentKH);
-                    }
+                        NullValueHandling = NullValueHandling.Ignore,
+                        MissingMemberHandling = MissingMemberHandling.Ignore
+                    };
+
+                    model = JsonConvert.DeserializeObject<KhachHangModels>(content, settings);
+                }
+                else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    TempData["Error"] = "Không tìm thấy khách hàng này.";
+                    return RedirectToAction("DanhSachKhachHang");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi giải mã JSON khách hàng {ID}", maKhachHang);
-            }
-
-            // Nếu KHÔNG lấy được thông tin khách hàng, trang web không có gì để hiện -> Về danh sách
-            if (khachHangModel == null)
-            {
-                TempData["Error"] = "Không thể tải thông tin khách hàng.";
+                _logger.LogError(ex, "Lỗi kết nối API khách hàng {ID}", maKhachHang);
+                TempData["Error"] = "Hệ thống API đang bảo trì hoặc dữ liệu không hợp lệ.";
                 return RedirectToAction("DanhSachKhachHang");
             }
 
-            // --- XỬ LÝ DỮ LIỆU ĐƠN HÀNG (TÙY CHỌN - LỖI VẪN HIỆN TRANG) ---
-            try
+            // XỬ LÝ DỮ LIỆU ĐƠN HÀNG ĐỂ VIEW HIỂN THỊ
+            // Lấy dữ liệu từ thuộc tính DanhSachDonHang (đối tượng PagedResponse) đổ vào ViewBag để đồng bộ với View của bạn
+            if (model?.DanhSachDonHang?.Data != null)
             {
-                if (taskDonHang.IsCompletedSuccessfully)
-                {
-                    var resDonHang = await taskDonHang;
-                    if (resDonHang.IsSuccessStatusCode)
-                    {
-                        var contentDonHang = await resDonHang.Content.ReadAsStringAsync();
-                        var resultDonHang = JsonConvert.DeserializeObject<PaginationResult<DonHangModels>>(contentDonHang);
-                        if (resultDonHang?.Data != null)
-                        {
-                            listDonHang = resultDonHang.Data.ToList();
-                        }
-                    }
-                }
-                else
-                {
-                    _logger.LogWarning("API Đơn hàng bị sập hoặc timeout cho khách hàng {ID}", maKhachHang);
-                }
+                ViewBag.DonHangs = model.DanhSachDonHang.Data;
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogError(ex, "Lỗi xử lý đơn hàng cho khách hàng {ID}", maKhachHang);
-                // Không làm gì cả, listDonHang vẫn là list rỗng đã khởi tạo ở trên
+                ViewBag.DonHangs = new List<DonHangModels>();
+                ViewBag.MessageOrder = "Dữ liệu đơn hàng hiện không khả dụng.";
             }
 
-            // Đưa vào ViewBag (Luôn đảm bảo không null để View không lỗi)
-            ViewBag.DonHangs = listDonHang;
-
-            return View(khachHangModel);
+            return View(model);
         }
     }
 }

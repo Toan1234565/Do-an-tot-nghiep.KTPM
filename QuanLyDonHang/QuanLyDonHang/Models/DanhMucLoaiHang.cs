@@ -11,5 +11,5 @@ public partial class DanhMucLoaiHang
 
     public string? MoTa { get; set; }
 
-    public virtual ICollection<KienHang> KienHangs { get; set; } = new List<KienHang>();
+    public virtual ICollection<BangGiaVung> BangGiaVungs { get; set; } = new List<BangGiaVung>();
 }

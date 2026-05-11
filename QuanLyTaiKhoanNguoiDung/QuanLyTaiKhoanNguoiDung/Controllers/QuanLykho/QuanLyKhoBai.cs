@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDiaChi;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhoBai;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyNguoiDung.QuanLyNhanVien;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyKhoBai;
+using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyDiaChi;
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLykho
 {
@@ -127,7 +126,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLykho
                         return null;
                     }
 
-                    async Task<NguoiDungModel?> GetNhanVienSafe(int? maQuanLy)
+                    async Task<NguoiDungDetailModel?> GetNhanVienSafe(int? maQuanLy)
                     {
                         try
                         {
@@ -135,7 +134,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLykho
                             var res = await client.GetAsync($"{apiNguoiDung}/chitietnhanvien/{maQuanLy}");
                             if (res.IsSuccessStatusCode)
                             {
-                                return JsonConvert.DeserializeObject<NguoiDungModel>(await res.Content.ReadAsStringAsync());
+                                return JsonConvert.DeserializeObject<NguoiDungDetailModel>(await res.Content.ReadAsStringAsync());
                             }
                         }
                         catch { /* Log lỗi ở đây nếu cần */ }

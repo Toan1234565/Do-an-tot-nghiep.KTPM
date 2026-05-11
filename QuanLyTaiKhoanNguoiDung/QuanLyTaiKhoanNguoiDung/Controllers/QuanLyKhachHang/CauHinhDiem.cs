@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using QuanLyTaiKhoanNguoiDung.Models12.CauHinhDiem;
+using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.CauHinhDiem;
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyKhachHang
 {

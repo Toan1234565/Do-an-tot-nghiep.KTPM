@@ -11,17 +11,13 @@ public partial class DonHang
 
     public DateTime ThoiGianTao { get; set; }
 
-    public int MaDiaChiLayHang { get; set; }
+    public int? MaDiaChiLayHang { get; set; }
 
     public string? TrangThaiHienTai { get; set; }
 
     public string? TenDonHang { get; set; }
 
-    public int? MaLoaiDv { get; set; }
-
     public int? MaHopDongNgoai { get; set; }
-
-    public bool? LaDonGiaoThang { get; set; }
 
     public string? GhiChuDacBiet { get; set; }
 
@@ -54,6 +50,8 @@ public partial class DonHang
     public virtual ICollection<HoaDon> HoaDons { get; set; } = new List<HoaDon>();
 
     public virtual ICollection<KienHang> KienHangs { get; set; } = new List<KienHang>();
+
+    public virtual MucDoDichVu? MaMucDoDvNavigation { get; set; }
 
     public virtual DanhMucPhuongThucThanhToan? MaPtttNavigation { get; set; }
 }

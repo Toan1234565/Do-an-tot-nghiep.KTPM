@@ -1,6 +1,7 @@
-﻿@model QuanLyTaiKhoanNguoiDung.Models12.QuanLyDonHang.DonHangModels
-@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDiaChi
-@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang
+﻿@model QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyDonHang.QuanLyDonHang.DonHangModels
+@using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyDiaChi
+@using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyKhachHang
+
 
 @{
     ViewData["Title"] = "Chi Tiết Đơn Hàng";
@@ -219,7 +220,7 @@
                                                         <i class="bi bi-weight text-primary"></i>
                                                     </div>
                                                     <div>
-                                                        <div class="fw-bold text-dark">@item?.MaLoaiHangNavigation?.TenLoaiHang</div>
+                                                        <div class="fw-bold text-dark">@item?.TenLoaiHang</div>
                                                         <div class="fw-bold text-dark">@item?.KhoiLuong kg</div>
                                                         <div class="text-muted" style="font-size: 0.7rem;">Trọng lượng thực</div>
                                                     </div>
@@ -260,7 +261,7 @@
                                                 <div class="col-md-3">
                                                     <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Loại dịch vụ</div>
                                                     <div class="fw-bold">
-                                                        @(Model.MaLoaiDv == 2 ? "Thuê trọn gói (Bulk)" : "Gửi hàng lẻ (LTL)")
+                                                        @(Model.MaDichVu == 2 ? "Thuê trọn gói (Bulk)" : "Gửi hàng lẻ (LTL)")
                                                     </div>
                                                 </div>
 
@@ -272,13 +273,7 @@
                                                     </div>
                                                 </div>
 
-                                                <div class="col-md-3">
-                                                    <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Vận hành</div>
-                                                    <div class="fw-bold @(Model?.LaDonGiaoThang == true ? "text-danger" : "text-primary")">
-                                                        <i class="bi @(Model?.LaDonGiaoThang == true ? "bi-lightning-fill" : "bi-truck") me-1"></i>
-                                                        @(Model?.LaDonGiaoThang == true ? "GIAO THẲNG" : "Qua kho trung chuyển")
-                                                    </div>
-                                                </div>
+                                                
                                                 <div class="col-md-3">
                                                     <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Ghi chú</div>
                                                     <div class="small italic">

@@ -11,8 +11,6 @@ public partial class DiaChi
 
     public string? ThanhPho { get; set; }
 
-    public string? MaBuuDien { get; set; }
-
     public double? ViDo { get; set; }
 
     public double? KinhDo { get; set; }
@@ -22,6 +20,4 @@ public partial class DiaChi
     public string? MaVungH3 { get; set; }
 
     public virtual ICollection<KhachHang> KhachHangs { get; set; } = new List<KhachHang>();
-
-    public virtual ICollection<SanBay> SanBays { get; set; } = new List<SanBay>();
 }

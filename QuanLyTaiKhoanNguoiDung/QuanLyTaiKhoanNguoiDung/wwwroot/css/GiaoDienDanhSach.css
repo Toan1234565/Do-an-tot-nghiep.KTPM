@@ -27,6 +27,8 @@ body {
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid #edf2f7;
+    flex-wrap: wrap; /* Hỗ trợ rớt dòng nếu màn hình nhỏ */
+    gap: 1rem;
 }
 
 h1 {
@@ -44,6 +46,7 @@ h1 {
     margin-bottom: 1.5rem;
 }
 
+/* --- Bảng Custom --- */
 .custom-table {
     border-collapse: separate;
     border-spacing: 0 8px;
@@ -53,15 +56,17 @@ h1 {
     .custom-table thead th {
         color: #718096;
         text-transform: uppercase;
-        font-size: 0.7rem;
+        font-size: 0.75rem;
+        font-weight: 600;
         letter-spacing: 0.05em;
         padding: 12px 20px;
         border: none;
+        background-color: transparent;
     }
 
     .custom-table tbody tr {
         background-color: #fff;
-        transition: all 0.2s;
+        transition: all 0.2s ease-in-out;
         box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
 
@@ -75,6 +80,7 @@ h1 {
         padding: 16px 20px;
         border-top: 1px solid #f1f5f9;
         border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
     }
 
         .custom-table tbody td:first-child {
@@ -88,3 +94,99 @@ h1 {
             border-top-right-radius: 10px;
             border-bottom-right-radius: 10px;
         }
+
+/* --- CSS Bổ sung cho Responsive (Tablet & Mobile) --- */
+@media (max-width: 991px) {
+    /* Điều chỉnh các nút bấm header bớt khoảng cách */
+    .page-header .d-flex.gap-2 {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .page-header button {
+        flex: 1; /* Cho các nút tự co giãn đều nhau */
+        white-space: nowrap;
+        justify-content: center;
+    }
+
+    .btn-nhat-ky {
+        flex: 0 0 auto !important; /* Giữ nguyên kích thước nút tròn */
+    }
+}
+
+@media (max-width: 768px) {
+    .main-card {
+        padding: 1rem;
+        margin: 10px auto;
+        border-radius: 12px;
+    }
+
+    /* Biến Table thành dạng Cards */
+    .custom-table,
+    .custom-table thead,
+    .custom-table tbody,
+    .custom-table th,
+    .custom-table td,
+    .custom-table tr {
+        display: block;
+        width: 100%;
+    }
+
+        /* Ẩn tiêu đề bảng (th) gốc */
+        .custom-table thead {
+            display: none;
+        }
+
+        /* Định dạng mỗi thẻ TR (Card) */
+        .custom-table tbody tr {
+            margin-bottom: 1.5rem;
+            border: 1px solid #edf2f7;
+            border-radius: 12px;
+            padding: 0.5rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        }
+
+            .custom-table tbody tr:hover {
+                transform: none; /* Tắt hiệu ứng nảy trên mobile */
+            }
+
+        /* Định dạng các ô TD */
+        .custom-table tbody td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-align: right;
+            padding: 12px 15px;
+            border: none !important;
+            border-bottom: 1px dashed #edf2f7 !important;
+            border-radius: 0 !important;
+        }
+
+            .custom-table tbody td:last-child {
+                border-bottom: none !important;
+                justify-content: flex-end; /* Đẩy nút thao tác sang phải */
+            }
+
+            /* Căn chỉnh lại các div bên trong td khi hiển thị ngang (vd: phần icon xe tải) */
+            .custom-table tbody td > div.d-flex {
+                justify-content: flex-end;
+                text-align: right;
+            }
+
+                .custom-table tbody td > div.d-flex .me-3 {
+                    margin-right: 0.5rem !important; /* Thu nhỏ khoảng cách icon trên mobile */
+                }
+
+            /* Tạo nhãn giả từ thuộc tính data-label */
+            .custom-table tbody td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #718096;
+                text-transform: uppercase;
+                font-size: 0.75rem;
+                float: left;
+                margin-right: 15px;
+                text-align: left;
+                flex-shrink: 0; /* Tránh nhãn bị ép nhỏ lại */
+            }
+}

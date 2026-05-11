@@ -135,8 +135,7 @@ public class RoutingOrderConsumer : BackgroundService
                 ThoiGianBatDauThucTe = DateTime.Now,
                 GhiChu = $"Lộ trình tự động cho đơn {data.MaDonHang}",
                 MaKhoQuanLy = maKhoId, // Lưu mã kho vào quản lý
-                MaTaiXeChinh = null,
-                MaPhuongTien = null
+               
             };
 
             _context.LoTrinhs.Add(loTrinhMoi);
@@ -283,9 +282,7 @@ public class RoutingOrderConsumer : BackgroundService
             // 4. TẠO LỘ TRÌNH GIAO THẲNG (Gán trực tiếp tài nguyên)
             var loTrinhMoi = new LoTrinh
             {
-                MaPhuongTien = xeChon.MaPhuongTien,
-                MaTaiXeChinh = laiChinh.MaNguoiDung,
-                MaTaiXePhu = laiPhu.MaNguoiDung, // Lưu lái phụ cho giao thẳng
+               
                 TrangThai = "Đang vận chuyển",
                 ThoiGianBatDauKeHoach = DateTime.Now,
                 GhiChu = $"Giao thẳng tự động từ RabbitMQ - Đơn {data.MaDonHang}",

@@ -8,6 +8,8 @@ using Microsoft.Extensions.Primitives;
 using OfficeOpenXml;
 using QuanLyKho.Models;
 using QuanLyKho.Models1;
+using QuanLyKho.Models1.QuanLyDinhMucBaoTri;
+using QuanLyKho.Models1.QuanLyPhuongTien;
 using QuanLyKho.Models1.QuanLyXe;
 using System.ComponentModel;
 using Tmdt.Shared.Services;
@@ -38,56 +40,59 @@ namespace QuanLyKho.ControllersAPI
             _sys = sys;
         }
         [HttpGet("danhsachxe")]
-        public async Task<IActionResult> GetDanhSachXe([FromQuery] string? seaechTerm, [FromQuery] int page, [FromQuery] int? maLoaiXe, [FromQuery] string? status, [FromQuery] string? trangthaidangkiem)
+        public async Task<IActionResult> GetDanhSachXe(
+             [FromQuery] string? seaechTerm,
+             [FromQuery] int page,
+             [FromQuery] int? maLoaiXe,
+             [FromQuery] int? maKho, // 1. Thêm tham số lọc theo mã kho
+             [FromQuery] string? status,
+             [FromQuery] string? trangthaidangkiem)
         {
-            if (page <= 0)
-            {
-                page = 1;
-            }
-            //tao key 
-            string cacheKey = $"danhSachXe_{seaechTerm}_{page}_{maLoaiXe}_{status}_{trangthaidangkiem}";
+            if (page <= 0) page = 1;
+
+            // 2. Thêm maKho vào cacheKey để tránh lấy nhầm dữ liệu cũ của kho khác
+            string cacheKey = $"danhSachXe_{seaechTerm}_{page}_{maLoaiXe}_{maKho}_{status}_{trangthaidangkiem}";
+
             try
             {
                 if (!_cacheKey.TryGetValue(cacheKey, out var cachedData))
                 {
-                    int pageSixe = 10;
-                    var query = _context.PhuongTiens
-                        //.Include(loai => loai.MaLoaiXeNavigation)
-                        //.Include(dk => dk.DangKiems)
-                        //.Include(kho => kho.MaKhoNavigation)
+                    int pageSixe = 20;
+                    var query = _context.PhuongTiens                                             
                         .AsNoTracking();
+
+                    DateTime now = DateTime.Now;
+                    // --- CÁC ĐIỀU KIỆN LỌC ---
 
                     if (!string.IsNullOrEmpty(seaechTerm))
                     {
-                        query = query.Where(x => x.BienSo != null && x.BienSo.Contains(seaechTerm) || x.MaLoaiXeNavigation.TenLoai.Contains(seaechTerm));
+                        query = query.Where(x => (x.BienSo != null && x.BienSo.Contains(seaechTerm)) ||
+                                                 (x.MaLoaiXeNavigation.TenLoai.Contains(seaechTerm)));
                     }
+
                     if (maLoaiXe.HasValue)
                     {
                         query = query.Where(x => x.MaLoaiXe == maLoaiXe.Value);
                     }
+
+                    // 3. Bổ sung điều kiện lọc theo mã kho
+                    if (maKho.HasValue)
+                    {
+                        query = query.Where(x => x.MaKho == maKho.Value);
+                    }
+
                     if (status != "Tất cả")
                     {
-                        if (status == "Đang hoạt động")
-                        {
-                            query = query.Where(x => x.TrangThai == "Đang hoạt động");
-                        }
-                        else if (status == "Bảo trì")
-                        {
-                            query = query.Where(x => x.TrangThai == "Bảo trì");
-                        }
-                        else if (status == "Không hoạt động")
-                        {
-                            query = query.Where(x => x.TrangThai == "Không hoạt động");
-                        }
+                        if (status == "Đang hoạt động") query = query.Where(x => x.TrangThai == "Đang hoạt động");
+                        else if (status == "Bảo trì") query = query.Where(x => x.TrangThai == "Bảo trì");
+                        else if (status == "Không hoạt động") query = query.Where(x => x.TrangThai == "Không hoạt động");
                     }
+
                     if (trangthaidangkiem != "Tất cả")
                     {
-                        // 1. Chuyển đổi DateTime sang DateOnly để khớp với kiểu dữ liệu trong Model
                         DateOnly today = DateOnly.FromDateTime(DateTime.Now);
-
                         if (trangthaidangkiem == "Còn hạn")
                         {
-                            // Lọc những xe có bản ghi đăng kiểm mới nhất vẫn còn hạn
                             query = query.Where(x => x.DangKiems
                                 .OrderByDescending(dk => dk.NgayHetHan)
                                 .Select(dk => dk.NgayHetHan)
@@ -95,23 +100,21 @@ namespace QuanLyKho.ControllersAPI
                         }
                         else if (trangthaidangkiem == "Hết hạn")
                         {
-                            // Lọc những xe: 
-                            // - Hoặc là đã có đăng kiểm nhưng bản ghi mới nhất đã quá hạn
-                            // - Hoặc là chưa bao giờ có bản ghi đăng kiểm nào
-                            query = query.Where(x =>
-                                !x.DangKiems.Any() ||
+                            query = query.Where(x => !x.DangKiems.Any() ||
                                 x.DangKiems.OrderByDescending(dk => dk.NgayHetHan)
                                     .Select(dk => dk.NgayHetHan)
                                     .FirstOrDefault() < today);
                         }
                     }
+
                     int totalItems = await query.CountAsync();
                     var danhsach = await query
                         .Include(loai => loai.MaLoaiXeNavigation)
-                        .Skip((page - 1) * pageSixe).Take(pageSixe)
-                        .Select(x => new PhuongTienModels
+                        .Include(kho => kho.MaKhoNavigation) // Đảm bảo include để lấy TenKho
+                        .Skip((page - 1) * pageSixe)
+                        .Take(pageSixe)
+                        .Select(x => new PhuongTienListModel
                         {
-
                             MaPhuongTien = x.MaPhuongTien,
                             BienSo = x.BienSo,
                             MaLoaiXe = x.MaLoaiXe,
@@ -120,9 +123,10 @@ namespace QuanLyKho.ControllersAPI
                             TheTichToiDaM3 = x.TheTichToiDaM3,
                             MucTieuHaoNhienLieu = x.MucTieuHaoNhienLieu,
                             TrangThai = x.TrangThai,
-                            TenKho = x.MaKhoNavigation != null ? x.MaKhoNavigation.TenKhoBai : "Chưa xác định"
-
+                            TenKho = x.MaKhoNavigation != null ? x.MaKhoNavigation.TenKhoBai : "Chưa xác định",
+                           
                         }).ToListAsync();
+
                     cachedData = new
                     {
                         TotalItems = totalItems,
@@ -135,59 +139,28 @@ namespace QuanLyKho.ControllersAPI
                 }
                 return Ok(cachedData);
             }
-            catch (SqlException ex)
-            {
-                // Lỗi kết nối Database
-                _logger.LogError(ex, "Lỗi kết nối cơ sở dữ liệu khi lấy danh sách loại xe");
-                return StatusCode(503, "Dịch vụ cơ sở dữ liệu tạm thời không khả dụng");
-            }
             catch (Exception ex)
             {
-                // Các lỗi không xác định khác
-                _logger.LogError(ex, "Lỗi hệ thống khi lấy danh sách loại xe với Term: {SearchTerm}", seaechTerm);
-                return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
+                _logger.LogError(ex, "Lỗi khi lấy danh sách xe");
+                return StatusCode(500, "Đã xảy ra lỗi nội bộ.");
             }
         }
 
         [HttpGet("danhsachloaixe")]
-        public async Task<IActionResult> GetDanhSachLoaiXe([FromQuery] string? searchTerm, [FromQuery] int page = 1)
+        public async Task<IActionResult> GetDanhSachLoaiXe()
         {
-            // 1. Validation: Kiểm tra đầu vào
-            if (page <= 0) page = 1;
-
-            // Cache key nên bao gồm cả số trang để tránh việc page 1 và page 2 trả về cùng một dữ liệu từ cache
-            string cachekey = $"danhsachLoaiXe_{searchTerm ?? "all"}_p{page}";
+            // Cache key đơn giản vì không còn phân trang hay tìm kiếm
+            const string cacheKey = "danhsachLoaiXe_all";
 
             try
             {
-                // 2. Kiểm tra Cache
-                if (!_cacheKey.TryGetValue(cachekey, out var cachedData))
+                // 1. Kiểm tra Cache
+                if (!_cacheKey.TryGetValue(cacheKey, out var cachedData))
                 {
-                    int pageSize = 20;
-
-                    // 3. Xây dựng Query với AsNoTracking để tối ưu hiệu suất đọc
-                    var query = _context.LoaiXes.AsNoTracking();
-
-                    if (!string.IsNullOrWhiteSpace(searchTerm))
-                    {
-                        // Sử dụng ToLower() nếu muốn tìm kiếm không phân biệt hoa thường tùy cấu hình DB
-                        query = query.Where(x => x.TenLoai != null && x.TenLoai.Contains(searchTerm));
-                    }
-
-                    int totalItems = await query.CountAsync();
-
-                    // Kiểm tra nếu trang yêu cầu vượt quá số trang thực tế
-                    int totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
-                    // Nếu người dùng yêu cầu trang lớn hơn tổng số trang (và tổng số trang > 0)
-                    if (page > totalPages && totalPages > 0)
-                    {
-                        return BadRequest(new { Message = $"Trang {page} không tồn tại. Tổng số trang hiện có là {totalPages}" });
-                    }
-
-                    var danhsach = await query
-                        .OrderBy(x => x.MaLoaiXe) // Luôn nên có OrderBy khi dùng Skip/Take để dữ liệu nhất quán
-                        .Skip((page - 1) * pageSize)
-                        .Take(pageSize)
+                    // 2. Truy vấn toàn bộ danh sách với AsNoTracking
+                    var danhsach = await _context.LoaiXes
+                        .AsNoTracking()
+                        .OrderBy(x => x.MaLoaiXe)
                         .Select(x => new LoaiXeModels
                         {
                             MaLoaiXe = x.MaLoaiXe,
@@ -197,47 +170,40 @@ namespace QuanLyKho.ControllersAPI
 
                     if (danhsach == null || !danhsach.Any())
                     {
-                        // Trả về kết quả trống thay vì lỗi nếu không tìm thấy dữ liệu phù hợp search
-                        return Ok(new { TotalItems = 0, Data = new List<LoaiXeModels>(), Message = "Không tìm thấy loại xe nào." });
+                        return Ok(new { Data = new List<LoaiXeModels>(), Message = "Danh sách loại xe đang trống." });
                     }
 
                     cachedData = new
                     {
-                        TotalItems = totalItems,
-                        TotalPages = totalPages,
-                        CurrentPage = page,
-                        PageSize = pageSize,
+                        TotalItems = danhsach.Count,
                         Data = danhsach
                     };
-                    // Lưu vào cache với thời gian hết hạn
+
+                    // 3. Thiết lập cấu hình Cache
                     var cacheOptions = new MemoryCacheEntryOptions()
-                        .SetSlidingExpiration(TimeSpan.FromMinutes(5))
-                        .SetAbsoluteExpiration(TimeSpan.FromMinutes(30))
-                        // Thêm dòng này để liên kết cache với token hủy. xóa cache khi thêm mới để tải được dữ liệu mới nhất 
+                        .SetSlidingExpiration(TimeSpan.FromMinutes(10)) // Tăng thời gian chờ vì dữ liệu ít thay đổi hơn
+                        .SetAbsoluteExpiration(TimeSpan.FromHours(1))
                         .AddExpirationToken(new CancellationChangeToken(_resetCacheToken.Token));
-                    _cacheKey.Set(cachekey, cachedData, cacheOptions);
 
-
+                    _cacheKey.Set(cacheKey, cachedData, cacheOptions);
                 }
 
                 return Ok(cachedData);
             }
             catch (SqlException ex)
             {
-                // Lỗi kết nối Database
-                _logger.LogError(ex, "Lỗi kết nối cơ sở dữ liệu khi lấy danh sách loại xe");
-                return StatusCode(503, "Dịch vụ cơ sở dữ liệu tạm thời không khả dụng");
+                _logger.LogError(ex, "Lỗi kết nối SQL khi lấy toàn bộ danh sách loại xe.");
+                return StatusCode(503, "Dịch vụ cơ sở dữ liệu tạm thời không khả dụng.");
             }
             catch (Exception ex)
             {
-                // Các lỗi không xác định khác
-                _logger.LogError(ex, "Lỗi hệ thống khi lấy danh sách loại xe với Term: {SearchTerm}", searchTerm);
+                _logger.LogError(ex, "Lỗi hệ thống khi lấy danh sách loại xe.");
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
             }
         }
 
         [HttpPost("themxemoi")]
-        public async Task<IActionResult> ThemXe([FromBody] PhuongTienModels model)
+        public async Task<IActionResult> ThemXe([FromBody] PhuongTienInputModel model)
         {
             try
             {
@@ -283,87 +249,7 @@ namespace QuanLyKho.ControllersAPI
             }
         }
 
-        //[HttpPost("import-excel")]
-        //public async Task<IActionResult> ImportPhuongTienExcel(IFormFile file)
-        //{
-        //    if (file == null || file.Length <= 0)
-        //        return BadRequest("Vui lòng chọn file Excel.");
-
-        //    if (!Path.GetExtension(file.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
-        //        return BadRequest("Định dạng file không hỗ trợ. Vui lòng sử dụng file .xlsx");
-
-        //    var listXe = new List<PhuongTien>();
-        //    var errors = new List<string>();
-
-        //    try
-        //    {
-        //        // Cấu hình EPPlus để sử dụng (bắt buộc với bản 5+ )
-        //        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
-        //        using (var stream = new MemoryStream())
-        //        {
-        //            await file.CopyToAsync(stream);
-        //            using (var package = new ExcelPackage(stream))
-        //            {
-        //                // Lấy Sheet đầu tiên
-        //                ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
-        //                var rowCount = worksheet.Dimension.Rows;
-
-        //                // Giả sử dòng 1 là tiêu đề, dữ liệu bắt đầu từ dòng 2
-        //                for (int row = 2; row <= rowCount; row++)
-        //                {
-        //                    try
-        //                    {
-        //                        var bienSo = worksheet.Cells[row, 1].Value?.ToString()?.Trim();
-        //                        if (string.IsNullOrEmpty(bienSo)) continue; // Bỏ qua dòng trống
-
-        //                        var phuongTien = new PhuongTien
-        //                        {
-        //                            BienSo = bienSo,
-        //                            MaLoaiXe = int.TryParse(worksheet.Cells[row, 2].Value?.ToString(), out int maLoai) ? maLoai : 0,
-        //                            TaiTrongToiDaKg = double.TryParse(worksheet.Cells[row, 3].Value?.ToString(), out double taiTrong) ? taiTrong : 0,
-        //                            TheTichToiDaM3 = double.TryParse(worksheet.Cells[row, 4].Value?.ToString(), out double theTich) ? theTich : 0,
-        //                            MucTieuHaoNhienLieu = double.TryParse(worksheet.Cells[row, 5].Value?.ToString(), out double mucTieuHao) ? mucTieuHao : 0,
-        //                            TrangThai = worksheet.Cells[row, 6].Value?.ToString() ?? "Đang hoạt động",
-        //                            MaKho = int.TryParse(worksheet.Cells[row, 7].Value?.ToString(), out int maKho) ? maKho : null
-        //                        };
-
-        //                        listXe.Add(phuongTien);
-        //                    }
-        //                    catch (Exception ex)
-        //                    {
-        //                        errors.Add($"Lỗi tại dòng {row}: {ex.Message}");
-        //                    }
-        //                }
-        //            }
-        //        }
-
-        //        if (listXe.Any())
-        //        {
-        //            _context.PhuongTiens.AddRange(listXe);
-        //            await _context.SaveChangesAsync();
-
-        //            // Xóa cache danh sách sau khi thêm mới dữ liệu
-        //            _resetCacheToken.Cancel();
-        //            _resetCacheToken.Dispose();
-        //            _resetCacheToken = new CancellationTokenSource();
-
-        //            return Ok(new
-        //            {
-        //                Message = $"Thêm thành công {listXe.Count} phương tiện.",
-        //                Errors = errors
-        //            });
-        //        }
-
-        //        return BadRequest(new { Message = "Không có dữ liệu hợp lệ để thêm.", Errors = errors });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Lỗi khi import Excel");
-        //        return StatusCode(500, "Đã xảy ra lỗi trong quá trình xử lý file.");
-        //    }
-        //}
-
+       
         [HttpPost("themloaixe")]
         public async Task<IActionResult> ThemLoaiXe([FromBody] LoaiXeModels model)
         {
@@ -408,8 +294,9 @@ namespace QuanLyKho.ControllersAPI
             }
         }
 
+        // thực cập nhật thông tin phương tiện 
         [HttpPut("capnhatxe/{maPhuongTien}")]
-        public async Task<IActionResult> CapNhatXe(int maPhuongTien, [FromBody] PhuongTienModels model)
+        public async Task<IActionResult> CapNhatXe(int maPhuongTien, [FromBody] PhuongTienInputModel model)
         {
             try
             {
@@ -472,81 +359,7 @@ namespace QuanLyKho.ControllersAPI
                 _logger.LogError(ex, "Lỗi khi cập nhật xe");
                 return StatusCode(500, "Đã xảy ra lỗi khi cập nhật xe");
             }
-        }
-
-        //[HttpGet("chitietphuongtien/{maPhuongTien}")]
-        //public async Task<IActionResult> GetChiTietXe(int maPhuongTien)
-        //{
-        //    string cacheKey = $"chitietphuongtien_{maPhuongTien}";
-        //    try
-        //    {
-        //        if (!_cacheKey.TryGetValue(cacheKey, out PhuongTienModels? cachedXe))
-        //        {
-        //            var xeFromDb = await _context.PhuongTiens
-        //                .Include(ls => ls.LichSuBaoTris)
-        //                .ThenInclude(l => l.MaDinhMucNavigation)
-        //                .Include(dk => dk.DangKiems)
-        //                .AsNoTracking()
-        //                .Where(x => x.MaPhuongTien == maPhuongTien)
-        //                .Select(x => new PhuongTienModels
-        //                {
-        //                    MaPhuongTien = x.MaPhuongTien,
-        //                    BienSo = x.BienSo,
-        //                    MaLoaiXe = x.MaLoaiXe,
-        //                    TenLoaiXe = x.MaLoaiXeNavigation != null ? x.MaLoaiXeNavigation.TenLoai : "N/A",
-        //                    TaiTrongToiDaKg = x.TaiTrongToiDaKg,
-        //                    TheTichToiDaM3 = x.TheTichToiDaM3,
-        //                    MucTieuHaoNhienLieu = x.MucTieuHaoNhienLieu,
-        //                    TrangThai = x.TrangThai,
-        //                    TenKho = x.MaKhoNavigation != null ? x.MaKhoNavigation.TenKhoBai : "Chưa xác định",
-        //                    SoKmHienTai = x.SoKmHienTai,
-        //                    LichSuBaoTris = x.LichSuBaoTris.Select(ls => new LichSuBaoTriModels
-        //                    {
-        //                        MaBanGhi = ls.MaBanGhi,
-        //                        MaPhuongTien = ls.MaPhuongTien,
-        //                        ChiPhi = ls.ChiPhi,
-        //                        Ngay = ls.Ngay,
-        //                        LoaiBaoTri = ls.MaDinhMucNavigation.TenHangMuc,
-
-        //                    }).ToList(),
-
-        //                    DangKiems = x.DangKiems
-        //                        .Select(dk => new DangKiemModel
-        //                        {
-        //                            IdDangKiem = dk.IdDangKiem,
-        //                            MaPhuongTien = dk.MaPhuongTien,
-        //                            SoSeriGiayPhep = dk.SoSeriGiayPhep,
-        //                            SoTemKiemDinh = dk.SoTemKiemDinh,
-        //                            NgayKiemDinh = dk.NgayKiemDinh,
-        //                            NgayHetHan = dk.NgayHetHan,
-        //                            DonViKiemDinh = dk.DonViKiemDinh,
-        //                            PhiDuongBoDenNgay = dk.PhiDuongBoDenNgay,
-        //                            GhiChu = dk.GhiChu,
-        //                            NgayTao = dk.NgayTao,
-        //                            HinhAnhDangKiem = dk.HinhAnhDangKiem
-
-        //                        })
-        //                    .ToList()
-        //                })
-        //                .FirstOrDefaultAsync();
-
-        //            if (xeFromDb == null) return NotFound("Xe không tồn tại");
-
-        //            var cacheOptions = new MemoryCacheEntryOptions()
-        //                .SetSlidingExpiration(TimeSpan.FromMinutes(5))
-        //                .SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
-
-        //            _cacheKey.Set(cacheKey, xeFromDb, cacheOptions);
-        //            cachedXe = xeFromDb;
-        //        }
-        //        return Ok(cachedXe);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Lỗi khi lấy chi tiết xe");
-        //        return StatusCode(500, "Lỗi hệ thống");
-        //    }
-        //}
+        }      
 
         [HttpGet("chitietphuongtien/{maPhuongTien}")]
         public async Task<IActionResult> GetChiTietXe(int maPhuongTien)
@@ -554,21 +367,22 @@ namespace QuanLyKho.ControllersAPI
             string cacheKey = $"chitietphuongtien_{maPhuongTien}";
             try
             {
-                if (!_cacheKey.TryGetValue(cacheKey, out PhuongTienModels? cachedXe))
+                if (!_cacheKey.TryGetValue(cacheKey, out PhuongTienDetailModel? cachedXe))
                 {
+                    DateTime now = DateTime.Now;
                     // 1. Lấy thông tin xe cùng với định mức của loại xe đó
                     var xeFromDb = await _context.PhuongTiens
                         .Include(x => x.MaLoaiXeNavigation)
                             .ThenInclude(lx => lx.DinhMucBaoTris)
                         .Include(x => x.LichSuBaoTris)
-                        .Include(dk => dk.DangKiems)
+                        .Include(dk => dk.DangKiems)                       
                         .AsNoTracking()
                         .FirstOrDefaultAsync(x => x.MaPhuongTien == maPhuongTien);
 
                     if (xeFromDb == null) return NotFound("Xe không tồn tại");
 
                     // 2. Mapping sang Model cơ bản
-                    var model = new PhuongTienModels
+                    var model = new PhuongTienDetailModel
                     {
                         MaPhuongTien = xeFromDb.MaPhuongTien,
                         BienSo = xeFromDb.BienSo,
@@ -581,6 +395,9 @@ namespace QuanLyKho.ControllersAPI
                         TenKho = xeFromDb.MaKhoNavigation != null ? xeFromDb.MaKhoNavigation.TenKhoBai : "Chưa xác định",
                         SoKmHienTai = xeFromDb.SoKmHienTai,
                         MaKho = (int)xeFromDb.MaKho,
+                        
+                       
+
                         DangKiems = xeFromDb.DangKiems.Select(dk => new DangKiemModel
                             {
                                 IdDangKiem = dk.IdDangKiem,
@@ -693,6 +510,7 @@ namespace QuanLyKho.ControllersAPI
             }
         }
 
+
         // 2. API CẬP NHẬT ĐĂNG KIỂM (SỬA)
         [HttpPut("capnhatdangkiem/{id}")]
         public async Task<IActionResult> CapNhatDangKiem(int id, [FromForm] DangKiemModel model, IFormFile? hinhAnh)
@@ -782,6 +600,7 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, "Lỗi hệ thống khi cập nhật");
             }
         }
+
         [HttpGet("xe-sap-den-han-bao-tri")]
         public async Task<IActionResult> GetXeSapDenHanBaoTri([FromQuery] int soNgayCanhBao = 15, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
@@ -866,7 +685,7 @@ namespace QuanLyKho.ControllersAPI
                 var pagedData = resultData
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
-                    .Select(x => new
+                    .Select(x => new BaoTriModel
                     {
                         MaPhuongTien = x.PhuongTien.MaPhuongTien,
                         BienSo = x.PhuongTien.BienSo,
@@ -914,7 +733,7 @@ namespace QuanLyKho.ControllersAPI
                     .OrderBy(x => x.NgayHetHanMoiNhat)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
-                    .Select(x => new
+                    .Select(x => new BaoTriModel
                     {
                         MaPhuongTien = x.PhuongTien.MaPhuongTien,
                         BienSo = x.PhuongTien.BienSo,
@@ -965,7 +784,7 @@ namespace QuanLyKho.ControllersAPI
                     var ngayHetHan = x.PhiDuongBoMoiNhat.Value.ToDateTime(TimeOnly.MinValue);
                     int soNgayConLai = (ngayHetHan - todayDt).Days;
 
-                    return new
+                    return new BaoTriModel
                     {
                         MaPhuongTien = x.PhuongTien.MaPhuongTien,
                         BienSo = x.PhuongTien.BienSo,
@@ -980,7 +799,8 @@ namespace QuanLyKho.ControllersAPI
             }
             catch (Exception) { return StatusCode(500, "Lỗi hệ thống"); }
         }
-
+        //xuất báo cáo xe sắp đến hạn bảo trì, đăng kiểm, phí đường bộ
+        
         [HttpGet("export-bao-cao-xe")]
         public async Task<IActionResult> ExportBaoCaoXe([FromQuery] string loaiBaoCao, [FromQuery] int soNgayCanhBao = 30)
         {
@@ -1166,8 +986,10 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, $"Lỗi hệ thống: {ex.Message}");
             }
         }
-
+        // nhập báo cáo bảo trì, đăng kiểm từ file excel
+        
         [HttpPost("import-bao-tri-dang-kiem")]
+        
         public async Task<IActionResult> ImportThongTinXe(IFormFile file)
         {
             // 1. Kiểm tra file đầu vào
@@ -1422,6 +1244,91 @@ namespace QuanLyKho.ControllersAPI
                 await transaction.RollbackAsync();
                 return BadRequest(ex.Message);
             }
+        }     
+
+        [HttpGet("danh-sach-xe-theo-kho/{maKho}")]
+        public async Task<IActionResult> GetDanhSachXeTheoKho(int maKho, [FromQuery] bool? trangThaiGan = null)
+        {
+            try
+            {
+                // Khởi tạo query cơ bản theo kho
+                var query = _context.PhuongTiens
+                    .AsNoTracking()
+                    .Where(x => x.MaKho == maKho);
+
+                // Lọc theo trạng thái gán nếu người dùng có truyền tham số (true/false)
+                if (trangThaiGan.HasValue)
+                {
+                    query = query.Where(x => x.Trangthaigantaixe == trangThaiGan.Value);
+                }
+
+                var danhSachXe = await query
+                    .Select(x => new
+                    {
+                        x.MaPhuongTien,
+                        x.BienSo,
+                        
+                        TrangThaiGan = x.Trangthaigantaixe ?? false, // Trạng thái đã gán TX chưa
+                        TenLoaiXe = x.MaLoaiXeNavigation != null ? x.MaLoaiXeNavigation.TenLoai : "N/A",
+                        x.TaiTrongToiDaKg,
+                        x.TheTichToiDaM3
+                    })
+                    .ToListAsync();
+
+                return Ok(danhSachXe);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy danh sách xe theo kho {MaKho}", maKho);
+                return StatusCode(500, "Lỗi hệ thống khi lấy danh sách xe");
+            }
+        }
+
+        [HttpGet("chitietthongtinPT/{maPhuongTien}")]
+        public async Task<IActionResult> GetChiTietPhuongTien(int maPhuongTien)
+        {
+            string cacheKey = $"chitietthongtinPT_{maPhuongTien}";
+            try
+            {
+                // 1. Kiểm tra Cache
+                if (!_cacheKey.TryGetValue(cacheKey, out PhuongTienDetailModel? cachedXe))
+                {
+                    // 2. Lấy từ DB nếu Cache miss
+                    var xeFromDb = await _context.PhuongTiens
+                        .AsNoTracking()                       
+                        .FirstOrDefaultAsync(x => x.MaPhuongTien == maPhuongTien);
+
+                    if (xeFromDb == null) return NotFound("Xe không tồn tại");
+
+                    // 3. Mapping dữ liệu
+                    cachedXe = new PhuongTienDetailModel
+                    {
+                        MaPhuongTien = xeFromDb.MaPhuongTien,
+                        BienSo = xeFromDb.BienSo,
+                        
+                    };
+
+                    // 4. Lưu vào Cache (ví dụ 10 phút)
+                    _cacheKey.Set(cacheKey, cachedXe, TimeSpan.FromMinutes(10));
+                }
+
+                return Ok(cachedXe);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Lỗi khi lấy chi tiết xe {maPhuongTien}");
+                return StatusCode(500, "Lỗi hệ thống");
+            }
+        }
+
+        [HttpPut("cap-nhat-trang-thai-gan/{id}")]
+        public async Task<IActionResult> UpdateTrangThai(int id, bool trangThai)
+        {
+            var xe = await _context.PhuongTiens.FindAsync(id);
+            if (xe == null) return NotFound();
+            xe.Trangthaigantaixe = trangThai;
+            await _context.SaveChangesAsync();
+            return Ok();
         }
 
         [HttpGet("xe-san-sang-dieu-phoi")]
@@ -1497,6 +1404,7 @@ namespace QuanLyKho.ControllersAPI
                 .ToListAsync();
         }
 
+        // cập nhật trạng thái của xe khi thực hiện xong 1 chuyến đi hoặc hoàn thành bảo trì để xe sẵn sàng cho lần điều phối tiếp theo
         [HttpPost("cap-nhat-trang-thai-xe/{maPhuongTien}")]
         public async Task<IActionResult> UpdateTrangThaiXe(int maPhuongTien, [FromBody] UpdateTrangThaiXeDto model)
         {
@@ -1519,14 +1427,18 @@ namespace QuanLyKho.ControllersAPI
                 if (existingXe.TrangThai != model.TrangThai)
                 {
                     existingXe.TrangThai = model.TrangThai;
-
-                    // Nếu bạn có dùng Cache cho danh sách xe, hãy xóa nó ở đây
-                    // _cache.Remove("DanhSachXe_Key");
-
                     await _context.SaveChangesAsync();
 
-                    _logger.LogInformation("Phương tiện {ID} đã chuyển sang trạng thái: {Status}",
-                        maPhuongTien, model.TrangThai);
+                    // SỬA TẠI ĐÂY: Xóa Cache chứa danh sách xe điều phối của chính Kho mà xe này trực thuộc
+                    string cacheKey = $"dispatch_vehicles_v2_k{existingXe.MaKho}";
+
+                    // Ép buộc cast về IMemoryCache nếu bạn đang dùng DI chuẩn của ASP.NET Core
+                    if (_cacheKey is IMemoryCache memoryCache)
+                    {
+                        memoryCache.Remove(cacheKey);
+                    }
+
+                    _logger.LogInformation("Phương tiện {ID} đổi thành {Status} -> Đã xóa Cache {Key}", maPhuongTien, model.TrangThai, cacheKey);
                 }
 
                 return Ok(new
@@ -1541,6 +1453,25 @@ namespace QuanLyKho.ControllersAPI
                 _logger.LogError(ex, "Lỗi khi cập nhật trạng thái xe {ID}", maPhuongTien);
                 return StatusCode(500, "Lỗi hệ thống khi cập nhật trạng thái");
             }
+        }
+
+        [HttpGet("check-status/{id}")]
+        public async Task<IActionResult> CheckVehicleStatus(int id)
+        {
+            var xe = await _context.PhuongTiens.FindAsync(id);
+
+            if (xe == null) return NotFound("Không tìm thấy phương tiện.");
+
+            // Logic: Xe có thể hoạt động khi ở trạng thái 'Sẵn sàng' hoặc 'Không hoạt động' (tùy định nghĩa của bạn)
+            // Và không nằm trong các trạng thái bận như 'Đang vận chuyển', 'Bảo trì'
+            bool isAvailable = xe.TrangThai == "Không hoạt động" || xe.TrangThai == "Sẵn sàng";
+
+            if (isAvailable)
+            {
+                return Ok(new { MaPhuongTien = id, BienSo = xe.BienSo, SanSang = true });
+            }
+
+            return BadRequest(new { MaPhuongTien = id, Message = $"Xe đang ở trạng thái: {xe.TrangThai}", SanSang = false });
         }
     }
 }

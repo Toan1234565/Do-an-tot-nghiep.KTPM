@@ -1,0 +1,18 @@
+﻿namespace QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyNguoiDung.QuanLyTaiXe
+{
+    public class TaiXeListModel
+    {
+        public int MaNguoiDung { get; set; }
+        // Trường lấy từ NguoiDung
+        public string? HoTenTaiXe { get; set; }
+
+        // Các trường lấy từ TaiXe
+        public string SoBangLai { get; set; } = null!;
+        public string LoaiBangLai { get; set; } = null!;
+        public int? KinhNghiemNam { get; set; }
+        public string? TrangThaiHoatDong { get; set; }
+        public decimal? DiemUyTin { get; set; }
+        public bool? TrangThai { get; set; }
+        public string? TenChucVu { get; set; }
+    }
+}

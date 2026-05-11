@@ -12,10 +12,8 @@ using QuanLyTaiKhoanNguoiDung.Models;
 using QuanLyTaiKhoanNguoiDung.Models12._1234;
 using QuanLyTaiKhoanNguoiDung.Models12.HamBam;
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyTaiKhoan;
-using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
-using QuanLyTaiKhoanNguoiDung.Services;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyPhanQuyen;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyTaiKhoan;
 using System.Security.Claims; // Thư viện băm mật khẩu
 using System.Security.Cryptography; // Để dùng cho việc sinh chuỗi ngẫu nhiên an toàn hơn
 using System.Text;
@@ -36,9 +34,10 @@ namespace TaiKhoan1.ControllersAPI
         private readonly RabbitMQClient _rabbitMQ;
         private readonly PhanQuyenService _phanQuyen;
         private readonly ISystemService _sys;
+        private readonly IMemoryCache _cache;
 
         private static CancellationTokenSource _resetCacheSignal = new CancellationTokenSource();
-        public QuanLyTaiKhoanAPI(TmdtContext context, ILogger<QuanLyTaiKhoanAPI> logger, IEmailService emailService, RabbitMQClient rabbitMQ, PhanQuyenService phanQuyen, ISystemService sys)
+        public QuanLyTaiKhoanAPI(TmdtContext context, ILogger<QuanLyTaiKhoanAPI> logger, IEmailService emailService, RabbitMQClient rabbitMQ, PhanQuyenService phanQuyen, ISystemService sys, IMemoryCache cache    )
         {
             _context = context;
             _logger = logger;
@@ -46,6 +45,7 @@ namespace TaiKhoan1.ControllersAPI
             this._rabbitMQ = rabbitMQ;
             _phanQuyen = phanQuyen;
             _sys = sys;
+            _cache = cache;
         }
         private int? GetCurrentUserId()
         {
@@ -79,8 +79,9 @@ namespace TaiKhoan1.ControllersAPI
                 // 2. Tìm tài khoản và JOIN sang bảng NguoiDung để lấy Email/SĐT
                 // Dùng .AsNoTracking() để tăng tốc độ truy vấn vì đây là thao tác Read-only
                 // ĐÚNG: Truy vấn email từ bảng liên kết NguoiDung
-                var taiKhoan = await _context.TaiKhoans
+                var taiKhoan = await _context.TaiKhoans.AsNoTracking()
                     .Include(tk => tk.NguoiDung)
+                   
                     .FirstOrDefaultAsync(tk => tk.TenDangNhap == login.TenDangNhap ||
                                               (tk.NguoiDung != null && tk.NguoiDung.Email == login.TenDangNhap));
 
@@ -107,7 +108,7 @@ namespace TaiKhoan1.ControllersAPI
                 string emailNguoiDung = taiKhoan.NguoiDung?.Email ?? "";
                 string hoTen = taiKhoan.NguoiDung?.HoTenNhanVien ?? taiKhoan.TenDangNhap;
                 string maKho = taiKhoan.NguoiDung?.MaKho?.ToString() ?? "";
-
+                string maChucVu = taiKhoan.NguoiDung?.MaChucVu?.ToString() ?? "";
 
                 // 7. Thiết lập Claims (Xác thực Cookie)
                 var claims = new List<Claim>
@@ -115,7 +116,8 @@ namespace TaiKhoan1.ControllersAPI
                     new Claim(ClaimTypes.Name, hoTen),                
                     new Claim(ClaimTypes.NameIdentifier, taiKhoan.MaNguoiDung.ToString()),
                     new Claim("MaKho", maKho),
-                    new Claim("Username", taiKhoan.TenDangNhap)
+                    new Claim("Username", taiKhoan.TenDangNhap),
+                    new Claim("MaChucVu",maChucVu )
                 };
 
                 var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -129,6 +131,7 @@ namespace TaiKhoan1.ControllersAPI
                 HttpContext.Session.SetString("MaNguoiDung", taiKhoan.MaNguoiDung.ToString());
                 HttpContext.Session.SetString("HoTenNhanVien", hoTen);
                 HttpContext.Session.SetString("MaKho", maKho);
+                HttpContext.Session.SetString("MaChucVu", maChucVu);
                 // 8. Trả về JSON chuẩn
                 return Ok(new
                 {
@@ -233,6 +236,7 @@ namespace TaiKhoan1.ControllersAPI
             try
             {
                 await _context.SaveChangesAsync();
+                ClearUserCache(maNguoiDung);
                 return Ok(new { message = "Đổi mật khẩu thành công" });
             }
             catch (Exception ex)
@@ -255,11 +259,24 @@ namespace TaiKhoan1.ControllersAPI
                 existingNguoiDung.Email = model.Email ?? existingNguoiDung.Email;
                 existingNguoiDung.SoDienThoai = model.SoDienThoai ?? existingNguoiDung.SoDienThoai;
                 existingNguoiDung.NgaySinh = model.NgaySinh ?? existingNguoiDung.NgaySinh;
-                existingNguoiDung.GioiTinh = model.GioiTinh ?? existingNguoiDung.GioiTinh;
-                existingNguoiDung.SoCccd = model.SoCccd ?? existingNguoiDung.SoCccd;
-                existingNguoiDung.NoiSinh = model.NoiSinh ?? existingNguoiDung.NoiSinh;
-                existingNguoiDung.SoTaiKhoan = model.SoTaiKhoan ?? existingNguoiDung.SoTaiKhoan;
+                existingNguoiDung.GioiTinh = model.GioiTinh ?? existingNguoiDung.GioiTinh;                
+                existingNguoiDung.TenNganHang = model.TenNganHang ?? existingNguoiDung.TenNganHang;
+
+                // 1. Số CCCD: Chỉ mã hóa nếu model có giá trị mới và khác với giá trị hiện tại (đã giải mã)
+                if (!string.IsNullOrEmpty(model.SoCccd))
+                {
+                    // Lưu ý: Nếu SoCccd truyền lên là dữ liệu mới hoàn toàn, ta mã hóa nó
+                    existingNguoiDung.SoCccd = SecurityHelper.Encrypt(model.SoCccd);
+                }
+
+                // 2. Số tài khoản
+                if (!string.IsNullOrEmpty(model.SoTaiKhoan))
+                {
+                    existingNguoiDung.SoTaiKhoan = SecurityHelper.Encrypt(model.SoTaiKhoan);
+                }
+
                 await _context.SaveChangesAsync();
+                ClearUserCache(maNguoiDung);
                 return Ok(new { message = "Cập nhật thông tin cá nhân thành công" });
 
             }
@@ -269,6 +286,7 @@ namespace TaiKhoan1.ControllersAPI
                 return StatusCode(500, new { message = "Lỗi hệ thống khi cập nhật thông tin cá nhân." });
             }
         }
+
         [HttpPost("quen-mat-khau")]
         public async Task<IActionResult> QuenMatKhau([FromBody] ForgotPasswordModel model)
         {
@@ -466,6 +484,25 @@ namespace TaiKhoan1.ControllersAPI
         public class ForgotPasswordModel
         {
             public string? Email { get; set; }
+        }
+        private void ClearUserCache(int? manNguoiDung = null)
+        {
+            // 1. Xóa các cache chi tiết nếu có ID cụ thể
+            if (manNguoiDung.HasValue)
+            {
+                _cache.Remove($"UserDetail_{manNguoiDung}");
+                _cache.Remove($"UserFullDetail_{manNguoiDung}");
+                _cache.Remove($"TenTaiXe_{manNguoiDung}");
+            }
+
+            // 2. Phát tín hiệu Cancel để xóa toàn bộ các cache danh sách 
+            // (những cache đã đăng ký .AddExpirationToken(_resetCacheSignal.Token))
+            _resetCacheSignal.Cancel();
+
+            // 3. Khởi tạo lại Token mới để sẵn sàng cho các lượt cache tiếp theo
+            _resetCacheSignal = new CancellationTokenSource();
+
+            _logger.LogInformation("Đã xóa cache người dùng và phát tín hiệu reset danh sách.");
         }
     }
 }

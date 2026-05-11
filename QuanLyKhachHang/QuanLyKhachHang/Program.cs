@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
-using QuanLyKhachHang.Models1.QuanLyMucDoDichVu;
+using QuanLyKhachHang.Models1.LienServer;
 using Tmdt.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -88,14 +88,13 @@ builder.Services.AddHttpContextAccessor(); // Cực kỳ quan trọng để lấ
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<RabbitMQClient>();
 builder.Services.AddSingleton<CacheSignalService>();
-builder.Services.AddHttpClient<IFlightService, AmadeusFlightService>();
 builder.Services.AddScoped<ISystemService, SystemService>();
 
 // 8. CẤU HÌNH CONTROLLER & SWAGGER
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
+builder.Services.AddHttpClient<IDonHangService, DonHangServiceClient>();
 // 9. Cấu hình HttpClient để bỏ qua lỗi SSL khi gọi API nội bộ (nếu cần)
 builder.Services.AddHttpClient("BypassSSL").ConfigurePrimaryHttpMessageHandler(() => {
     return new HttpClientHandler

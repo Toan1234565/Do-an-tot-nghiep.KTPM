@@ -1,11 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDiaChi;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDonHang;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhachHang;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhoBai;
-using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyDonHang.QuanLyDonHang;
+using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyDiaChi;
+using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyKhachHang;
+
 
 namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyDonHang
 {
@@ -17,7 +16,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyDonHang
         string apiBaseUrl = "https://localhost:7264/api/quanlydonhang";
         string apiDiaChi = "https://localhost:7149/api/quanlydiachi";
         string apiKhachHang = "https://localhost:7149/api/quanlykhachhang";
-        string apiVung = "https://localhost:7149/api/quanlybangiavung";
+        string apiVung = "https://localhost:7264/api/quanlybangiavung";
         public QuanLyDonHang(IHttpClientFactory httpClientFactory, TmdtContext context,ILogger<QuanLyDonHang> logger)
         {
             _httpClientFactory = httpClientFactory;
@@ -106,11 +105,11 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyDonHang
         public async Task<IActionResult> ChiTietDonHang(int maDonHang)
         {
             var client = _httpClientFactory.CreateClient("BypassSSL");
+            // Gọi API tổng đã được tích hợp sẵn thông tin Khách hàng, Địa chỉ
             string apiUrl = $"{apiBaseUrl}/thongtindonhang/{maDonHang}";
 
             try
             {
-                // 1. Gọi API đơn hàng chính (Bắt buộc phải có)
                 var response = await client.GetAsync(apiUrl);
                 if (!response.IsSuccessStatusCode)
                 {
@@ -118,98 +117,39 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyDonHang
                 }
 
                 var content = await response.Content.ReadAsStringAsync();
+                // Dữ liệu 'donHang' lúc này đã bao gồm: ThongTinKhachHang, DiaChiLayHang, DiaChiNhanHang, DiaChiKhoHienTai
                 var donHang = JsonConvert.DeserializeObject<DonHangModels>(content);
-                var kienHangDauTien = donHang?.KienHangs?.FirstOrDefault();
 
-                // 2. Khởi tạo danh sách các Task gọi API địa chỉ
-                var tasks = new List<Task>();
-
-                // Task 1: Địa chỉ Giao
-                if (donHang?.MaDiaChiLayHang > 0)
+                if (donHang != null)
                 {
-                    tasks.Add(Task.Run(async () => {
-                        try
-                        {
-                            var res = await client.GetAsync($"{apiDiaChi}/chitietdiachi/{donHang.MaDiaChiLayHang}");
-                            if (res.IsSuccessStatusCode)
-                            {
-                                var json = await res.Content.ReadAsStringAsync();
-                                ViewBag.DiaChiLayHang = JsonConvert.DeserializeObject<DiaChiModel>(json);
-                            }
-                        }
-                        catch { /* Để mặc định null để View hiển thị "Đang tải" */ }
-                    }));
-                }
-                // task 2: lay thogn tin khach hang
-                tasks.Add(Task.Run(async () => {
-                    try
+                    // Gán vào ViewBag để tương thích với code View cũ của bạn (nếu cần)
+                    ViewBag.ThongTinKhachHang = donHang.ThongTinKhachHang;
+                    ViewBag.DiaChiLayHang = donHang.DiaChiLayHang;
+                    ViewBag.DiaChiNhanHang = donHang.DiaChiNhanHang;
+                    ViewBag.DiaChiKhoHienTai = donHang.DiaChiKhoHienTai;
+
+                    // 3. Tính khoảng cách còn lại (Dựa trên vị trí hiện tại đến điểm giao)
+                    if (donHang.DiaChiKhoHienTai != null && donHang.DiaChiNhanHang != null)
                     {
-                        var res = await client.GetAsync($"{apiKhachHang}/chi-tiet-khach-hang/{donHang?.MaKhachHang}");
-                        if (res.IsSuccessStatusCode)
-                        {
-                            var json = await res.Content.ReadAsStringAsync();
-                            ViewBag.ThongTinKhachHang = JsonConvert.DeserializeObject<KhachHangModels>(json);
-                        }
+                        double distance = GeoHelper.CalculateDistance(
+                            donHang.DiaChiKhoHienTai.ViDo ?? 0,
+                            donHang.DiaChiKhoHienTai.KinhDo ?? 0,
+                            donHang.DiaChiNhanHang.ViDo ?? 0,
+                            donHang.DiaChiNhanHang.KinhDo ?? 0
+                        );
+                        ViewBag.DistanceRemaining = Math.Round(distance, 2);
                     }
-                    catch { }
-                }));
-                // Task 3: Địa chỉ Lấy hang 
-                if (donHang?.MaDiaChiLayHang > 0)
-                {
-                    tasks.Add(Task.Run(async () => {
-                        try
-                        {
-                            var res = await client.GetAsync($"{apiDiaChi}/chitietdiachi/{donHang?.MaDiaChiNhanHang}");
-                            if (res.IsSuccessStatusCode)
-                            {
-                                var json = await res.Content.ReadAsStringAsync();
-                                ViewBag.DiaChiNhanHang = JsonConvert.DeserializeObject<DiaChiModel>(json);
-                            }
-                        }
-                        catch { }
-                    }));
-                }
-
-                // Task 3: Địa chỉ Kho Hiện Tại
-                if (kienHangDauTien?.MaKhoHienTai > 0)
-                {
-                    tasks.Add(Task.Run(async () => {
-                        try
-                        {
-                            var res = await client.GetAsync($"{apiDiaChi}/chitietdiachi/{kienHangDauTien.MaKhoHienTai}");
-                            if (res.IsSuccessStatusCode)
-                            {
-                                var json = await res.Content.ReadAsStringAsync();
-                                ViewBag.DiaChiKhoHienTai = JsonConvert.DeserializeObject<DiaChiModel>(json);
-                            }
-                        }
-                        catch { }
-                    }));
-                }
-
-                // Chờ tất cả thực hiện xong (Task nào lỗi kệ nó, các Task khác vẫn chạy)
-                await Task.WhenAll(tasks);
-
-                // 3. Tính khoảng cách (Chỉ tính khi cả 2 API đích thành công)
-                if (ViewBag.DiaChiKhoHienTai != null && ViewBag.DiaChiGiao != null)
-                {
-                    var kho = (DiaChiModel)ViewBag.DiaChiKhoHienTai;
-                    var giao = (DiaChiModel)ViewBag.DiaChiGiao;
-                    var khachHang = (KhachHangModels)ViewBag.ThongTinKhachHang;
-                    var diachinhanhang = (DiaChiModel)ViewBag.DiaChiLayHang;
-
-                    double distance = GeoHelper.CalculateDistance(kho.ViDo ?? 0, kho.KinhDo ?? 0, giao.ViDo ?? 0, giao.KinhDo ?? 0);
-                    ViewBag.DistanceRemaining = Math.Round(distance, 2);
                 }
 
                 return View(donHang);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi hệ thống ChiTietDonHang");
+                _logger.LogError(ex, "Lỗi hệ thống ChiTietDonHang khi gọi API tổng");
                 return View(new DonHangModels());
             }
         }
+
         // Hàm hỗ trợ tính khoảng cách (Nên để trong một class Helper)
         public static class GeoHelper
         {

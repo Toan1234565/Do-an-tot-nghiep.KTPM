@@ -1,5 +1,6 @@
-﻿@using QuanLyLoTrinhTheoDoi.Models12
-@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyLoTrinhTheoDoi
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyKhoBai
+@using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyDiaChi
+@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyLoTrinh.QuanLyLoTrinhTheoDoi
 @model IEnumerable<LoTrinhModels>
 
 @{
@@ -117,6 +118,23 @@
                         <!option value="Hoàn thành" @(ViewBag.CurrentTrangThai == "Hoàn thành" ? "selected" : "")>🔵 Hoàn thành</!option>
                     </select>
                 </div>
+               <div class="col-md-3">
+                    <label class="form-label small fw-bold">Kho bãi vận hành</label>
+                    <select name="maKho" class="form-select shadow-none auto-filter">
+                        <option value="">Tất cả kho bãi</option>
+                        @if (ViewBag.DanhSachKho != null)
+                        {
+                            // Ép kiểu ViewBag về List Model tương ứng
+                            var dsKho = (List<TenKhobaiModels>)ViewBag.DanhSachKho;
+                            foreach (var kho in dsKho)
+                            {
+                                <option value="@kho.MaKho" selected="@(ViewBag.CurrentMaKho == kho.MaKho)">
+                                    🏢 @kho.TenKhoBai
+                                </option>
+                            }
+                        }
+                    </select>
+                </div>
                 <div class="col-md-3">
                     <label class="form-label small fw-bold">Từ ngày</label>
                     <input type="date" name="batDau" class="form-control shadow-none auto-filter" value="@ViewBag.CurrentBatDau">
@@ -164,18 +182,16 @@
                                 </td>
                                 
                                 <td>
-                                    <div class="fw-bold text-dark mb-1">
-                                        <i class="fa-solid fa-truck-moving text-primary me-2"></i>@item.MaPhuongTien
-                                    </div>
+                                    
                                     <div class="small">
                                         <i class="fa-solid fa-user-tie text-muted me-2"></i>
-                                        @if (!string.IsNullOrEmpty(item.TenTaiXeChinh))
+                                        @if (!string.IsNullOrEmpty(item.TenTaiXeThucHien))
                                         {
-                                            <span class="fw-medium text-dark">@item.TenTaiXeChinh</span>
+                                            <span class="fw-medium text-dark">@item.TenTaiXeThucHien</span>
                                         }
                                         else
                                         {
-                                            <span class="text-muted italic">ID: @item.MaTaiXeChinh (N/A)</span>
+                                            <span class="text-muted italic">ID: @item.MaNguoiDung (N/A)</span>
                                         }
                                     </div>
                                 </td>
@@ -209,7 +225,7 @@
                                     </span>
                                 </td>
                                 <td class="text-end">
-                                    <a href="@Url.Action("ChiTietLoTrinh", new { id = item.MaLoTrinh })" class="btn btn-light btn-sm rounded-circle shadow-sm" data-bs-toggle="tooltip" title="Xem chi tiết" style="width: 32px; height: 32px; line-height: 18px;">
+                                    <a href="@Url.Action("ChiTietLoTrinhTheoDoi", new { id = item.MaLoTrinh })" class="btn btn-light btn-sm rounded-circle shadow-sm" data-bs-toggle="tooltip" title="Xem chi tiết" style="width: 32px; height: 32px; line-height: 18px;">
                                         <i class="fa-solid fa-arrow-right"></i>
                                     </a>
                                 </td>
@@ -240,7 +256,14 @@
                     @for (int i = 1; i <= ViewBag.TotalPages; i++)
                     {
                         <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
-                            <a class="page-link shadow-none" href="@Url.Action("QuanLyLoTrinhTheoDoi", new { page = i, trangThai = ViewBag.CurrentTrangThai, batDau = ViewBag.CurrentBatDau, ketThuc = ViewBag.CurrentKetThuc })">@i</a>
+                            <a class="page-link shadow-none" 
+                               href="@Url.Action("QuanLyLoTrinhTheoDoi", new { 
+                                   page = i, 
+                                   trangThai = ViewBag.CurrentTrangThai, 
+                                   maKho = ViewBag.CurrentMaKho, // Thêm dòng này
+                                   batDau = ViewBag.CurrentBatDau, 
+                                   ketThuc = ViewBag.CurrentKetThuc 
+                               })">@i</a>
                         </li>
                     }
                 </ul>

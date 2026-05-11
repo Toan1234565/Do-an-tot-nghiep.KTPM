@@ -3,14 +3,22 @@
     public interface IEmailService
     {
         Task SendEmailAsync(string emailNhan, string tenNhan, string ngayHetHan);
-        Task SendForgotPasswordEmailAsync(string email, string hoTen, string newPassword);
-         Task SendLockAccountEmailAsync(string emailNhan, string tenNhan, string lyDo, bool isLock);
+
+        Task SendAccountInfoAsync(string emailNhan, string tenNhan, string tenDangNhap, string matKhau);
+
+        Task SendForgotPasswordEmailAsync(string emailNhan, string tenNhan, string matKhauMoi);
+
+        Task SendLockAccountEmailAsync(string emailNhan, string tenNhan, string lyDo, bool isLock);
     }
 
     public class EmailService : IEmailService
     {
         private const string AdminEmail = "nguuentoanbs2k4@gmail.com";
+        
         private const string AdminPassword = "nadf mrjb rxqm jtxx";
+
+        // Trong IEmailService.cs
+       
 
         public async Task SendEmailAsync(string emailNhan, string tenNhan, string ngayHetHan)
         {
@@ -61,18 +69,7 @@
             await smtp.SendAsync(email);
             await smtp.DisconnectAsync(true);
         }
-        // Trong IEmailService.cs
-        public interface IEmailService
-        {
-            Task SendEmailAsync(string emailNhan, string tenNhan, string ngayHetHan);
-            
-            Task SendAccountInfoAsync(string emailNhan, string tenNhan, string tenDangNhap, string matKhau);
-
-            Task SendForgotPasswordEmailAsync(string emailNhan, string tenNhan, string matKhauMoi);
-
-            Task SendLockAccountEmailAsync(string emailNhan, string tenNhan, string lyDo, bool isLock);
-        }
-
+       
         // Trong EmailService.cs
         public async Task SendAccountInfoAsync(string emailNhan, string tenNhan, string tenDangNhap, string matKhau)
         {

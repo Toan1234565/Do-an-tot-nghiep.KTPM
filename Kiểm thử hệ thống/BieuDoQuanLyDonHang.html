@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLTMS Performance Dashboard - Nguyễn Đức Toán</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 40px 20px; line-height: 1.6; }
+        .container { max-width: 1400px; margin: auto; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+        h1 { color: #1a1a1a; text-align: center; margin-bottom: 5px; font-size: 2.2em; }
+        p.subtitle { text-align: center; color: #636e72; margin-bottom: 40px; font-size: 1.2em; }
+        
+        /* Layout Grid mới: Mỗi biểu đồ một dòng để tối ưu chiều rộng */
+        .chart-stack { display: flex; flex-direction: column; gap: 40px; }
+        
+        .chart-box { 
+            background: #fff; 
+            border: 1px solid #e1e8ed; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            position: relative;
+            height: 500px; /* Tăng chiều cao cố định để biểu đồ to hơn */
+        }
+
+        /* Phần Đánh giá */
+        .evaluation-section { background-color: #f8f9fa; border-left: 6px solid #0984e3; padding: 25px; border-radius: 4px 12px 12px 4px; margin-bottom: 40px; }
+        .evaluation-section h2 { color: #2d3436; margin-top: 0; font-size: 1.6em; display: flex; align-items: center; gap: 10px; }
+        .eval-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+        .eval-card { background: white; padding: 20px; border-radius: 10px; border: 1px solid #dfe6e9; transition: transform 0.2s; }
+        .eval-card:hover { transform: translateY(-5px); }
+        .eval-card h3 { margin-top: 0; font-size: 1.2em; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .eval-card.red h3 { color: #d63031; }
+        .eval-card.yellow h3 { color: #e17055; }
+        .eval-card.green h3 { color: #00b894; }
+        .eval-card ul { padding-left: 20px; margin: 15px 0 0 0; color: #4b4b4b; }
+        .eval-card li { margin-bottom: 8px; }
+        
+        .footer { margin-top: 50px; text-align: center; font-size: 1em; color: #b2bec3; border-top: 1px solid #eee; padding-top: 30px; }
+
+        @media (max-width: 768px) {
+            .chart-box { height: 400px; padding: 15px; }
+            .container { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Báo cáo Hiệu năng Hệ thống SLTMS</h1>
+    <p class="subtitle">Phân tích chuyên sâu về Ramp-up Period & Scalability</p>
+
+    <div class="evaluation-section">
+        <h2>📊 Nhận xét Kết quả Thử nghiệm</h2>
+        <div class="eval-grid">
+            <div class="eval-card red">
+                <h3>Ramp-up 1s (Stress)</h3>
+                <ul>
+                    <li><strong>Sụp đổ:</strong> Chạm ngưỡng lỗi 50% chỉ với 200 Users.</li>
+                    <li>Hệ thống bị nghẽn cổ chai tức thì, không kịp điều tiết tài nguyên.</li>
+                </ul>
+            </div>
+            <div class="eval-card yellow">
+                <h3>Ramp-up 10s (Medium)</h3>
+                <ul>
+                    <li><strong>Ổn định tạm thời:</strong> Tối ưu nhất ở mức 200 đơn.</li>
+                    <li>Thời gian phản hồi ban đầu cực cao (>70s) do cơ chế khởi động chưa tối ưu.</li>
+                </ul>
+            </div>
+            <div class="eval-card green">
+                <h3>Ramp-up 100s (Optimal)</h3>
+                <ul>
+                    <li><strong>Khả năng mở rộng:</strong> Chịu tải tốt nhất đến 500-700 Users.</li>
+                    <li>Thời gian phản hồi lý tưởng (< 350ms) trong điều kiện tải cao.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-stack">
+        <!-- Biểu đồ 1: To nhất chiếm trọn dòng -->
+        <div class="chart-box">
+            <canvas id="responseTimeChart"></canvas>
+        </div>
+
+        <!-- Biểu đồ 2 -->
+        <div class="chart-box">
+            <canvas id="errorRateChart"></canvas>
+        </div>
+
+        <!-- Biểu đồ 3 -->
+        <div class="chart-box">
+            <canvas id="throughputChart"></canvas>
+        </div>
+    </div>
+
+    <div class="footer">
+        <strong>Đồ án Tốt nghiệp</strong><br>
+        Sinh viên thực hiện: Nguyễn Đức Toán - Đại học Công nghiệp Hà Nội (HaUI)
+    </div>
+</div>
+
+<script>
+    const labels = [10, 100, 200, 300, 500, 700, 800];
+
+    const data1s = { 
+        label: 'Ramp-up 1s', 
+        res: [683, 15916, 31870, null, null, null, null], 
+        err: [0, 0, 50, null, null, null, null], 
+        thr: [7.2, 5.6, 4.9, null, null, null, null] 
+    };
+    
+    const data10s = { 
+        label: 'Ramp-up 10s', 
+        res: [34859, 71979, 23211, 31222, null, null, null], 
+        err: [0, 0, 0, 33.67, null, null, null], 
+        thr: [0.2, 1.3, 5.9, 7.0, null, null, null] 
+    };
+    
+    const data100s = { 
+        label: 'Ramp-up 100s', 
+        res: [null, 158, 216, 214, 321, 16981, 29908], 
+        err: [null, 0, 0, 0, 0, 0, 23.5], 
+        thr: [null, 1.0, 2.0, 3.0, 4.9, 6.0, 6.3] 
+    };
+
+    const commonOptions = { 
+        responsive: true, 
+        maintainAspectRatio: false,
+        plugins: { 
+            legend: { 
+                position: 'top', 
+                labels: { padding: 25, font: { size: 14, weight: '600' }, usePointStyle: true } 
+            },
+            tooltip: { 
+                padding: 15,
+                titleFont: { size: 16 },
+                bodyFont: { size: 14 },
+                backgroundColor: 'rgba(45, 52, 54, 0.9)'
+            }
+        },
+        scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 13 } }, title: { display: true, text: 'Số lượng người dùng (Users)', font: { weight: 'bold' } } },
+            y: { grid: { color: '#f0f0f0' }, ticks: { font: { size: 13 } } }
+        }
+    };
+
+    // --- 1. Thời gian phản hồi (Tăng kích thước font tiêu đề) ---
+    new Chart(document.getElementById('responseTimeChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: data1s.label, data: data1s.res, borderColor: '#d63031', backgroundColor: 'transparent', borderDash: [5, 5], tension: 0.3, pointRadius: 6 },
+                { label: data10s.label, data: data10s.res, borderColor: '#fdcb6e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 6 },
+                { label: data100s.label, data: data100s.res, borderColor: '#00b894', backgroundColor: 'rgba(0, 184, 148, 0.1)', fill: true, tension: 0.3, pointRadius: 8, borderWidth: 3 }
+            ]
+        },
+        options: { 
+            ...commonOptions, 
+            plugins: { ...commonOptions.plugins, title: { display: true, text: 'BIỂU ĐỒ THỜI GIAN PHẢN HỒI TRUNG BÌNH (MS)', font: { size: 18, weight: 'bold' }, color: '#2d3436' } }
+        }
+    });
+
+    // --- 2. Tỷ lệ lỗi ---
+    new Chart(document.getElementById('errorRateChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: data1s.label, data: data1s.err, backgroundColor: '#d63031' },
+                { label: data10s.label, data: data10s.err, backgroundColor: '#fdcb6e' },
+                { label: data100s.label, data: data100s.err, backgroundColor: '#00b894' }
+            ]
+        },
+        options: { 
+            ...commonOptions, 
+            plugins: { ...commonOptions.plugins, title: { display: true, text: 'TỶ LỆ LỖI HỆ THỐNG (%)', font: { size: 18, weight: 'bold' } } }
+        }
+    });
+
+    // --- 3. Thông lượng ---
+    new Chart(document.getElementById('throughputChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: data1s.label, data: data1s.thr, borderColor: '#d63031', pointStyle: 'rectRot', pointRadius: 7 },
+                { label: data10s.label, data: data10s.thr, borderColor: '#fdcb6e', pointStyle: 'triangle', pointRadius: 7 },
+                { label: data100s.label, data: data100s.thr, borderColor: '#0984e3', borderWidth: 3, pointRadius: 7 }
+            ]
+        },
+        options: { 
+            ...commonOptions, 
+            plugins: { ...commonOptions.plugins, title: { display: true, text: 'THÔNG LƯỢNG XỬ LÝ (REQUESTS/SEC)', font: { size: 18, weight: 'bold' } } }
+        }
+    });
+</script>
+</body>
+</html>

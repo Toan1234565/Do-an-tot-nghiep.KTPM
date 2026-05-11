@@ -5,10 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
 using QuanLyTaiKhoanNguoiDung.Models;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyLichLamViec; // Đảm bảo đúng namespace của DBContext và Entities
 using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNhatKyHeThong;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhanQuyen;
-using QuanLyTaiKhoanNguoiDung.Services;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyNguoiDung.QuanLyLichLamViec;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyPhanQuyen;
 using System.Net.Http;
 using System.Security;
 using System.Security.Claims;
@@ -62,32 +61,22 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
         }
 
         [HttpGet("danhsachlichlamviec")]
-        public async Task<IActionResult> GetAllLichLamViec([FromQuery] DateOnly thoigian, [FromQuery] int? maKho = 11, [FromQuery] string? trangthai ="Đã duyệt" , [FromQuery] int page = 1)
+        public async Task<IActionResult> GetAllLichLamViec([FromQuery] DateOnly thoigian, [FromQuery] int? maKho = null, [FromQuery] string? trangthai ="Đã duyệt" , [FromQuery] int page = 1)
         {
             try
             {
-                // 1. Sử dụng Service để kiểm tra quyền và thông tin người dùng
-                var permission = await _phanQuyen.GetUserPermissionAsync(GetCurrentUserId());
-
-                if (permission == null)
-                    return Unauthorized(new { message = "Vui lòng đăng nhập." });
-
-                if (!permission.IsQuanLyTong && !permission.IsQuanLyKho)
-                    return StatusCode(403, new { message = "Bạn không có quyền truy cập danh sách này." });
-
-                // 2. Xác định mã kho cần lọc (Admin dùng maKho từ client, Quản lý kho dùng MaKho của chính mình)
-                int? filterMaKho = permission.GetFinalMaKho(maKho);
+               
 
                 // 4. Cache xử lý
-                var cacheKey = $"LichLamViec_{thoigian}_{filterMaKho}_{page}_{trangthai}";
+                var cacheKey = $"LichLamViec_{thoigian}_{maKho}_{page}_{trangthai}";
                 if (!_cache.TryGetValue(cacheKey, out object result))
                 {
                     // Bắt đầu Query
                     var query = _context.NguoiDungs.AsNoTracking().AsQueryable();
 
                     // Lọc theo kho
-                    if (filterMaKho.HasValue)
-                        query = query.Where(nd => nd.MaKho == filterMaKho);
+                    if (maKho.HasValue)
+                        query = query.Where(nd => nd.MaKho == maKho);
 
                     // Lọc theo ngày trực cụ thể (Sử dụng biến thoigian đã được xử lý mặc định ở trên)
                     query = query.Where(nd => nd.DangKyCaTrucs.Any(dk => dk.NgayTruc == thoigian));
@@ -213,6 +202,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                 return StatusCode(500, new { success = false, message = "Lỗi hệ thống khi tải biểu đồ." });
             }
         }
+        
         [HttpGet("danhsach-choduyet-ai")]
         public async Task<IActionResult> GetLichChoDuyetVoiAI([FromQuery] DateOnly ngayCanXem, [FromQuery] int? maKho)
         {
@@ -476,6 +466,56 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
             }
         }
         // Request Model
+
+        [HttpGet("DanhSachCaLam")]
+        public async Task<IActionResult> GetDanhSachCaLam()
+        {
+            try
+            {
+                var caLamViecList = await _context.CaLamViecs
+                    .AsNoTracking()
+                    .Select(c => new CaLamViecModels
+                    {
+                        MaCa = c.MaCa,
+                        TenCa = c.TenCa,
+                        GioBatDau = c.GioBatDau,
+                        GioKetThuc = c.GioKetThuc
+                    })
+                    .ToListAsync();
+                return Ok(new { success = true, data = caLamViecList });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy danh sách ca làm việc");
+                return StatusCode(500, new { success = false, message = "Lỗi hệ thống nội bộ." });
+            }
+        }
+
+        [HttpGet("ChiTietMaCa/{maCa}")]
+        public async Task<IActionResult> GetChiTietMaCa(int maCa)
+        {
+            try
+            {
+                var caLamViec = await _context.CaLamViecs
+                    .AsNoTracking()
+                    .Where(c => c.MaCa == maCa)
+                    .Select(c => new CaLamViecModels
+                    {                      
+                        TenCa = c.TenCa,
+                        GioBatDau = c.GioBatDau,
+                        GioKetThuc = c.GioKetThuc
+                    })
+                    .FirstOrDefaultAsync();
+                if (caLamViec == null)
+                    return NotFound(new { success = false, message = "Không tìm thấy ca làm việc." });
+                return Ok(new { success = true, data = caLamViec });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Lỗi khi lấy chi tiết ca làm việc mã {maCa}");
+                return StatusCode(500, new { success = false, message = "Lỗi hệ thống nội bộ." });
+            }
+        }
         public class ApproveAIRequest
         {
             public DateOnly NgayCanDuyet { get; set; }

@@ -1,4 +1,6 @@
-﻿@model List<QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyLichLamViec.DangKyCaTrucModels>
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyNguoiDung.QuanLyLichLamViec
+@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyKhoBai
+@model List<DangKyCaTrucModels>
 
 @{
     ViewData["Title"] = "Quản lý lịch làm việc";
@@ -134,9 +136,15 @@
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold text-secondary"><i class="fas fa-warehouse me-1"></i> Kho bãi</label>
-                            <select name="maKho" id="selectFilterKho" class="form-select auto-submit">
-                                <option value="">Đang tải danh sách kho...</option>
+                            <select name="maKho" class="form-select" onchange="this.form.submit()">
+                                <option value="">-- Tất cả kho bãi --</option>
+                                @if (ViewBag.DanhSachKho != null)
+                                {
+                                    foreach (var cv in (List<TenKhobaiModels>)ViewBag.DanhSachKho)
+                                    {
+                                        <option value="@cv.MaKho" selected="@(ViewBag.CurrentMaKho?.ToString() == cv.MaKho.ToString())">@cv.TenKhoBai</option>
+                                    }
+                                }
                             </select>
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
@@ -163,7 +171,7 @@
                         {
                             foreach (var item in Model)
                             {
-                                <tr>
+                                <tr onclick="location.href='@Url.Action("ChiTietNhanVien", "QuanLyNguoiDung", new { maNhanVien = item.MaNguoiDung })'">
                                     <td class="fw-bold">#@item.MaNguoiDung</td>
                                     <td>
                                         <div class="fw-bold">@item.HoTenNhanVien</div>

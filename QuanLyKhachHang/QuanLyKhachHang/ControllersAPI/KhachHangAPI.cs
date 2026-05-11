@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using QuanLyKhachHang.Models;
+using QuanLyKhachHang.Models1.LienServer;
 using QuanLyKhachHang.Models1.QuanLyDiaChi;
 using QuanLyKhachHang.Models1.QuanLyKhachHang;
 using System.Text.RegularExpressions;
@@ -16,23 +17,28 @@ namespace QuanLyKhachHang.ControllersAPI
         private readonly ILogger<KhachHangAPI> _logger;
         private readonly TmdtContext _context;
         private readonly IMemoryCache _cache;
+        private readonly IDonHangService _donHangService;
         private const int PageSize = 10; // Đưa vào hằng số
 
-        public KhachHangAPI(ILogger<KhachHangAPI> logger, TmdtContext context, IMemoryCache cache)
+        public KhachHangAPI(ILogger<KhachHangAPI> logger, TmdtContext context, IMemoryCache cache, IDonHangService donHangService)
         {
             _logger = logger;
             _context = context;
             _cache = cache;
+            _donHangService = donHangService;
         }
 
         [HttpGet("danhsachkhachhang")]
         public async Task<IActionResult> LayDanhSachKhachHang([FromQuery] string? searchTerm, [FromQuery] int page = 1)
         {
-            if (page <= 0) return BadRequest(new { message = "Số trang không hợp lệ" });
+            // 1. Validate đầu vào cơ bản
+            if (page <= 0) page = 1;
 
-            // Tối ưu search term để tránh cache quá nhiều key giống nhau do khoảng trắng
+            // Chuẩn hóa search term: Loại bỏ khoảng trắng thừa
             searchTerm = searchTerm?.Trim();
-            var cacheKey = $"CustomerList_P{page}_S_{searchTerm}";
+
+            // Key cache nên bao gồm cả PageSize nếu PageSize có thể thay đổi
+            var cacheKey = $"CustomerList_P{page}_S_{searchTerm ?? "ALL"}";
 
             if (_cache.TryGetValue(cacheKey, out var cacheData))
             {
@@ -41,45 +47,60 @@ namespace QuanLyKhachHang.ControllersAPI
 
             try
             {
+                // 2. Sử dụng IQueryable để xây dựng câu lệnh SQL tối ưu
                 var query = _context.KhachHangs.AsNoTracking();
 
+                // 3. Xử lý tìm kiếm (Sử dụng EF.Functions.Like nếu muốn tìm kiếm dấu tiếng Việt linh hoạt hơn)
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
-                    // Chuyển ToLower/ToUpper tùy theo Collation của DB để tối ưu index
                     query = query.Where(kh =>
                         (kh.TenLienHe != null && kh.TenLienHe.Contains(searchTerm)) ||
                         (kh.TenCongTy != null && kh.TenCongTy.Contains(searchTerm)) ||
-                        (kh.SoDienThoai != null && kh.SoDienThoai.Contains(searchTerm))
+                        (kh.SoDienThoai != null && kh.SoDienThoai.Contains(searchTerm)) ||
+                        (kh.Email != null && kh.Email.Contains(searchTerm))
                     );
                 }
 
+                // 4. Tính toán phân trang
                 var totalRecords = await query.CountAsync();
 
-                // Trả về ngay nếu không có dữ liệu để tránh query Skip/Take vô ích
-                if (totalRecords == 0) return Ok(new { TotalRecords = 0, Data = new List<object>() });
+                // Nếu không có bản ghi, trả về format chuẩn nhưng mảng Data rỗng
+                if (totalRecords == 0)
+                {
+                    return Ok(new
+                    {
+                        CurrentPage = page,
+                        TotalPages = 0,
+                        PageSize = PageSize,
+                        TotalRecords = 0,
+                        Data = new List<KhachHangModels>()
+                    });
+                }
 
                 var totalPages = (int)Math.Ceiling(totalRecords / (double)PageSize);
 
-                // TỐI ƯU: Select trước khi List để SQL chỉ lấy đúng những cột cần thiết (không lấy hết các cột trong DB)
+                // 5. Thực thi Query với Select Projection (Chỉ lấy cột cần thiết)
                 var customers = await query
-                    .OrderBy(kh => kh.MaKhachHang)
+                    .OrderByDescending(kh => kh.MaKhachHang) // Thường khách hàng mới nên lên đầu
                     .Skip((page - 1) * PageSize)
                     .Take(PageSize)
                     .Select(kh => new KhachHangModels
                     {
                         MaKhachHang = kh.MaKhachHang,
-                        TenCongTy = kh.TenCongTy,
-                        TenLienHe = kh.TenLienHe,
+                        TenCongTy = kh.TenCongTy ?? "N/A",
+                        TenLienHe = kh.TenLienHe ?? "N/A",
                         SoDienThoai = kh.SoDienThoai,
                         Email = kh.Email,
+                        // Lấy thông tin điểm thưởng nếu có
                         DiemThuongs = kh.DiemThuongs.Select(dt => new DiemThuongModels
                         {
                             TongDiemTichLuy = dt.TongDiemTichLuy,
-                            DiemDaDung = dt.DiemDaDung,
+                            DiemDaDung = dt.DiemDaDung
                         }).ToList()
                     })
                     .ToListAsync();
 
+                // 6. Đóng gói kết quả
                 var result = new
                 {
                     CurrentPage = page,
@@ -89,34 +110,38 @@ namespace QuanLyKhachHang.ControllersAPI
                     Data = customers
                 };
 
-                _cache.Set(cacheKey, result, new MemoryCacheEntryOptions()
+                // 7. Lưu Cache (Thời gian ngắn để đảm bảo tính cập nhật)
+                var cacheOptions = new MemoryCacheEntryOptions()
                     .SetAbsoluteExpiration(TimeSpan.FromMinutes(10))
-                    .SetSlidingExpiration(TimeSpan.FromMinutes(5)));
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(2)); // Nếu có người xem liên tục thì giữ thêm 2p
+
+                _cache.Set(cacheKey, result, cacheOptions);
 
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi lấy danh sách khách hàng. Search: {Search}", searchTerm);
-                return StatusCode(500, new { message = "Lỗi hệ thống" });
+                _logger.LogError(ex, "Lỗi nghiêm trọng khi lấy danh sách khách hàng. SearchTerm: {Search}", searchTerm);
+                return StatusCode(500, new { message = "Không thể kết nối đến dữ liệu khách hàng. Vui lòng thử lại sau." });
             }
         }
 
         [HttpGet("khachhang/{maKhachHang}")]
-        public async Task<IActionResult> LayKhachHang(int maKhachHang)
+        public async Task<IActionResult> LayKhachHang(int maKhachHang, [FromServices] IDonHangService _donHangService)
         {
             try
             {
                 string cacheKey = $"LayKhachHang_{maKhachHang}";
 
-                // 2. Kiểm tra Cache
-                if (_cache.TryGetValue(cacheKey, out object cachedData))
+                // 1. Kiểm tra Cache (Nếu có dữ liệu hợp lệ trong cache thì trả về ngay)
+                if (_cache.TryGetValue(cacheKey, out KhachHangModels cachedData))
                 {
                     return Ok(cachedData);
                 }
-                // TỐI ƯU: Sử dụng Select để Projection ngay từ đầu. 
-                // Điều này giúp SQL không phải thực hiện "Select *", giảm băng thông và CPU của DB.
-                var result = await _context.KhachHangs
+
+                // 2. Định nghĩa các Task gọi song song
+                // Task A: Lấy từ DB nội bộ
+                var khachHangTask = _context.KhachHangs
                     .AsNoTracking()
                     .Where(kh => kh.MaKhachHang == maKhachHang)
                     .Select(kh => new KhachHangModels
@@ -127,7 +152,7 @@ namespace QuanLyKhachHang.ControllersAPI
                         SoDienThoai = kh.SoDienThoai,
                         Email = kh.Email,
                         DiemThuongs = kh.DiemThuongs.Select(dt => new DiemThuongModels
-                        {                           
+                        {
                             TongDiemTichLuy = dt.TongDiemTichLuy,
                             DiemDaDung = dt.DiemDaDung,
                             NgayCapNhatCuoi = dt.NgayCapNhatCuoi
@@ -136,30 +161,61 @@ namespace QuanLyKhachHang.ControllersAPI
                         {
                             MaHopDong = hd.MaHopDong,
                             TenHopDong = hd.TenHopDong,
-                            LoaiHangHoa = hd.LoaiHangHoa,
-                            NgayKy = hd.NgayKy,
-                            NgayHetHan = hd.NgayHetHan,
-                            TrangThai = hd.TrangThai,
-                            MaKhachHang = hd.MaKhachHang
+                            TrangThai = hd.TrangThai
                         }).ToList(),
                         DiaChi = kh.MaDiaChiMacDinhNavigation != null ? new QuanLyKhachHang.Models1.QuanLyDiaChi.DiaChiModels
                         {
                             MaDiaChi = kh.MaDiaChiMacDinhNavigation.MaDiaChi,
-                            Duong = kh.MaDiaChiMacDinhNavigation.Duong,
-                            Phuong = kh.MaDiaChiMacDinhNavigation.Phuong,
-                            ThanhPho = kh.MaDiaChiMacDinhNavigation.ThanhPho,
-                            MaBuuDien = kh.MaDiaChiMacDinhNavigation.MaBuuDien,
-                            ViDo = kh.MaDiaChiMacDinhNavigation.ViDo,
-                            KinhDo = kh.MaDiaChiMacDinhNavigation.KinhDo
+                            ThanhPho = kh.MaDiaChiMacDinhNavigation.ThanhPho
                         } : null
                     })
                     .FirstOrDefaultAsync();
 
-                if (result == null) return NotFound(new { message = "Khách hàng không tồn tại" });
+                // Task B: Lấy từ API Server Đơn hàng
+                var donHangTask = _donHangService.GetDanhSachDonHangByKhachHangAsync(maKhachHang, 1, 10);
 
+                // 3. CHỜ CẢ 2 NHƯNG BỌC TRY-CATCH ĐỂ TRÁNH CHẾT CHÙM
+                try
+                {
+                    // Đợi cả 2 hoàn thành. Nếu 1 trong 2 ném Exception, nó sẽ nhảy xuống catch bên dưới
+                    await Task.WhenAll(khachHangTask, donHangTask);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("Một trong các task gọi dữ liệu bị lỗi (có thể là API Đơn hàng sập): {Msg}", ex.Message);
+                    // Không return lỗi ở đây, chúng ta sẽ kiểm tra từng task ở bước sau
+                }
+
+                // 4. XỬ LÝ DỮ LIỆU KHÁCH HÀNG (Dữ liệu gốc - Bắt buộc phải có)
+                KhachHangModels? result = null;
+                if (khachHangTask.IsCompletedSuccessfully)
+                {
+                    result = await khachHangTask;
+                }
+
+                if (result == null)
+                {
+                    return NotFound(new { message = "Khách hàng không tồn tại hoặc lỗi Database nội bộ." });
+                }
+
+                // 5. XỬ LÝ DỮ LIỆU ĐƠN HÀNG (Dữ liệu bổ sung - Có thì tốt, không có cũng không sao)
+                if (donHangTask.IsCompletedSuccessfully)
+                {
+                    // Task thành công, gán dữ liệu từ Result của Task
+                    result.DanhSachDonHang = donHangTask.Result;
+                }
+                else
+                {
+                    // Task lỗi (Sập API, Timeout...), gán null hoặc khởi tạo object rỗng kèm thông báo
+                    _logger.LogError("API Server Đơn hàng không khả dụng cho KH: {ID}", maKhachHang);
+                    result.DanhSachDonHang = null;
+                    // Bạn có thể thêm một flag như result.Note = "Dữ liệu đơn hàng tạm thời không khả dụng";
+                }
+
+                // 6. LƯU VÀO CACHE TRƯỚC KHI TRẢ VỀ
                 var cacheOptions = new MemoryCacheEntryOptions()
-               .SetSlidingExpiration(TimeSpan.FromMinutes(10)) // Hết hạn nếu không truy cập trong 10p
-               .SetAbsoluteExpiration(TimeSpan.FromHours(1));  // Xóa cứng sau 1 giờ
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(10))
+                    .SetAbsoluteExpiration(TimeSpan.FromHours(1));
 
                 _cache.Set(cacheKey, result, cacheOptions);
 
@@ -167,10 +223,11 @@ namespace QuanLyKhachHang.ControllersAPI
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi lấy khách hàng ID: {ID}", maKhachHang);
-                return StatusCode(500, new { message = "Lỗi hệ thống" });
+                _logger.LogError(ex, "Lỗi nghiêm trọng tại LayKhachHang ID: {ID}", maKhachHang);
+                return StatusCode(500, new { message = "Lỗi hệ thống ngoài dự kiến." });
             }
         }
+
         [HttpGet("chi-tiet-khach-hang/{maKhachHang}")]
         public async Task<IActionResult> chitietkhachhang(int maKhachHang)
         {
@@ -308,7 +365,7 @@ namespace QuanLyKhachHang.ControllersAPI
                         Duong = request.DiaChi?.Duong ?? "Chưa xác định",
                         Phuong = request.DiaChi?.Phuong ?? "Chưa xác định",
                         ThanhPho = request.DiaChi?.ThanhPho ?? "Chưa xác định",
-                        MaBuuDien = request.DiaChi?.MaBuuDien,
+                        
                         ViDo = lat,
                         KinhDo = lon,
                         MaVungH3 = maVungH3 // Lưu thêm mã H3

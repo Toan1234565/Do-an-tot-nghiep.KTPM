@@ -5,13 +5,7 @@ namespace QuanLyLoTrinhTheoDoi.Models12
 {
     public class LoTrinhModels
     {
-        public int MaLoTrinh { get; set; }
-
-        public int? MaTaiXeChinh { get; set; }
-
-        public int? MaTaiXePhu { get; set; }
-
-        public int? MaPhuongTien { get; set; }
+        public int MaLoTrinh { get; set; }        
 
         public DateTime? ThoiGianBatDauKeHoach { get; set; }
 
@@ -22,14 +16,10 @@ namespace QuanLyLoTrinhTheoDoi.Models12
         public int? TongSoDonHang { get; set; }
         public int? TongSoDiemDung { get; set; }
 
-        public virtual ICollection<ChiPhiLoTrinhModels> ChiPhiLoTrinhs { get; set; } = new List<ChiPhiLoTrinhModels>();
+        public int? MaPhuongTien { get; set; }
 
-        public virtual ICollection<ChiTietLoTrinhModels> ChiTietLoTrinhKienHangs { get; set; } = new List<ChiTietLoTrinhModels>();
-
-        public virtual ICollection<DiemDungModels> DiemDungs { get; set; } = new List<DiemDungModels>();
-
-        public virtual ICollection<SuCoModels> SuCos { get; set; } = new List<SuCoModels>();
-
-
+        public int? MaNguoiDung { get; set; }
+        public string? TenTaiXeThucHien { get; internal set; }
+        public string? BienSoXe { get; internal set; }
     }
 }

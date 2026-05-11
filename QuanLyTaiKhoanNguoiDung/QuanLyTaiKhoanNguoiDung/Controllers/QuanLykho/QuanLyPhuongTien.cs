@@ -1,22 +1,26 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhoBai;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyPhuongTien;
-using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan;
-
+using QuanLyTaiKhoanNguoiDung.Models12;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyNguoiDung.QuanLyNhanVien;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyPhanQuyen;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyKhoBai;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyPhuongTien;
+using System.Security.Claims;
 namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLykho
 {
     public class QuanLyPhuongTien : Controller
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly TmdtContext _context;
+        private readonly PhanQuyenService _phanQuyen;
 
         private readonly ILogger<QuanLyPhuongTien> _logger; // Thêm dòng này
-        public QuanLyPhuongTien(IHttpClientFactory httpClientFactory, TmdtContext context, ILogger<QuanLyPhuongTien> logger)
+        public QuanLyPhuongTien(IHttpClientFactory httpClientFactory, TmdtContext context, ILogger<QuanLyPhuongTien> logger, PhanQuyenService phanQuyen)
         {
             _httpClientFactory = httpClientFactory;
             _context = context;
             _logger = logger;
+            _phanQuyen = phanQuyen;
         }
 
         public IActionResult Index()
@@ -27,94 +31,145 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLykho
         string apiBaseUrl = "https://localhost:7286/api/quanlyxe";
         string apiBaseTenKho = "https://localhost:7286/api/quanlykhobai";
         string apiBaseDinhMuc = "https://localhost:7286/api/quanlydinhmuc";
+        string apiNguoiDung = "https://localhost:7022/api/quanlynguoidung";
 
-        // Thêm tham số trangThaiDangKiem vào Action
+        private int? GetCurrentUserId()
+        {
+            // 1. Thử lấy từ Claims (Cookie Authentication)
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return userId;
+            }
+
+            // 2. Dự phòng: Thử lấy từ Session (Nếu Cookie bị lỗi nhưng Session còn)
+            var sessionUserId = HttpContext.Session.GetString("MaNguoiDung");
+            if (!string.IsNullOrEmpty(sessionUserId) && int.TryParse(sessionUserId, out int sUserId))
+            {
+                return sUserId;
+            }
+
+            return null;
+        }
+
         public async Task<IActionResult> DanhSachPhuongTien(
             string? searchTerm,
             string? maLoaiXe,
             int page = 1,
             string status = "Tất cả",
+            int? maKho = null,
             string trangThaiDangKiem = "Tất cả")
         {
+            // 1. Kiểm tra quyền của bậc quân vương
+            var permission = await _phanQuyen.GetUserPermissionAsync(GetCurrentUserId());
+            if (permission == null) return RedirectToAction("DangNhap", "QuanLyPhanQuyen");
+
+            int? filterMaKho = permission.IsQuanLyTong ? maKho : (permission.IsQuanLyKho ? permission.MaKho : null);
+            if (filterMaKho == null && !permission.IsQuanLyTong) return Forbid();
+
+            // Khởi tạo các giá trị hỗ trợ và túi chứa lỗi
+            var apiErrors = new List<string>();
+            ViewBag.IsLockKho = !permission.IsQuanLyTong;
+            ViewBag.CurrentMaKho = filterMaKho;
+            ViewBag.DanhSachKho = new List<TenKhobaiModels>();
+            ViewBag.DanhSachLoaiXe = new List<LoaiXeModels>();
+
             var client = _httpClientFactory.CreateClient("BypassSSL");
 
-            // 1. Tạo URL cho danh sách xe với đầy đủ các tham số lọc
+            // 2. Triệu hồi dữ liệu hỗ trợ (Kho & Loại Xe)
+            try
+            {
+                var responseKho = await client.GetAsync($"{apiBaseTenKho}/danhsachtenkho");
+                if (responseKho.IsSuccessStatusCode)
+                {
+                    var content = await responseKho.Content.ReadAsStringAsync();
+                    var allKhos = JsonConvert.DeserializeObject<List<TenKhobaiModels>>(content) ?? new List<TenKhobaiModels>();
+                    ViewBag.DanhSachKho = permission.IsQuanLyTong ? allKhos : allKhos.Where(k => k.MaKho == permission.MaKho).ToList();
+                }
+                else { apiErrors.Add($"API Kho trả lỗi: {responseKho.StatusCode}"); }
+
+                var responseLoaiXe = await client.GetAsync($"{apiBaseUrl}/danhsachloaixe");
+                if (responseLoaiXe.IsSuccessStatusCode)
+                {
+                    var content = await responseLoaiXe.Content.ReadAsStringAsync();
+                    var result = JsonConvert.DeserializeObject<dynamic>(content); // Giả định API này bọc trong object 'data'
+                    ViewBag.DanhSachLoaiXe = result?.data?.ToObject<List<LoaiXeModels>>() ?? new List<LoaiXeModels>();
+                }
+                else { apiErrors.Add($"API Loại Xe trả lỗi: {responseLoaiXe.StatusCode}"); }
+            }
+            catch (Exception ex) { apiErrors.Add($"Lỗi kết nối dữ liệu hỗ trợ: {ex.Message}"); }
+
+            // 3. Chuẩn bị tham số và gọi API Danh sách xe (Trục chính)
             var queryParams = new Dictionary<string, string?>
             {
                 ["searchTerm"] = searchTerm,
                 ["maLoaiXe"] = maLoaiXe,
                 ["page"] = page.ToString(),
                 ["status"] = status,
-                ["trangthaidangkiem"] = trangThaiDangKiem
+                ["trangthaidangkiem"] = trangThaiDangKiem,
+                ["maKho"] = filterMaKho?.ToString()
             };
-
             string apiUrl = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString($"{apiBaseUrl}/danhsachxe", queryParams);
-            string apiLoaiXeUrl = $"{apiBaseUrl}/danhsachloaixe";
-            string apiKhoUrl = $"{apiBaseTenKho}/danhsachtenkho";
+
             try
             {
-                // Gọi song song 2 API
-                var taskLoaiXe = client.GetAsync(apiLoaiXeUrl);
-                var taskTenKho = client.GetAsync(apiKhoUrl);
-                var taskXe = client.GetAsync(apiUrl);
-
-
-
-                await Task.WhenAll(taskLoaiXe, taskTenKho, taskXe);
-
-                // 2. Xử lý danh sách loại xe (để hiển thị vào Dropdown lọc)
-                var loaiXeRes = await taskLoaiXe;
-                if (loaiXeRes.IsSuccessStatusCode)
-                {
-                    var contentLoai = await loaiXeRes.Content.ReadAsStringAsync();
-                    var jsonLoai = Newtonsoft.Json.Linq.JObject.Parse(contentLoai);
-                    ViewBag.DanhSachLoaiXe = jsonLoai["data"]?.ToObject<List<LoaiXeModels>>() ?? new List<LoaiXeModels>();
-                }
-                var tenKho = await taskTenKho;
-                if (tenKho.IsSuccessStatusCode)
-                {
-                    var contentTenKho = await tenKho.Content.ReadAsStringAsync();
-
-                    // SỬA TẠI ĐÂY: Vì API trả về mảng trực tiếp, không dùng JObject.Parse(["data"])
-                    // Hãy dùng JsonConvert để Deserialize trực tiếp thành List
-                    ViewBag.DanhSachKho = JsonConvert.DeserializeObject<List<QuanLyKhobaiModels>>(contentTenKho)
-                                          ?? new List<QuanLyKhobaiModels>();
-                }
-                // 3. Xử lý danh sách phương tiện
-                var xeRes = await taskXe;
+                var xeRes = await client.GetAsync(apiUrl);
                 if (xeRes.IsSuccessStatusCode)
                 {
                     var content = await xeRes.Content.ReadAsStringAsync();
-                    dynamic jsonResult = Newtonsoft.Json.JsonConvert.DeserializeObject(content);
 
-                    ViewBag.TotalPages = (int)(jsonResult?.totalPages ?? 0);
-                    ViewBag.CurrentPage = (int)(jsonResult?.currentPage ?? 1);
+                    // ÉP KIỂU TƯỜNG MINH: Tránh lỗi dynamic lambda
+                    var jsonResult = JsonConvert.DeserializeObject<PaginationResult<PhuongTienListModel>>(content);
 
-                    // Lưu tham số để giữ trạng thái Form trên UI
+                    ViewBag.TotalPages = jsonResult?.TotalPages ?? 0;
+                    ViewBag.CurrentPage = jsonResult?.CurrentPage ?? 1;
                     ViewBag.CurrentMaLoaiXe = maLoaiXe;
                     ViewBag.CurrentSearch = searchTerm;
                     ViewBag.CurrentStatus = status;
-                    ViewBag.CurrentTrangThaiDangKiem = trangThaiDangKiem; // Cần thiết cho thẻ <select>
+                    ViewBag.CurrentTrangThaiDangKiem = trangThaiDangKiem;
 
-                    var dsPhuongTien = jsonResult?.data?.ToObject<List<PhuongTienModel>>() ?? new List<PhuongTienModel>();
+                    var dsPhuongTien = jsonResult?.Data ?? new List<PhuongTienListModel>();
 
+                    // --- TRUY VẤN TÊN NHÂN VIÊN SONG SONG (Đã sửa lỗi Lambda) ---
+                    var tasks = dsPhuongTien
+                        .Where(x => x.MaNguoiDung.HasValue)
+                        .Select(async item =>
+                        {
+                            try
+                            {
+                                var responseNV = await client.GetAsync($"{apiNguoiDung}/lay-ten-nhan-vien/{item.MaNguoiDung}");
+                                if (responseNV.IsSuccessStatusCode)
+                                {
+                                    var nvContent = await responseNV.Content.ReadAsStringAsync();
+                                    var nvInfo = JsonConvert.DeserializeObject<TenNhanVienModel>(nvContent);
+                                    item.TenNguoiPhuTrach = nvInfo?.TenTaiXeThucHien ?? "Không xác định";
+                                }
+                                else { item.TenNguoiPhuTrach = "Lỗi API tên"; }
+                            }
+                            catch { item.TenNguoiPhuTrach = "Mất kết nối NV"; }
+                        }).ToList();
+
+                    // Chờ tất cả thám tử thu thập tên xong
+                    await Task.WhenAll(tasks);
+
+                    ViewBag.ApiWarning = apiErrors; // Gửi cảnh báo lỗi API phụ ra View
                     return View(dsPhuongTien);
                 }
                 else
                 {
-                    ViewBag.Error = $"API trả về lỗi: {xeRes.StatusCode}";
+                    ViewBag.Error = $"API Danh sách xe chính báo lỗi: {xeRes.StatusCode}";
                 }
             }
-
             catch (Exception ex)
             {
-                // Log lỗi chi tiết ra Console để biết nó chết ở dòng nào
-                Console.WriteLine("Lỗi tại Action DanhSachPhuongTien: " + ex.ToString());
-                ViewBag.Error = "Lỗi hệ thống: " + ex.Message;
-                return View(new List<PhuongTienModel>());
+                _logger.LogError(ex, "Lỗi nghiêm trọng tại DanhSachPhuongTien");
+                ViewBag.Error = "Không thể kết nối với máy chủ dữ liệu xe.";
             }
-            return View(new List<PhuongTienModel>());
+
+            ViewBag.ApiWarning = apiErrors;
+            return View(new List<PhuongTienListModel>());
         }
+
         public async Task<IActionResult> ChiTietPhuongTien(int maPhuongTien)
         {
             var client = _httpClientFactory.CreateClient("BypassSSL");
@@ -125,7 +180,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLykho
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
-                    var nguoiDung = JsonConvert.DeserializeObject<PhuongTienModel>(content);
+                    var nguoiDung = JsonConvert.DeserializeObject<PhuongTienDetailModel>(content);
                     return View(nguoiDung);
                 }
             }
@@ -134,7 +189,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLykho
                 ViewBag.Error = ex.Message;
 
             }
-            return View(new List<PhuongTienModel>());
+            return View(new List<PhuongTienDetailModel>());
         }
 
         public async Task<IActionResult> LichTrinhBaoTri(
@@ -201,16 +256,16 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLykho
         }
 
         // Hàm Helper để tránh lặp code xử lý JSON
-        private async Task<(List<PhuongTienModel> Data, int TotalItems)> ProcessApiResponse(HttpResponseMessage response)
+        private async Task<(List<BaoTriModel> Data, int TotalItems)> ProcessApiResponse(HttpResponseMessage response)
         {
             if (!response.IsSuccessStatusCode)
-                return (new List<PhuongTienModel>(), 0);
+                return (new List<BaoTriModel>(), 0);
 
             var content = await response.Content.ReadAsStringAsync();
             // Sử dụng dynamic để đọc linh hoạt hoặc tạo một class ApiResponse chung
             var json = JsonConvert.DeserializeObject<dynamic>(content);
 
-            var data = json?.data?.ToObject<List<PhuongTienModel>>() ?? new List<PhuongTienModel>();
+            var data = json?.data?.ToObject<List<BaoTriModel>>() ?? new List<BaoTriModel>();
             int total = (int)(json?.totalItems ?? 0);
 
             return (data, total);
@@ -218,9 +273,9 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLykho
 
         private void SetDefaultViewBagValues()
         {
-            ViewBag.DsSapBaoTri = new List<PhuongTienModel>();
-            ViewBag.DsSapHetDangKiem = new List<PhuongTienModel>();
-            ViewBag.DsSapHetPhiDuongBo = new List<PhuongTienModel>();
+            ViewBag.DsSapBaoTri = new List<BaoTriModel>();
+            ViewBag.DsSapHetDangKiem = new List<BaoTriModel>();
+            ViewBag.DsSapHetPhiDuongBo = new List<BaoTriModel>();
             ViewBag.TotalItemsBT = 0; ViewBag.TotalItemsDK = 0; ViewBag.TotalItemsPDB = 0;
             ViewBag.TotalPagesBT = 0; ViewBag.TotalPagesDK = 0; ViewBag.TotalPagesPDB = 0;
         }

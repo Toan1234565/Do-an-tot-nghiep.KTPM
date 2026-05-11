@@ -23,6 +23,8 @@ public partial class PhuongTien
 
     public double? SoKmHienTai { get; set; }
 
+    public bool? Trangthaigantaixe { get; set; }
+
     public virtual ICollection<DangKiem> DangKiems { get; set; } = new List<DangKiem>();
 
     public virtual ICollection<LichSuBaoTri> LichSuBaoTris { get; set; } = new List<LichSuBaoTri>();
@@ -30,6 +32,4 @@ public partial class PhuongTien
     public virtual KhoBai? MaKhoNavigation { get; set; }
 
     public virtual LoaiXe MaLoaiXeNavigation { get; set; } = null!;
-
-    public virtual ICollection<PhanCongXe> PhanCongXes { get; set; } = new List<PhanCongXe>();
 }

@@ -59,7 +59,11 @@ namespace QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh
 
         public int MaDiaChi { get; set; }
         public string? MaVungH3 { get; set; }
-       
+
+        // Thêm các trường này để sửa lỗi:
+        public string LoaiKho { get; set; }  // Ví dụ: KHO_BE, KHO_CHINH, KHO_PHU
+        public int? MaKhoCha { get; set; } // ID của Hub cấp trên
+        public string MaVung { get; set; } = string.Empty; // Ví dụ: Bac, Trung, Nam hoặc mã tỉnh
     }
     // Dữ liệu nhận từ RabbitMQ
     public class OrderMessageDto

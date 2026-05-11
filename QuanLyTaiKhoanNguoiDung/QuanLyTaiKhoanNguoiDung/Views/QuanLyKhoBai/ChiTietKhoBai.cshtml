@@ -1,14 +1,14 @@
-﻿@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyDiaChi
-@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyKhoBai
-@using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyNhanVien
-@using QuanLyTaiKhoanNguoiDung.QuanLyTaiKhoan
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyDiaChi
+@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyTaiSan.QuanLyKhoBai
+@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyNguoiDung.QuanLyNhanVien
+@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyTaiKhoan
 @model QuanLyKhobaiModels
 
 @{
     ViewData["Title"] = "Chi tiết kho bãi";
     // Lấy dữ liệu địa chỉ từ ViewBag đã được Controller xử lý dựa trên Model.MaDiaChi
     var diaChi = ViewBag.DiaChi as DiaChiModel;
-    var nguoidung = ViewBag.NguoiDung as NguoiDungModel;
+    var nguoidung = ViewBag.NguoiDung as NguoiDungDetailModel;
     var diaChiKho = ViewBag.DiaChi as DiaChiModel;
 }
 

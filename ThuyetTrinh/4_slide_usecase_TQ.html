@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLTMS - Slide View Professional</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --primary: #003366; 
+            --secondary: #3498db; 
+            --accent: #f1c40f;
+            --bg: #f8f9fa; 
+            --card-bg: #ffffff; 
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: var(--bg); 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            color: #2c3e50;
+        }
+
+        /* --- HEADER --- */
+        header { 
+            background: var(--primary); 
+            color: white; 
+            padding: 15px 30px; 
+            display: flex; 
+            align-items: center; 
+            flex-shrink: 0; 
+            z-index: 10;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .main-title { font-size: 1.8rem; font-weight: 800; letter-spacing: 0.5px; }
+
+        .menu-btn { 
+            cursor: pointer; 
+            padding: 10px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 6px; 
+            margin-right: 25px; 
+        }
+        .menu-btn span { display: block; width: 30px; height: 4px; background: white; border-radius: 2px; transition: 0.3s; }
+
+        /* --- NAVIGATION SIDEBAR --- */
+        .nav-sidebar {
+            position: fixed; top: 0; left: -350px; width: 350px; height: 100%;
+            background: rgba(0, 51, 102, 0.98); z-index: 1000;
+            transition: 0.4s cubic-bezier(0.77, 0, 0.175, 1);
+            padding: 80px 25px 25px; 
+            box-shadow: 10px 0 30px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+        }
+        .nav-sidebar.active { left: 0; }
+        .slide-list { list-style: none; overflow-y: auto; height: 90%; }
+        .slide-list a { 
+            color: rgba(255,255,255,0.8); 
+            text-decoration: none; 
+            display: block; 
+            padding: 15px; 
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            transition: 0.2s; 
+        }
+        .slide-list a:hover { color: var(--accent); border-left: 5px solid var(--accent); background: rgba(255,255,255,0.05); padding-left: 25px; }
+
+        /* --- MAIN LAYOUT --- */
+        .main-layout { display: flex; flex: 1; padding: 25px; gap: 30px; overflow: hidden; }
+
+        /* --- INFO SIDEBAR (LEFT) --- */
+        .info-content-sidebar { flex: 0 0 420px; display: flex; flex-direction: column; gap: 15px; }
+        
+        .section-title { 
+            font-size: 1.4rem; 
+            font-weight: 800; 
+            color: var(--primary); 
+            border-left: 8px solid var(--secondary); 
+            padding-left: 15px; 
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .badge-sys {
+            display: inline-block;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            padding: 18px; 
+            border-radius: 12px; 
+            border: 1px solid #e1e4e8;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            transition: transform 0.2s;
+        }
+        .card h3 { font-size: 1.3rem; margin-bottom: 8px; }
+        .card p { font-size: 1.05rem; line-height: 1.5; color: #576574; }
+
+        /* --- CONTENT AREA (RIGHT - IMAGE) --- */
+        .content-area { 
+            flex: 1; 
+            background: var(--card-bg); 
+            border-radius: 20px; 
+            padding: 25px; 
+            border: 1px solid #e1e4e8; 
+            display: flex; 
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        .img-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            cursor: zoom-in;
+            position: relative;
+        }
+
+        .img-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            transition: transform 0.4s ease;
+        }
+
+        .img-container:hover img {
+            transform: scale(1.02);
+        }
+
+        /* --- ZOOM MODAL (FULLSCREEN) --- */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            cursor: zoom-out;
+        }
+        .modal img { max-width: 95%; max-height: 95%; object-fit: contain; animation: zoomIn 0.3s ease; }
+        
+        @keyframes zoomIn {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; z-index: 999; }
+        
+        /* GRID CHO HỆ THỐNG NGOÀI */
+        .system-actors { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+    </style>
+</head>
+<body>
+
+    <!-- Overlay cho sidebar -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Modal cho Zoom ảnh -->
+    <div class="modal" id="imageModal">
+        <img id="modalImg" src="" alt="Zoomed Image">
+    </div>
+
+    <div class="nav-sidebar" id="navSidebar">
+        <h4 style="color: var(--accent); margin-bottom: 20px; font-size: 1.4rem; border-bottom: 2px solid var(--accent);">DANH SÁCH SLIDE</h4>
+        <ul class="slide-list">
+            <li><a href="1_slide_LyDo.html">1. Lý do chọn đề tài</a></li>
+            <li><a href="4_slide_usecase_TQ.html">4. Use Case tổng quát</a></li>
+            <li><a href="14_slide_Kiemthu_04.html">14. RabbitMQ khi server sập</a></li>
+            <!-- Các mục khác... -->
+        </ul>
+    </div>
+
+    <header>
+        <div class="menu-btn" id="menuToggle">
+            <span></span><span></span><span></span>
+        </div>
+        <h2 class="main-title">2.1. Phân tích Tác nhân & Use Case</h2>
+    </header>
+
+    <div class="main-layout">
+        <!-- BÊN TRÁI: TÁC NHÂN -->
+        <div class="info-content-sidebar">
+            <div class="section-title">Tác nhân hệ thống</div>
+
+          
+
+            <div class="card" style="border-left: 6px solid var(--primary);">
+                <h3>1. Quản trị viên</h3>
+                <p>Quản trị tài khoản (RBAC), Audit Log, cấu hình tham số vận hành hệ thống.</p>
+            </div>
+
+            <div class="card" style="border-left: 6px solid var(--secondary);">
+                <h3>2. Nhân viên Kinh doanh</h3>
+                <p>Quản lý bảng giá, tiếp nhận đơn hàng và tính cước phí tự động nhanh chóng.</p>
+            </div>
+
+            <div class="card" style="border-left: 6px solid #2ecc71;">
+                <h3>3. Điều phối vận hành</h3>
+                <p>Lập lộ trình tối ưu, ghép đơn, giám sát hành trình và xử lý sự cố thực tế.</p>
+            </div>
+
+            <div class="card" style="border-left: 6px solid #e67e22;">
+                <h3>4. Quản lý Nhân sự & Xe</h3>
+                <p>Quản lý hồ sơ tài xế, danh mục phương tiện và nhắc lịch bảo trì định kỳ.</p>
+            </div>
+
+            <!-- <span class="badge-sys" style="background: #d1ecf1; color: #0c5460; margin-top: 10px;">HỆ THỐNG BÊN NGOÀI</span>
+            
+            <div class="system-actors">
+                <div class="card" style="padding: 12px; text-align: center;">
+                    <strong style="color: var(--primary); display: block; margin-bottom: 5px;">MAPS API</strong>
+                    <p style="font-size: 0.9rem;">Địa lý & ETA</p>
+                </div>
+                <div class="card" style="padding: 12px; text-align: center;">
+                    <strong style="color: var(--primary); display: block; margin-bottom: 5px;">PAYMENT</strong>
+                    <p style="font-size: 0.9rem;">Thanh toán số</p>
+                </div>
+            </div> -->
+        </div>
+
+        <!-- BÊN PHẢI: BIỂU ĐỒ -->
+        <div class="content-area">
+            <div class="section-title">Biểu đồ Use Case tổng quát</div>
+            <div class="img-container" id="zoomTrigger">
+                <img src="file:///D:/Đồ án tốt nghiệp/ThuyetTrinh/HinhAnh/usecase_tongquan.png" 
+                     id="sourceImg"
+                     alt="Biểu đồ Use Case Tổng Quát">
+                <div style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem;">
+                    Click để phóng to 🔍
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <script>
+        /**
+         * 1. XỬ LÝ MENU & SIDEBAR
+         * Giữ nguyên logic tự tạo Overlay nếu HTML thiếu
+         */
+        function toggleMenu() {
+            const sidebar = document.getElementById('navSidebar');
+            let overlay = document.getElementById('overlay');
+
+            if (sidebar) {
+                sidebar.classList.toggle('active');
+                
+                // Tự động tạo overlay nếu chưa có trong DOM
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.id = 'overlay';
+                    overlay.className = 'overlay';
+                    overlay.onclick = toggleMenu; // Click vào overlay để đóng menu
+                    document.body.appendChild(overlay);
+                }
+
+                const isActive = sidebar.classList.contains('active');
+                overlay.style.display = isActive ? 'block' : 'none';
+            } else {
+                console.error("Lỗi: Không tìm thấy ID 'navSidebar'.");
+            }
+        }
+        /**
+         * 2. XỬ LÝ PHÓNG TO ẢNH (ZOOM MODAL)
+         */
+        function setupImageZoom() {
+            const container = document.getElementById('zoomTrigger');
+            const sourceImg = document.getElementById('sourceImg');
+            
+            if (!container || !sourceImg) return;
+
+            // Tự động tạo Modal Zoom nếu chưa có
+            let modal = document.getElementById('imageModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'imageModal';
+                modal.className = 'modal'; // Đảm bảo CSS .modal đã có như file trước
+                modal.innerHTML = `<img id="modalImg" src="" alt="Zoomed">`;
+                document.body.appendChild(modal);
+                
+                // Click ra ngoài ảnh để đóng
+                modal.onclick = () => modal.style.display = 'none';
+            }
+
+            const modalImg = document.getElementById('modalImg');
+
+            // Sự kiện click vào ảnh để phóng to
+            container.onclick = () => {
+                modal.style.display = 'flex';
+                modalImg.src = sourceImg.src;
+            };
+        }
+
+        /**
+         * 2. ĐIỀU CHỈNH FONT SIZE (RESPONSIVE)
+         * Giữ nguyên logic resize font tiêu đề
+         */
+        function adjustLayout() {
+            const width = window.innerWidth;
+            const title = document.querySelector('.project-title') || document.querySelector('.main-title');
+            
+            if (title) {
+                // Màn hình nhỏ hơn 1200px thì thu nhỏ font
+                title.style.fontSize = width < 1200 ? '1.5rem' : '2rem';
+            }
+        }
+
+        /**
+         * 3. ĐỒNG BỘ PHÍM BẤM VỚI TRANG CHỦ
+         * Truyền tín hiệu phím bấm lên cửa sổ cha (Parent Window)
+         */
+        function syncKeys() {
+            window.addEventListener('keydown', (e) => {
+                // Gửi thông tin phím bấm để trang chủ có thể chuyển slide
+                if (window.parent) {
+                    window.parent.postMessage({
+                        type: 'keydown',
+                        key: e.key,
+                        keyCode: e.keyCode
+                    }, '*');
+                }
+            });
+        }
+
+        /**
+         * 4. KHỞI CHẠY HỆ THỐNG
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            adjustLayout();
+            syncKeys();
+
+            // Gán sự kiện cho nút menu
+            const btn = document.getElementById('mainMenuBtn');
+            if (btn) {
+                btn.onclick = (e) => {
+                    e.stopPropagation(); // Ngăn chặn sự kiện nổi bọt
+                    toggleMenu();
+                };
+            }
+            
+            // Đóng menu khi nhấn link
+            document.querySelectorAll('.slide-list a').forEach(link => {
+                link.onclick = () => {
+                    const sidebar = document.getElementById('navSidebar');
+                    if(sidebar.classList.contains('active')) toggleMenu();
+                };
+            });
+        });
+
+        // Lắng nghe sự kiện thay đổi kích thước màn hình
+        window.addEventListener('resize', adjustLayout);
+    </script>
+</body>
+</html>

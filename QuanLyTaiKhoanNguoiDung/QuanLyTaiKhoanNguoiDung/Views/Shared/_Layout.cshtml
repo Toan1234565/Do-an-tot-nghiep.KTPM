@@ -162,6 +162,60 @@
             border-top: 1px solid #e0e0e0;
             text-align: center;
         }
+        /* Điều chỉnh cho màn hình lớn (Desktop) */
+        .has-menu-margin {
+            margin-left: var(--sidebar-width);
+            transition: margin-left 0.3s;
+        }
+
+        
+
+        /* Responsive điều chỉnh */
+        @@media (max-width: 991.98px) {
+            .sidebar
+
+        {
+            left: calc(-1 * var(--sidebar-width)); /* Ẩn sidebar sang trái */
+        }
+
+        .sidebar.show {
+            left: 0; /* Hiện sidebar khi thêm class .show */
+        }
+
+        .main-wrapper {
+            margin-left: 0 !important;
+        }
+
+        #sidebarToggleMobile {
+            display: block !important; /* Hiện nút 3 gạch */
+        }
+
+        }
+
+        /* Nút 3 gạch ngang */
+        #sidebarToggleMobile {
+            display: none; /* Mặc định ẩn trên Desktop */
+            font-size: 1.5rem;
+            cursor: pointer;
+            margin-right: 15px;
+            color: var(--dark-sidebar);
+        }
+
+        /* Lớp phủ mờ khi mở menu trên mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.5);
+            z-index: 999; /* Nằm dưới sidebar (1000) nhưng trên nội dung */
+        }
+
+            .sidebar-overlay.active {
+                display: block;
+            }
     </style>
 </head>
 <body>
@@ -208,7 +262,6 @@
                         <ul class="submenu-list">
                             <li><a href="/QuanLyKhachHang/DanhSachKhachHang"><i class="fas fa-user-tie me-2"></i>Danh sách Khách hàng</a></li>
                             <li><a href="/QuanLyHopDong/DanhSachHopDong"><i class="fas fa-file-contract me-2"></i>Hợp đồng & Báo giá</a></li>
-
                             <li>
                                 <a href="/QuanLyVung/GetDanhSachBangGiaVung">
                                     <i class="fas fa-map-marked me-2"></i>Bảng giá vùng
@@ -219,10 +272,9 @@
                                     <i class="fas fa-shipping-fast me-2"></i>Mức độ dịch vụ (SLA)
                                 </a>
                             </li>
-
-                          
                         </ul>
                     </li>
+
                     <li class="has-submenu">
                         <a href="javascript:void(0)" class="sidebar-link d-flex align-items-center" onclick="toggleSubmenu(this)">
                             <i class="fas fa-tags"></i>
@@ -235,6 +287,7 @@
                             <li><a href="/CauHinhDiem/CauHinhDiemView"><i class="fas fa-history me-2"></i>Cấu hình tích điểm</a></li>
                         </ul>
                     </li>
+
                     <li class="has-submenu">
                         <a href="javascript:void(0)" class="sidebar-link d-flex align-items-center" onclick="toggleSubmenu(this)">
                             <i class="fas fa-boxes"></i>
@@ -254,12 +307,14 @@
                     </li>
 
                     <li class="nav-label mt-3 mb-1 small text-muted text-uppercase ps-3" style="font-size: 0.7rem; letter-spacing: 1px;">Vận hành</li>
+
                     <li>
                         <a href="/QuanLyDonHang/TaoDonHang" class="sidebar-link" style="background-color: rgba(40, 167, 69, 0.1); border-left: 4px solid #28a745;">
                             <i class="fas fa-plus-circle" style="color: #28a745;"></i>
                             <span style="font-weight: bold; color: #28a745;">Tạo đơn hàng mới</span>
                         </a>
                     </li>
+
                     <li>
                         <a href="/QuanLyDonHang/DanhSachDonHang" class="sidebar-link">
                             <i class="fas fa-shopping-cart"></i>
@@ -271,7 +326,14 @@
                     <li>
                         <a href="/QuanLyLoTrinh/QuanLyLoTrinhTheoDoi" class="sidebar-link">
                             <i class="fas fa-route"></i>
-                            <span>Điều phối Lộ trình</span>
+                            <span>Quản lý lộ trình</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a href="/QuanLyDieuPhoi/QuanLyDieuPhoiLoTrinh" class="sidebar-link">
+                            <i class="fas fa-truck-moving"></i>
+                            <span>Điều phối Xe & Tài xế</span>
                         </a>
                     </li>
 
@@ -290,8 +352,6 @@
                         </a>
                     </li>
 
-                  
-
                     <li>
                         <a href="/BaoCao/ChiPhiVanHanh" class="sidebar-link">
                             <i class="fas fa-chart-line"></i>
@@ -305,6 +365,7 @@
                             <span>Cấu hình hệ thống</span>
                         </a>
                     </li>
+
                     <li class="mt-auto border-top pt-2">
                         <form asp-controller="QuanLyPhanQuyen" asp-action="DangXuat" method="get" id="logoutForm">
                             <a href="javascript:void(0)" onclick="document.getElementById('logoutForm').submit()" class="sidebar-link text-danger" style="text-decoration: none; display: flex; align-items: center; gap: 10px;">
@@ -317,12 +378,18 @@
             </nav>
         </aside>
     }
-
     <div class="main-wrapper @(showMenu ? "has-menu-margin" : "auth-layout")">
         @if (showMenu)
         {
+            <div class="sidebar-overlay" id="overlay"></div>
+
             <header class="bg-white border-bottom p-3 d-flex justify-content-between align-items-center shadow-sm">
-                <span class="nav-link">Chào, <strong>@hoTenHienThi</strong></span>
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-bars" id="sidebarToggleMobile"></i>
+
+                    <span class="nav-link">Chào, <strong>@hoTenHienThi</strong></span>
+                </div>
+
                 <div class="user-profile">
                     <a href="@Url.Action("ChiTietNhanVien", "QuanLyNguoiDung", new { maNhanVien = maNguoiDungStr })">
                         <img src="https://ui-avatars.com/api/?name=@(tenDangNhap)&background=2ecc71&color=fff"
@@ -331,13 +398,13 @@
                 </div>
             </header>
         }
-
         <main role="main" class="content-body">
             <div class="container-fluid">
                 @RenderBody()
             </div>
         </main>
     </div>
+    
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
@@ -356,6 +423,38 @@
                 if(href !== '#' && currentPath.includes(href)) {
                     $(this).addClass('active');
                     $(this).closest('.submenu-list').show();
+                }
+            });
+        });
+        $(document).ready(function() {
+            // 1. Mở menu khi bấm nút 3 gạch
+            $('#sidebarToggleMobile').on('click', function() {
+                $('.sidebar').addClass('show');
+                $('#overlay').addClass('active');
+            });
+
+            // 2. Đóng menu khi bấm vào lớp phủ mờ (Overlay)
+            $('#overlay').on('click', function() {
+                $('.sidebar').removeClass('show');
+                $(this).removeClass('active');
+            });
+
+            // 3. Tự động đóng menu khi chọn 1 link trên mobile (tránh che khuất nội dung trang mới)
+            $('.sidebar-link:not(.has-submenu > a), .submenu-list li a').on('click', function() {
+                if ($(window).width() < 992) {
+                    $('.sidebar').removeClass('show');
+                    $('#overlay').removeClass('active');
+                }
+            });
+
+            // 4. Giữ nguyên logic active link cũ của bạn
+            const currentPath = window.location.pathname;
+            $('.sidebar-link, .submenu-list li a').each(function() {
+                const href = $(this).attr('href');
+                if(href && href !== '#' && currentPath.includes(href)) {
+                    $(this).addClass('active');
+                    $(this).closest('.submenu-list').show();
+                    $(this).closest('.has-submenu').find('.submenu-arrow').addClass('rotate-180');
                 }
             });
         });

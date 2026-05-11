@@ -1,133 +1,850 @@
-﻿@using System.Text.Json
-@model IEnumerable<dynamic>
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Điều Phối Lộ Trình & Gán Xe</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
-@{
-    ViewData["Title"] = "Điều phối & Theo dõi Lộ trình";
-}
+        .card-stat {
+            border: none;
+            border-radius: 12px;
+            transition: transform 0.2s;
+        }
 
-<div class="container-fluid mt-3">
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="fas fa-route"></i> Lộ trình vận hành</h6>
-                    <span class="badge bg-primary">@Model?.Count() xe</span>
+            .card-stat:hover {
+                transform: translateY(-5px);
+            }
+
+        .bg-gradient-primary {
+            background: linear-gradient(45deg, #4e73df, #224abe);
+            color: white;
+        }
+
+        .bg-gradient-warning {
+            background: linear-gradient(45deg, #f6c23e, #dda20a);
+            color: white;
+        }
+
+        .bg-gradient-success {
+            background: linear-gradient(45deg, #1cc88a, #13855c);
+            color: white;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        }
+
+        .table align-middle th {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .unassigned-box {
+            border: 2px dashed #f6c23e;
+            background-color: #fdfaf0;
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+            .unassigned-box:hover {
+                background-color: #f6c23e;
+                color: white !important;
+            }
+
+                .unassigned-box:hover i, .unassigned-box:hover span {
+                    color: white !important;
+                }
+
+        .assigned-box {
+            border: 1px solid #e3e6f0;
+            background-color: #f8f9fc;
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .driver-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #1cc88a;
+        }
+
+        .plate-badge {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            color: #333;
+            font-weight: bold;
+            font-family: monospace;
+            padding: 2px 6px;
+            border-radius: 4px;
+            box-shadow: 1px 1px 0px #999;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="fw-bold text-dark mb-0"><i class="fas fa-route text-primary me-2"></i>Bảng Điều Phối & Gán Phương Tiện</h3>
+                <p class="text-muted mb-0">Quản lý các chuyến đi và gán nguồn lực (Tài xế, Xe) trong ngày</p>
+            </div>
+            <div class="d-flex gap-2">
+                <input type="date" class="form-control" value="2023-10-25">
+                <button class="btn btn-primary"><i class="fas fa-search"></i></button>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary" onclick="openAssignmentModal()">
+                    Gán Phương Tiện & Tài Xế
+                </button>
+            </div>
+            
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card card-stat bg-gradient-warning shadow-sm h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1 fw-bold opacity-75">Chờ Gán Xe</h6>
+                            <h2 class="mb-0 fw-bold">12</h2>
+                        </div>
+                        <i class="fas fa-clipboard-list fa-2x opacity-50"></i>
+                    </div>
                 </div>
-                <div class="list-group list-group-flush" style="max-height: 75vh; overflow-y: auto;" id="routeList">
-                    @if (Model != null && Model.Any())
-                    {
-                        foreach (var item in Model)
-                        {
-                            var status = item.GetProperty("trangThai").GetString();
-                            var maLT = item.GetProperty("maLoTrinh").ToString();
-
-                            <button class="list-group-item list-group-item-action border-start border-4 @(status == "Đang di chuyển" ? "border-success" : "border-warning")"
-                                    onclick="focusRoute('@maLT')">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <strong class="text-primary">#LT-@maLT</strong>
-                                    <small class="text-muted">Xe: @item.GetProperty("maPhuongTien")</small>
-                                </div>
-                                <div class="small mt-1">
-                                    <span>Trạng thái: <strong>@status</strong></span><br />
-                                    <i class="far fa-clock"></i> @item.GetProperty("thoiGianBatDauKeHoach")
-                                </div>
-                            </button>
-                        }
-                    }
-                    else
-                    {
-                        <div class="text-center p-4">Chưa có lộ trình nào được khởi tạo</div>
-                    }
+            </div>
+            <div class="col-md-3">
+                <div class="card card-stat bg-gradient-primary shadow-sm h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1 fw-bold opacity-75">Đang Vận Hành</h6>
+                            <h2 class="mb-0 fw-bold">24</h2>
+                        </div>
+                        <i class="fas fa-truck-moving fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-stat bg-gradient-success shadow-sm h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1 fw-bold opacity-75">Xe Sẵn Sàng</h6>
+                            <h2 class="mb-0 fw-bold">08</h2>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-stat bg-white shadow-sm h-100 p-3 border-start border-4 border-info">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1 fw-bold text-info">Tài Xế Rảnh</h6>
+                            <h2 class="mb-0 fw-bold text-dark">10</h2>
+                        </div>
+                        <i class="fas fa-user-check fa-2x text-info opacity-50"></i>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-8">
-            <div class="card shadow-sm border-0">
-                <div id="map" style="height: 550px; border-radius: 8px; z-index: 1;"></div>
-                <div class="card-body bg-light border-top">
-                    <div id="routeDetail" class="row">
-                        <div class="col-12 text-center text-muted">
-                            <p><i class="fas fa-mouse-pointer"></i> Chọn một lộ trình để xem chi tiết điểm dừng</p>
-                        </div>
+        <div class="table-container">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">Danh sách Lộ trình hôm nay</h5>
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary btn-sm active">Tất cả</button>
+                    <button class="btn btn-outline-warning btn-sm">Chờ gán</button>
+                    <button class="btn btn-outline-success btn-sm">Đã gán</button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="10%">Mã LT</th>
+                            <th width="25%">Tuyến Đi (Từ - Đến)</th>
+                            <th width="15%">Yêu cầu xe</th>
+                            <th width="10%">Thời gian</th>
+                            <th width="30%">Tài xế & Phương tiện</th>
+                            <th width="10%" class="text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge bg-secondary">LT-1004</span></td>
+                            <td>
+                                <div class="fw-bold">Kho Tổng HN <i class="fas fa-arrow-right text-muted mx-1"></i> KCN Bắc Thăng Long</div>
+                                <small class="text-muted"><i class="fas fa-box me-1"></i>Hàng điện tử (2.5 Tấn)</small>
+                            </td>
+                            <td><span class="badge bg-info text-dark">Tải thùng 3.5T</span></td>
+                            <td>
+                                <div class="text-danger fw-bold">14:00</div>
+                                <small class="text-muted">Hôm nay</small>
+                            </td>
+                            <td>
+                                <div class="unassigned-box" data-bs-toggle="modal" data-bs-target="#modalGanXe">
+                                    <i class="fas fa-plus-circle text-warning me-1"></i>
+                                    <span class="text-warning fw-bold">Nhấn để gán Xe & Tài xế</span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-light" title="Xem chi tiết lộ trình"><i class="fas fa-eye"></i></button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td><span class="badge bg-secondary">LT-1003</span></td>
+                            <td>
+                                <div class="fw-bold">Kho Tổng HN <i class="fas fa-arrow-right text-muted mx-1"></i> Nam Định</div>
+                                <small class="text-muted"><i class="fas fa-box me-1"></i>Hàng tiêu dùng (5 Tấn)</small>
+                            </td>
+                            <td><span class="badge bg-info text-dark">Tải bạt 8T</span></td>
+                            <td>
+                                <div class="text-dark fw-bold">08:00</div>
+                                <small class="text-muted">Hôm nay</small>
+                            </td>
+                            <td>
+                                <div class="assigned-box border-success border-start border-4">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <img src="https://ui-avatars.com/api/?name=Tran+Van+B&background=1cc88a&color=fff" class="driver-avatar" alt="TX">
+                                        <div>
+                                            <div class="fw-bold text-dark" style="font-size: 0.9rem;">Trần Văn B</div>
+                                            <div class="plate-badge text-center">29C-888.99</div>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">Đã gán</span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalGanXe" title="Sửa điều phối"><i class="fas fa-edit"></i></button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td><span class="badge bg-secondary">LT-1001</span></td>
+                            <td>
+                                <div class="fw-bold">Hải Phòng <i class="fas fa-arrow-right text-muted mx-1"></i> Kho Tổng HN</div>
+                                <small class="text-muted"><i class="fas fa-box me-1"></i>Linh kiện (1 Tấn)</small>
+                            </td>
+                            <td><span class="badge bg-info text-dark">Van 1.5T</span></td>
+                            <td>
+                                <div class="text-dark fw-bold">06:00</div>
+                                <small class="text-muted">Hôm nay</small>
+                            </td>
+                            <td>
+                                <div class="assigned-box border-primary border-start border-4">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <img src="https://ui-avatars.com/api/?name=Le+Van+C&background=4e73df&color=fff" class="driver-avatar" style="border-color: #4e73df;" alt="TX">
+                                        <div>
+                                            <div class="fw-bold text-dark" style="font-size: 0.9rem;">Lê Văn C</div>
+                                            <div class="plate-badge text-center">15D-123.45</div>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-primary rounded-pill spinner-grow spinner-grow-sm" style="animation-duration: 2s;" role="status"></span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-light" disabled><i class="fas fa-lock text-muted"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalGanXe" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
+                <div class="modal-header bg-light border-0">
+                    <h5 class="modal-title fw-bold text-primary">
+                        <i class="fas fa-truck-moving me-2"></i>Điều Phối: <span class="text-dark">LT-1004</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+
+                    <div class="alert alert-info py-2 small mb-4 border-0">
+                        <i class="fas fa-info-circle me-1"></i> Lộ trình yêu cầu: <strong>Xe Tải thùng 3.5T</strong>
                     </div>
+
+                    <form>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">CHỌN PHƯƠNG TIỆN <span class="text-danger">*</span></label>
+                            <select class="form-select border-2 shadow-none" style="border-color: #e3e6f0;">
+                                <option value="">-- Chọn xe đang rảnh --</option>
+                                <option value="1">🟢 29C-555.66 (Tải thùng 3.5T - Rảnh)</option>
+                                <option value="2">🟢 29H-123.45 (Tải bạt 5.0T - Rảnh)</option>
+                                <option value="3" disabled>🔴 30A-999.99 (Đang bảo dưỡng)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">CHỌN TÀI XẾ CHÍNH <span class="text-danger">*</span></label>
+                            <select class="form-select border-2 shadow-none" style="border-color: #e3e6f0;">
+                                <option value="">-- Chọn tài xế sẵn sàng --</option>
+                                <option value="1">🟢 Nguyễn Văn A (Đã nghỉ đủ 8h)</option>
+                                <option value="2">🟢 Phạm Văn D (Sắp hết ca)</option>
+                                <option value="3" disabled>🔴 Trần Văn B (Đang chạy chuyến khác)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted">GHI CHÚ ĐIỀU PHỐI (Tùy chọn)</label>
+                            <textarea class="form-control" rows="2" placeholder="Ghi chú cho tài xế..."></textarea>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-light w-50 fw-bold" data-bs-dismiss="modal">Hủy</button>
+                            <button type="button" class="btn btn-primary w-50 fw-bold" onclick="alert('Đã lưu thành công gán xe và tài xế!');" data-bs-dismiss="modal">
+                                <i class="fas fa-check-circle me-1"></i> Lưu Lệnh
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
-</div>
+    <div class="modal fade" id="assignmentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Điều phối Phương tiện - Tài xế</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">1. Chọn Kho hàng</label>
+                            <select id="selectKho" class="form-select" onchange="loadVehicles()">
+                                <option value="">-- Chọn kho --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">2. Chọn Ca làm việc</label>
+                            <select id="selectCaLam" class="form-select">
+                                <option value="">-- Chọn ca --</option>
+                            </select>
+                        </div>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                        <hr>
+                        <div id="assignmentInfo" class="col-12"></div>
+                        <div class="col-md-6 border-end">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold">3. Danh sách Xe</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="filterXeGan" onchange="loadVehicles()">
+                                    <label class="form-check-label" for="filterXeGan">Đã gán</label>
+                                </div>
+                            </div>
+                            <div class="list-group overflow-auto" style="max-height: 300px;" id="listXe">
+                                <div class="text-muted p-2">Vui lòng chọn kho để xem danh sách xe...</div>
+                            </div>
+                        </div>
 
-<script>
-    // 1. Khởi tạo bản đồ
-    var map = L.map('map').setView([21.0285, 105.8542], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
-    var vehicleMarkers = {};
-
-   
-    // 3. Hàm lấy chi tiết lộ trình
-    function focusRoute(maLoTrinh) {
-        fetch(`https://localhost:7097/api/dieuphoilotrinh/chi-tiet/${maLoTrinh}`)
-            .then(res => res.json())
-            .then(data => {
-                renderDetails(data.diemDungs);
-            })
-            .catch(err => console.error("Lỗi lấy chi tiết:", err));
-    }
-
-    function renderDetails(diemDungs) {
-        let html = '<h6 class="col-12 mb-3 fw-bold">Thông tin điểm dừng:</h6>';
-        diemDungs.sort((a, b) => a.thuTuDung - b.thuTuDung).forEach(d => {
-            html += `
-                <div class="col-md-6 mb-2">
-                    <div class="p-2 border rounded bg-white shadow-sm">
-                        <span class="badge bg-primary me-2">${d.thuTuDung}</span>
-                        <strong>${d.loaiDung}</strong> <br/>
-                        <small class="text-muted">Mã ĐC: ${d.maDiaChi}</small> |
-                        <small class="text-muted">Dự kiến: ${new Date(d.etaKeHoach).toLocaleTimeString()}</small>
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold">4. Danh sách Tài xế</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="filterTxGan" onchange="loadDrivers()">
+                                    <label class="form-check-label" for="filterTxGan">Đã gán</label>
+                                </div>
+                            </div>
+                            <div class="list-group overflow-auto" style="max-height: 300px;" id="listTaiXe">
+                            </div>
+                        </div>
                     </div>
-                </div>`;
-        });
-        document.getElementById('routeDetail').innerHTML = html;
-    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-success" onclick="submitAssignment()">Thực hiện Gán</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- BIẾN LƯU TRỮ TRẠNG THÁI ---
+        let selectedMaPhuongTien = null;
+        let selectedMaTaiXeChinh = null;
+        let selectedMaTaiXePhu = null;
+        let isEditingExisting = false;
 
-    // 4. Cập nhật Marker xe trên bản đồ
-    function updateMarker(id, lat, lng, bienSo) {
-        if (vehicleMarkers[id]) {
-            vehicleMarkers[id].setLatLng([lat, lng]);
-        } else {
-            // Tạo marker mới nếu chưa có
-            vehicleMarkers[id] = L.marker([lat, lng])
-                .addTo(map)
-                .bindPopup(`<b>Xe: ${bienSo}</b><br>Đang trực tuyến`)
-                .openPopup();
+        // 1. Khởi tạo & Load danh sách ban đầu
+        async function openAssignmentModal() {
+            const modalElement = document.getElementById('assignmentModal');
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+
+            const detailDiv = document.getElementById('assignmentInfo');
+            if (detailDiv) detailDiv.innerHTML = '';
+
+            // Chạy song song để tăng tốc độ load modal
+            await Promise.all([loadKhoList(), loadCaLamList()]);
         }
-    }
 
-    // 5. Polling Real-time (5 giây/lần)
-    function trackVehicles() {
-        activeDrivers.forEach(driver => {
-            fetch(`https://localhost:7097/api/dieuphoilotrinh/vi-tri-xe/${driver.id}`)
-                .then(res => {
-                    if(!res.ok) return null;
-                    return res.json();
-                })
-                .then(pos => {
-                    if(pos && pos.viDo && pos.kinhDo) {
-                        updateMarker(driver.id, pos.viDo, pos.kinhDo, driver.bienSo);
+        // 2. Load Kho & Ca làm
+        async function loadKhoList() {
+            try {
+                const res = await fetch('https://localhost:7286/api/quanlykhobai/danhsachtenkho');
+                if (!res.ok) throw new Error("Lỗi mạng khi tải danh sách kho.");
+                const data = await res.json();
+                const select = document.getElementById('selectKho');
+                select.innerHTML = '<option value="">-- Chọn kho --</option>';
+                data.forEach(item => select.innerHTML += `<option value="${item.maKho}">${item.tenKhoBai}</option>`);
+            } catch (e) {
+                console.error("Lỗi load kho:", e);
+                alert("Không thể tải danh sách kho. Vui lòng kiểm tra kết nối API.");
+            }
+        }
+
+        async function loadCaLamList() {
+            try {
+                const res = await fetch('https://localhost:7022/api/quanlylichlamviec/DanhSachCaLam');
+                if (!res.ok) throw new Error("Lỗi mạng khi tải ca làm.");
+                const result = await res.json();
+                if (result.success) {
+                    const select = document.getElementById('selectCaLam');
+                    select.innerHTML = '<option value="">-- Chọn ca --</option>';
+                    result.data.forEach(c => select.innerHTML += `<option value="${c.maCa}">${c.tenCa} (${c.gioBatDau})</option>`);
+                }
+            } catch (e) {
+                console.error("Lỗi load ca làm:", e);
+            }
+        }
+
+        // 3. XỬ LÝ KHI CHỌN XE (HIỂN THỊ CHI TIẾT GÁN)
+        async function selectVehicle(maPhuongTien) {
+            selectedMaPhuongTien = maPhuongTien;
+            const isXeGan = document.getElementById('filterXeGan').checked;
+            const detailDiv = document.getElementById('assignmentInfo');
+
+            // Reset trạng thái
+            selectedMaTaiXeChinh = null;
+            selectedMaTaiXePhu = null;
+            isEditingExisting = isXeGan;
+            if (detailDiv) detailDiv.innerHTML = '';
+
+            if (isXeGan) {
+                try {
+                    const res = await fetch(`https://localhost:7097/api/dieuphoilotrinh/danhsachganxe/${maPhuongTien}`);
+                    if (!res.ok) throw new Error("Không thể lấy thông tin gán xe.");
+                    const result = await res.json();
+
+                    if (result.success && result.data) {
+                        const data = result.data;
+                        selectedMaTaiXeChinh = data.MaNguoiDung;
+                        selectedMaTaiXePhu = data.MaNguoiDungPhu;
+                        const maCa = data.MaCa;
+
+                        if (maCa) {
+                            const selectCa = document.getElementById('selectCaLam');
+                            if (selectCa) selectCa.value = maCa;
+                        }
+
+                        // Lấy tên tài xế và ca làm song song
+                        const [resChinh, resPhu, resCa] = await Promise.all([
+                            selectedMaTaiXeChinh ? fetch(`https://localhost:7022/api/quanlynguoidung/lay-ten-nhan-vien/${selectedMaTaiXeChinh}`).then(r => r.json()).catch(() => null) : null,
+                            selectedMaTaiXePhu ? fetch(`https://localhost:7022/api/quanlynguoidung/lay-ten-nhan-vien/${selectedMaTaiXePhu}`).then(r => r.json()).catch(() => null) : null,
+                            maCa ? fetch(`https://localhost:7022/api/quanlylichlamviec/ChiTietMaCa/${maCa}`).then(r => r.json()).catch(() => null) : null
+                        ]);
+
+                        displayAssignmentDetail({
+                            maChinh: selectedMaTaiXeChinh,
+                            tenChinh: resChinh?.data?.tenTaiXeThucHien || resChinh?.tenTaiXeThucHien || "N/A",
+                            maPhu: selectedMaTaiXePhu,
+                            tenPhu: resPhu?.data?.tenTaiXeThucHien || resPhu?.tenTaiXeThucHien || "N/A",
+                            ca: resCa?.data || null
+                        });
+
+                        document.getElementById('filterTxGan').checked = true;
                     }
-                })
-                .catch(e => console.log("Chưa có tọa độ cho xe " + driver.bienSo));
-        });
-    }
+                } catch (err) {
+                    console.error("Lỗi khi lấy thông tin chi tiết:", err);
+                }
+            }
 
-    // Chạy ngay lần đầu và lặp lại sau mỗi 5s
-    trackVehicles();
-    setInterval(trackVehicles, 5000);
+            await loadVehicles();
+            await loadDrivers();
+        }
 
-</script>
+        function displayAssignmentDetail(info) {
+            const detailDiv = document.getElementById('assignmentInfo');
+            if (!detailDiv) return;
+
+            detailDiv.innerHTML = `
+                <div class="card border-info mb-3 shadow-sm">
+                    <div class="card-header bg-info text-white py-1">
+                        <i class="fas fa-id-card-alt"></i> Thông tin gán hiện tại
+                    </div>
+                    <div class="card-body py-2">
+                        <div class="row small">
+                            <div class="col-6 border-end">
+                                <p class="mb-1 text-muted">Lái xe chính:</p>
+                                <h6 class="mb-0 text-primary">${info.tenChinh}</h6>
+                                <small class="text-secondary">ID: ${info.maChinh || 'N/A'}</small>
+                            </div>
+                            <div class="col-6">
+                                <p class="mb-1 text-muted">Lái xe phụ:</p>
+                                <h6 class="mb-0 text-success">${info.tenPhu}</h6>
+                                <small class="text-secondary">ID: ${info.maPhu || 'N/A'}</small>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex align-items-center small">
+                            <i class="far fa-clock me-2 text-info"></i>
+                            <div>
+                                <strong>Ca: ${info.ca ? info.ca.tenCa : 'N/A'}</strong>
+                                <span class="text-muted">(${info.ca ? info.ca.gioBatDau : ''} - ${info.ca ? info.ca.gioKetThuc : ''})</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 4. XỬ LÝ CHỌN TÀI XẾ (Chỉ chọn tạm thời trên UI)
+               async function handleDriverSelection(newDriverId, role) {
+            if (!selectedMaPhuongTien) return alert("Vui lòng chọn xe trước!");
+
+            // Lấy thông tin tên tài xế mới từ danh sách (để hiển thị trong câu hỏi)
+            const driverList = document.getElementById('listTaiXe').querySelectorAll('.fw-bold');
+            let newDriverName = "Tài xế mới";
+            // Logic tìm tên trong UI hoặc bạn có thể truyền thêm tham số tenTaiXe vào hàm
+
+            // Giả sử ta lấy tên tài xế hiện tại đang có trong biến hoặc DOM
+            let tenChinhHienTai = document.querySelector('.text-primary')?.innerText || "N/A";
+            let tenPhuHienTai = document.querySelector('.text-success')?.innerText || "N/A";
+
+            // KỊCH BẢN 1: Phương tiện đã gắn đủ 2 người -> Hỏi thay thế
+            if (selectedMaTaiXeChinh && selectedMaTaiXePhu) {
+                let oldDriverName = (role === 'chinh') ? tenChinhHienTai : tenPhuHienTai;
+                if (!confirm(`Phương tiện đã đủ 2 người. Bạn có muốn thay thế ${oldDriverName} bằng tài xế mới không?`)) {
+                    return;
+                }
+            }
+
+            // KỊCH BẢN 2: Phương tiện đã có lái chính, người dùng chọn Lái Phụ
+            if (role === 'phu' && selectedMaTaiXeChinh && !selectedMaTaiXePhu) {
+                if (!confirm(`Bạn có muốn gắn nhân viên này làm lái phụ cho ${tenChinhHienTai} không?`)) {
+                    return;
+                }
+            }
+
+            // KỊCH BẢN 3: Phương tiện đã có lái chính, người dùng chọn thay đổi Lái Chính
+            if (role === 'chinh' && selectedMaTaiXeChinh) {
+                if (!confirm(`Hiện phương tiện đã có tài xế ${tenChinhHienTai} là tài chính, bạn có muốn thay đổi không?`)) {
+                    return;
+                }
+            }
+
+            // Kiểm tra trùng lặp logic
+            if (role === 'chinh' && selectedMaTaiXePhu == newDriverId) return alert("Người này đang là lái phụ!");
+            if (role === 'phu' && selectedMaTaiXeChinh == newDriverId) return alert("Người này đang là lái chính!");
+
+            // Cập nhật trạng thái tạm thời
+            if (role === 'chinh') selectedMaTaiXeChinh = newDriverId;
+            else selectedMaTaiXePhu = newDriverId;
+
+            await loadDrivers();
+        }
+
+        // 5. GỬI DỮ LIỆU LƯU CHÍNH THỨC
+        async function submitAssignment() {
+            const maCa = document.getElementById('selectCaLam').value;
+            if (!selectedMaPhuongTien || !selectedMaTaiXeChinh || !maCa) {
+                alert("Vui lòng chọn đầy đủ: Xe, Lái chính và Ca làm!");
+                return;
+            }
+
+            try {
+                await fetch(`https://localhost:7097/api/dieuphoilotrinh/XoaGan/${selectedMaPhuongTien}`, { method: 'DELETE' });
+
+                const payload = {
+                    maPhuongTien: parseInt(selectedMaPhuongTien),
+                    maNguoiDung: parseInt(selectedMaTaiXeChinh),
+                    maNguoiDungPhu: selectedMaTaiXePhu ? parseInt(selectedMaTaiXePhu) : null,
+                    maCa: parseInt(maCa),
+                    loaiTuyen: "TuyenMacDinh",
+                    isActive: true
+                };
+
+                const res = await fetch('https://localhost:7097/api/dieuphoilotrinh/GanPhuongTienTaiXe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    const promises = [
+                        updateVehicleStatus(selectedMaPhuongTien, true),
+                        updateDriverStatus(selectedMaTaiXeChinh, true)
+                    ];
+                    if (selectedMaTaiXePhu) promises.push(updateDriverStatus(selectedMaTaiXePhu, true));
+
+                    await Promise.all(promises);
+
+                    alert("Cập nhật gán phương tiện thành công!");
+                    resetAndReload();
+                } else {
+                    // Đọc thông báo lỗi từ API C# gửi về để hiển thị cho người dùng
+                    const errorData = await res.text();
+                    alert(`Không thể gán xe: ${errorData}`);
+                }
+            } catch (err) {
+                console.error("Lỗi khi gọi API gán xe:", err);
+                alert("Lỗi hệ thống khi gán. Vui lòng kiểm tra console.");
+            }
+        }
+
+        // 6. XỬ LÝ HỦY GÁN (Xử lý chặt chẽ logic nghiệp vụ đôn lái phụ)
+        async function handleCancelAssignment(driverId, role) {
+            if (!confirm("Xác nhận hủy gán cho nhân viên này?")) return;
+
+            try {
+                // Cập nhật trạng thái tài xế bị hủy về Rảnh (false)
+                await updateDriverStatus(driverId, false);
+
+                if (role === 'chinh') {
+                    selectedMaTaiXeChinh = null;
+
+                    // Nếu hủy lái chính mà xe vẫn đang có lái phụ
+                    if (selectedMaTaiXePhu) {
+                        const promote = confirm("Xe không thể hoạt động chỉ với Lái phụ. Bạn có muốn chuyển Lái phụ hiện tại lên làm Lái chính không?");
+                        if (promote) {
+                            selectedMaTaiXeChinh = selectedMaTaiXePhu;
+                            selectedMaTaiXePhu = null;
+                            alert("Đã chuyển Lái phụ lên làm Lái chính. Đang cập nhật dữ liệu...");
+                        } else {
+                            // Nếu từ chối, bắt buộc phải hủy luôn lái phụ
+                            await updateDriverStatus(selectedMaTaiXePhu, false);
+                            selectedMaTaiXePhu = null;
+                            alert("Đã hủy đồng thời cả Lái chính và Lái phụ.");
+                        }
+                    }
+                } else {
+                    selectedMaTaiXePhu = null;
+                }
+
+                // Xử lý ghi xuống DB
+                if (!selectedMaTaiXeChinh && !selectedMaTaiXePhu) {
+                    // Hết tài xế -> Xóa hẳn
+                    await fetch(`https://localhost:7097/api/dieuphoilotrinh/XoaGan/${selectedMaPhuongTien}`, { method: 'DELETE' });
+                    await updateVehicleStatus(selectedMaPhuongTien, false);
+                    alert("Đã hủy toàn bộ tài xế. Xe hiện tại đã trống.");
+                    resetAndReload();
+                } else {
+                    // Vẫn còn tài xế (do đôn phụ lên chính) -> Cập nhật PUT
+                    const maCa = document.getElementById('selectCaLam')?.value || 0; // Fallback phòng hờ
+                    const payload = {
+                        maPhuongTien: parseInt(selectedMaPhuongTien),
+                        maNguoiDung: parseInt(selectedMaTaiXeChinh),
+                        maNguoiDungPhu: null, // Lúc này chắc chắn phụ là null
+                        maCa: parseInt(maCa),
+                        loaiTuyen: "TuyenMacDinh",
+                        isActive: true
+                    };
+
+                    const res = await fetch('https://localhost:7097/api/dieuphoilotrinh/CapNhatGanPhuongTien', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        await loadDrivers();
+                        await selectVehicle(selectedMaPhuongTien);
+                    } else {
+                        const errorText = await res.text();
+                        alert(`Lỗi khi cập nhật DB: ${errorText}`);
+                    }
+                }
+            } catch (err) {
+                console.error("Lỗi khi hủy gán:", err);
+                alert("Có lỗi xảy ra khi thực hiện hủy gán.");
+            }
+        }
+                async function handleCancelAssignment(driverId, role) {
+            try {
+                if (role === 'chinh') {
+                    // KỊCH BẢN: Hủy lái chính
+                    if (!confirm("Bạn có chắc chắn muốn xóa lái chính không?")) return;
+
+                    await updateDriverStatus(driverId, false);
+                    selectedMaTaiXeChinh = null;
+
+                    // Nếu có lái phụ -> Tự động đôn lên làm chính
+                    if (selectedMaTaiXePhu) {
+                        alert("Hệ thống sẽ đẩy lái phụ lên làm lái chính để duy trì vận hành.");
+                        selectedMaTaiXeChinh = selectedMaTaiXePhu;
+                        selectedMaTaiXePhu = null;
+
+                        // Gọi API cập nhật lại bản ghi trong DB
+                        await saveUpdatedAssignment();
+                    } else {
+                        // Nếu không còn ai thì xóa hẳn gán xe
+                        await fetch(`https://localhost:7097/api/dieuphoilotrinh/XoaGan/${selectedMaPhuongTien}`, { method: 'DELETE' });
+                        await updateVehicleStatus(selectedMaPhuongTien, false);
+                        alert("Đã xóa lái chính. Xe hiện tại đang trống.");
+                    }
+                } else {
+                    // Hủy lái phụ đơn thuần
+                    if (!confirm("Xác nhận hủy lái phụ?")) return;
+                    await updateDriverStatus(driverId, false);
+                    selectedMaTaiXePhu = null;
+                    await saveUpdatedAssignment();
+                }
+
+                resetAndReload();
+            } catch (err) {
+                console.error("Lỗi xử lý:", err);
+            }
+        }
+
+        // Hàm bổ trợ để lưu trạng thái sau khi đôn lái
+        async function saveUpdatedAssignment() {
+            const maCa = document.getElementById('selectCaLam').value;
+            const payload = {
+                maPhuongTien: parseInt(selectedMaPhuongTien),
+                maNguoiDung: parseInt(selectedMaTaiXeChinh),
+                maNguoiDungPhu: selectedMaTaiXePhu ? parseInt(selectedMaTaiXePhu) : null,
+                maCa: parseInt(maCa),
+                loaiTuyen: "TuyenMacDinh",
+                isActive: true
+            };
+
+            return await fetch('https://localhost:7097/api/dieuphoilotrinh/CapNhatGanPhuongTien', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+        // --- HELPER FUNCTIONS ---
+        async function updateDriverStatus(id, status) {
+            try {
+                const res = await fetch(`https://localhost:7022/api/quanlytaixe/cap-nhat-trang-thai-gan/${id}?trangThai=${status}`, { method: 'PUT' });
+                if (!res.ok) console.warn(`Cảnh báo: Không thể cập nhật trạng thái cho tài xế ID ${id}`);
+                return res;
+            } catch (e) { console.error(e); }
+        }
+
+        async function updateVehicleStatus(id, status) {
+            try {
+                const res = await fetch(`https://localhost:7286/api/quanlyxe/cap-nhat-trang-thai-gan/${id}?trangThai=${status}`, { method: 'PUT' });
+                if (!res.ok) console.warn(`Cảnh báo: Không thể cập nhật trạng thái cho xe ID ${id}`);
+                return res;
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadVehicles() {
+            const maKho = document.getElementById('selectKho').value;
+            const isXeGan = document.getElementById('filterXeGan').checked;
+            const listContainer = document.getElementById('listXe');
+            if (!maKho) return;
+
+            try {
+                const res = await fetch(`https://localhost:7286/api/quanlyxe/danh-sach-xe-theo-kho/${maKho}?trangThaiGan=${isXeGan}`);
+                if (!res.ok) throw new Error("Lỗi API danh sách xe.");
+                const data = await res.json();
+                listContainer.innerHTML = '';
+
+                data.forEach(xe => {
+                    const isSelected = (selectedMaPhuongTien == xe.maPhuongTien);
+                    const item = document.createElement('div');
+                    item.className = `list-group-item list-group-item-action ${isSelected ? 'active border-primary' : ''}`;
+                    item.style.cursor = 'pointer';
+                    item.onclick = () => selectVehicle(xe.maPhuongTien);
+                    item.innerHTML = `<strong>${xe.bienSo}</strong><br><small>${xe.tenLoaiXe || 'Xe tải'}</small>`;
+                    listContainer.appendChild(item);
+                });
+            } catch (e) {
+                console.error("Lỗi load xe:", e);
+                listContainer.innerHTML = '<div class="text-danger p-2">Lỗi tải danh sách xe</div>';
+            }
+        }
+
+        async function loadDrivers() {
+            const maKho = document.getElementById('selectKho').value;
+            const isTxGan = document.getElementById('filterTxGan').checked;
+            const listContainer = document.getElementById('listTaiXe');
+            if (!maKho) { listContainer.innerHTML = ''; return; }
+
+            try {
+                const res = await fetch(`https://localhost:7022/api/quanlytaixe/gan-tai-xe-phuong-tien/${maKho}?trangthai=${isTxGan}`);
+                if (!res.ok) throw new Error("Lỗi API danh sách tài xế.");
+                const result = await res.json();
+                const drivers = Array.isArray(result.data) ? result.data : [];
+
+                listContainer.innerHTML = '';
+                drivers.forEach(tx => {
+                    const isChinh = (selectedMaTaiXeChinh == tx.maNguoiDung);
+                    const isPhu = (selectedMaTaiXePhu == tx.maNguoiDung);
+                    const role = isChinh ? 'chinh' : (isPhu ? 'phu' : null);
+
+                    const item = document.createElement('div');
+                    item.className = `list-group-item d-flex justify-content-between align-items-center ${isChinh || isPhu ? 'bg-info-subtle border-info' : ''}`;
+
+                    let actionButtons = '';
+                    if (isTxGan) {
+                        if (isChinh || isPhu) {
+                            actionButtons = `<button class="btn btn-sm btn-danger" onclick="handleCancelAssignment(${tx.maNguoiDung}, '${role}')">
+                                                <i class="fas fa-user-times"></i> Hủy gán
+                                             </button>`;
+                        }
+                    } else {
+                        actionButtons = `
+                            <div class="btn-group shadow-sm">
+                                <button class="btn btn-sm ${isChinh ? 'btn-primary' : 'btn-outline-primary'}" onclick="handleDriverSelection(${tx.maNguoiDung}, 'chinh')">Chính</button>
+                                <button class="btn btn-sm ${isPhu ? 'btn-success' : 'btn-outline-success'}" onclick="handleDriverSelection(${tx.maNguoiDung}, 'phu')">Phụ</button>
+                            </div>`;
+                    }
+
+                    item.innerHTML = `
+                        <div style="flex: 1;">
+                            <div class="fw-bold">${tx.hoTen} <small class="text-muted">(ID: ${tx.maNguoiDung})</small></div>
+                            <div class="small text-secondary">Hạng: ${tx.loaiBangLai || 'N/A'}</div>
+                            <div class="mt-1">
+                                ${isChinh ? '<span class="badge bg-primary">Lái chính</span>' : ''}
+                                ${isPhu ? '<span class="badge bg-success">Lái phụ</span>' : ''}
+                            </div>
+                        </div>
+                        ${actionButtons}`;
+                    listContainer.appendChild(item);
+                });
+            } catch (e) {
+                console.error("Lỗi load tài xế:", e);
+                listContainer.innerHTML = '<div class="text-danger p-2">Lỗi tải danh sách tài xế</div>';
+            }
+        }
+
+        function resetAndReload() {
+            selectedMaPhuongTien = null;
+            selectedMaTaiXeChinh = null;
+            selectedMaTaiXePhu = null;
+            isEditingExisting = false;
+            const detailDiv = document.getElementById('assignmentInfo');
+            if (detailDiv) detailDiv.innerHTML = '';
+            loadVehicles();
+            document.getElementById('listTaiXe').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

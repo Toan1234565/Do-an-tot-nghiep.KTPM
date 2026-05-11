@@ -14,9 +14,16 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="pocketken.H3" Version="4.0.0" />
     <PackageReference Include="RabbitMQ.Client" Version="7.2.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Tmdt.Shared.Services">
+      <HintPath>..\..\Tmdt.Shared.Services\Tmdt.Shared.Services\bin\Debug\net8.0\Tmdt.Shared.Services.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

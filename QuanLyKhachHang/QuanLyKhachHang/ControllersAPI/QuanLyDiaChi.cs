@@ -35,7 +35,7 @@ namespace QuanLyKhachHang.ControllersAPI
                     Duong = newDiaChi.Duong,
                     Phuong = newDiaChi.Phuong,
                     ThanhPho = newDiaChi.ThanhPho,
-                    MaBuuDien = newDiaChi.MaBuuDien,
+                   
                     ViDo = newDiaChi.ViDo,
                     KinhDo = newDiaChi.KinhDo
                 };
@@ -72,7 +72,7 @@ namespace QuanLyKhachHang.ControllersAPI
                     Duong = diachi.Duong,
                     Phuong = diachi.Phuong,
                     ThanhPho = diachi.ThanhPho,
-                    MaBuuDien = diachi.MaBuuDien,
+                   
                     KinhDo = diachi.KinhDo,
                     ViDo = diachi.ViDo
                 };

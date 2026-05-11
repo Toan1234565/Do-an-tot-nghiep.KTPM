@@ -15,23 +15,15 @@ public partial class KienHang
 
     public double? TheTich { get; set; }
 
-    public bool DaThuGom { get; set; }
-
     public decimal? SoTien { get; set; }
 
     public string? YeuCauBaoQuan { get; set; }
 
     public int? SoLuongKienHang { get; set; }
 
-    public int? MaLoaiHang { get; set; }
+    public int MaBangGiaVung { get; set; }
 
-    public int? MaBangGiaVung { get; set; }
-
-    public virtual BangChungGiaoHang? BangChungGiaoHang { get; set; }
-
-    public virtual ICollection<CapNhatTrangThai> CapNhatTrangThais { get; set; } = new List<CapNhatTrangThai>();
+    public virtual BangGiaVung MaBangGiaVungNavigation { get; set; } = null!;
 
     public virtual DonHang MaDonHangNavigation { get; set; } = null!;
-
-    public virtual DanhMucLoaiHang? MaLoaiHangNavigation { get; set; }
 }

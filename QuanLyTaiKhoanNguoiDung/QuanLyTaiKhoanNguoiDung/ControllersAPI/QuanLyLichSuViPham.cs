@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using QuanLyTaiKhoanNguoiDung.Models;
 using QuanLyTaiKhoanNguoiDung.Models12._1234;
-using QuanLyTaiKhoanNguoiDung.Models12.QuanLyNguoiDung.QuanLyTaiXe;
+using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyNguoiDung.QuanLyTaiXe;
 
 namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
 {
@@ -45,7 +45,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                         .Where(ls => ls.MaTaiXe == maNguoiDung)
                         .Select(ls => new LichSuViPhamModels
                         {
-                            MaViPham = ls.MaViPham,
+                            
                             MaTaiXe = ls.MaTaiXe,
                             NgayViPham = ls.NgayViPham,
                             LoaiViPham = ls.LoaiViPham,

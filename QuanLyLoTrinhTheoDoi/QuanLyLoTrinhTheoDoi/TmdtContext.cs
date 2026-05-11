@@ -30,6 +30,8 @@ public partial class TmdtContext : DbContext
 
     public virtual DbSet<NhatKyTheoDoi> NhatKyTheoDois { get; set; }
 
+    public virtual DbSet<PhuongTienTaiXe> PhuongTienTaiXes { get; set; }
+
     public virtual DbSet<SuCo> SuCos { get; set; }
 
     public virtual DbSet<TuyenDuongCoDinh> TuyenDuongCoDinhs { get; set; }
@@ -155,9 +157,7 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.GhiChu).HasColumnName("ghi_chu");
             entity.Property(e => e.LoTrinhTuyen).HasColumnName("lo_trinh_tuyen");
             entity.Property(e => e.MaKhoQuanLy).HasColumnName("ma_kho_quan_ly");
-            entity.Property(e => e.MaPhuongTien).HasColumnName("ma_phuong_tien");
-            entity.Property(e => e.MaTaiXeChinh).HasColumnName("ma_tai_xe_chinh");
-            entity.Property(e => e.MaTaiXePhu).HasColumnName("ma_tai_xe_phu");
+            entity.Property(e => e.MaPtTx).HasColumnName("ma_PT_TX");
             entity.Property(e => e.ThoiGianBatDauKeHoach)
                 .HasColumnType("datetime")
                 .HasColumnName("thoi_gian_bat_dau_ke_hoach");
@@ -170,6 +170,10 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.TrangThai)
                 .HasMaxLength(50)
                 .HasColumnName("trang_thai");
+
+            entity.HasOne(d => d.MaPtTxNavigation).WithMany(p => p.LoTrinhs)
+                .HasForeignKey(d => d.MaPtTx)
+                .HasConstraintName("FK_LoTrinh_PhuongTienTaiXe");
         });
 
         modelBuilder.Entity<LoaiSuCo>(entity =>
@@ -210,6 +214,25 @@ public partial class TmdtContext : DbContext
                 .HasColumnName("thoi_gian");
             entity.Property(e => e.TocDoKmh).HasColumnName("toc_do_kmh");
             entity.Property(e => e.ViDo).HasColumnName("vi_do");
+        });
+
+        modelBuilder.Entity<PhuongTienTaiXe>(entity =>
+        {
+            entity.HasKey(e => e.MaPtTx).HasName("PK__PhuongTi__B1E6B4A145CB2BA4");
+
+            entity.ToTable("PhuongTien_TaiXe");
+
+            entity.Property(e => e.MaPtTx).HasColumnName("ma_PT_TX");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.LoaiTuyen)
+                .HasMaxLength(50)
+                .HasColumnName("loai_tuyen");
+            entity.Property(e => e.MaCa).HasColumnName("ma_ca");
+            entity.Property(e => e.MaNguoiDung).HasColumnName("ma_nguoi_dung");
+            entity.Property(e => e.MaNguoiDungPhu).HasColumnName("ma_nguoi_dung_phu");
+            entity.Property(e => e.MaPhuongTien).HasColumnName("ma_phuong_tien");
         });
 
         modelBuilder.Entity<SuCo>(entity =>
