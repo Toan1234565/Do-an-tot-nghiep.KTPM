@@ -13,12 +13,42 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* Hiệu ứng mờ dần khi chuyển slide */
-        #slide-container {
+        /* Khung chứa các iframe để xử lý hiệu ứng dịch chuyển */
+        .slide-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Định dạng chung cho cả 2 iframe trình chiếu */
+        .slide-frame {
+            position: absolute;
+            top: 0; left: 0;
             width: 100%; height: 100%;
-            border: none; display: block;
-            transition: opacity 0.3s ease-in-out;
-            background-color: #fff; /* Tránh bị đen nền khi chưa tải xong */
+            border: none;
+            background-color: #fff;
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.5s ease;
+            z-index: 1;
+        }
+
+        /* Các Class trạng thái hiệu ứng động */
+        .frame-center {
+            transform: translateX(0);
+            opacity: 1;
+            z-index: 2; /* Đưa khung đang xem lên trên cùng */
+        }
+        .frame-right {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        .frame-left {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+        .frame-fade-out {
+            opacity: 0;
+            transition: opacity 0.4s ease;
         }
 
         .controls {
@@ -31,7 +61,7 @@
             z-index: 1000;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             backdrop-filter: blur(5px);
-            pointer-events: none; /* Không cản trở click chuột vào slide */
+            pointer-events: none;
             white-space: nowrap;
         }
 
@@ -46,7 +76,7 @@
             border: 1px solid rgba(0, 212, 255, 0.3);
         }
 
-        /* Thanh tiến trình (ProgressBar) ở trên cùng */
+        /* Thanh tiến trình ở trên cùng */
         #progress-bar {
             position: fixed; top: 0; left: 0;
             height: 4px; background: #00d4ff;
@@ -60,83 +90,135 @@
     <div id="progress-bar"></div>
     <div id="status" class="slide-number">Đang tải...</div>
     
-    <iframe id="slide-container" src="PPThuyetTrinh.html"></iframe>
-
-    <!-- <div class="controls">
-        <b>Home:</b> Đầu | <b>End:</b> Cuối | <b>← →:</b> Chuyển | <b>Space:</b> Tiếp | <b>R:</b> Tải lại
-    </div> -->
-<!-- "5_slide_DanhSachChucNang.html", -->
+    <div class="slide-wrapper">
+        <iframe id="slide-frame-1" class="slide-frame frame-center" src="PPThuyetTrinh.html"></iframe>
+        <iframe id="slide-frame-2" class="slide-frame frame-right" src=""></iframe>
+    </div>
+    
     <script>
         const slides = [
-            "PPThuyetTrinh.html", "1_slide_LyDo.html", "2_slide_gioithieuduan.html",
+            "PPThuyetTrinh.html", "2_slide_BoCuBaoCao.html","1_slide_LyDo.html","3_slide_gioithieuduan.html",
              "4_slide_usecase_TQ.html", 
             "6_slide_ChucNangDonHang.html", "7_slide_ChucNangDieuPhoi.html", "8_slide_ChucNangQuanLyLoTrinh.html",
             "9_silde_ThietKeDuLieu.html", "10_slide_CaiDat.html", "11_slide_kiemThu01.html",
-            "12_slide_kiemThu02.html", "13_slide_kiemThu03.html", "14_slide_Kiemthu_04.html","Test.html"
+            "12_slide_kiemThu02.html", "13_slide_kiemThu03.html", "14_slide_Kiemthu_04.html","15_slide_KienNghi.html","16_slide_KetThuc.html"
         ];
 
         let currentIndex = 0;
-        const iframe = document.getElementById('slide-container');
+        const frames = [
+            document.getElementById('slide-frame-1'),
+            document.getElementById('slide-frame-2')
+        ];
+        let activeFrameIndex = 0; // Thẻ iframe nào đang hiển thị chính
+
         const status = document.getElementById('status');
         const progressBar = document.getElementById('progress-bar');
 
-        function updateSlide(index) {
-            if (index >= 0 && index < slides.length) {
-                currentIndex = index;
-                iframe.style.opacity = "0.5"; // Hiệu ứng mờ khi đang chuyển
-                iframe.src = slides[currentIndex];
-                
-                // Cập nhật thanh tiến trình và số slide
-                const progress = ((currentIndex + 1) / slides.length) * 100;
-                progressBar.style.width = progress + "%";
-                status.innerText = `Slide ${currentIndex + 1} / ${slides.length}`;
+        function activateFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log("Chờ tương tác từ người dùng để mở toàn màn hình.");
+                });
             }
+        }
+
+        function updateSlide(index, direction = "next") {
+            if (index < 0 || index >= slides.length || index === currentIndex) return;
+
+            currentIndex = index;
+
+            // Xác định iframe hiện tại (gốc) và iframe tiếp theo (đích)
+            const currentFrame = frames[activeFrameIndex];
+            activeFrameIndex = (activeFrameIndex + 1) % 2;
+            const nextFrame = frames[activeFrameIndex];
+
+            // 1. Đặt trước vị trí xuất phát cho slide mới dựa trên hướng di chuyển
+            nextFrame.className = "slide-frame"; // Reset class bám đuôi cũ
+            if (direction === "next") {
+                nextFrame.classList.add("frame-right");
+            } else if (direction === "prev") {
+                nextFrame.classList.add("frame-left");
+            } else {
+                nextFrame.classList.add("frame-fade-out"); // Nếu nhảy trang qua menu, cho mờ dần
+            }
+
+            // 2. Gán link trang mới cho iframe ẩn
+            nextFrame.src = slides[currentIndex];
+
+            // Đợi iframe mới tải xong nội dung thiết lập các tính năng liên kết
+            nextFrame.onload = function() {
+                setupIframeEvents(nextFrame);
+                
+                // Kích hoạt hiệu ứng tịnh tiến mượt bằng CSS
+                setTimeout(() => {
+                    if (direction === "next") {
+                        currentFrame.className = "slide-frame frame-left";
+                        nextFrame.className = "slide-frame frame-center";
+                    } else if (direction === "prev") {
+                        currentFrame.className = "slide-frame frame-right";
+                        nextFrame.className = "slide-frame frame-center";
+                    } else {
+                        currentFrame.className = "slide-frame frame-fade-out";
+                        nextFrame.className = "slide-frame frame-center";
+                    }
+                }, 30);
+            };
+
+            // Cập nhật thanh tiến trình và số hiệu slide
+            const progress = ((currentIndex + 1) / slides.length) * 100;
+            progressBar.style.width = progress + "%";
+            status.innerText = `Slide ${currentIndex + 1} / ${slides.length}`;
         }
 
         const handleKeyDown = (e) => {
             const key = e.key;
+            activateFullscreen();
+
+            if (key.toLowerCase() === "f") {
+                e.preventDefault();
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                } else {
+                    document.exitFullscreen();
+                }
+            }
             
-            // Điều hướng chính
-            if (key === "Home") { e.preventDefault(); updateSlide(0); }
-            else if (key === "End") { e.preventDefault(); updateSlide(slides.length - 1); }
+            // Điều hướng chính kèm theo truyền biến hướng di chuyển (next / prev)
+            if (key === "Home") { e.preventDefault(); updateSlide(0, "fade"); }
+            else if (key === "End") { e.preventDefault(); updateSlide(slides.length - 1, "fade"); }
             else if (["ArrowRight", " ", "PageDown"].includes(key)) {
                 e.preventDefault();
-                if (currentIndex < slides.length - 1) updateSlide(currentIndex + 1);
+                if (currentIndex < slides.length - 1) updateSlide(currentIndex + 1, "next");
             }
             else if (["ArrowLeft", "PageUp", "Backspace"].includes(key)) {
                 e.preventDefault();
-                if (currentIndex > 0) updateSlide(currentIndex - 1);
+                if (currentIndex > 0) updateSlide(currentIndex - 1, "prev");
             }
-            else if (key.toLowerCase() === "r") { // Phím R để reset lại slide hiện tại
+            else if (key.toLowerCase() === "r") {
                 e.preventDefault();
-                iframe.src = slides[currentIndex];
+                frames[activeFrameIndex].src = slides[currentIndex];
             }
         };
 
-        // Lắng nghe phím bấm tại trang chính
         window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('click', activateFullscreen);
 
-        iframe.onload = function() {
-            iframe.style.opacity = "1"; // Hiện rõ lại khi tải xong
-            
+        // Đóng gói hàm xử lý đồng bộ sự kiện để dùng chung cho cả 2 iframe thay phiên nhau
+        function setupIframeEvents(iframe) {
             try {
                 const innerWin = iframe.contentWindow;
 
-                // 1. Đồng bộ phím bấm từ slide con lên slide cha
                 innerWin.addEventListener('keydown', handleKeyDown);
 
-                // 2. Xử lý click chuột: Nếu click vào khoảng trống slide, trả focus về cha để phím bấm mượt
                 innerWin.addEventListener('mousedown', function(e) {
-                    // Nếu click vào các thành phần tương tác thì không giật focus
+                    activateFullscreen();
                     if (!["BUTTON", "A", "INPUT", "SELECT"].includes(e.target.tagName)) {
                         setTimeout(() => { window.focus(); }, 10);
                     }
                 });
 
-                // 3. Chặn các lỗi JS nội bộ của slide con để không hiện popup báo lỗi
                 innerWin.onerror = function() { return true; };
 
-                // 4. Ghi đè hàm adjustLayout nếu có lỗi null
                 if (innerWin.adjustLayout) {
                     const originalFunc = innerWin.adjustLayout;
                     innerWin.adjustLayout = function() {
@@ -144,21 +226,34 @@
                     };
                 }
             } catch (err) {
-                // Lỗi này thường gặp khi mở trực tiếp file HTML (không qua server)
-                console.warn("Mẹo: Chạy bằng Live Server (VS Code) để điều khiển mượt nhất.");
+                console.warn("Mẹo: Hãy chạy bằng Live Server (VS Code) để hiệu ứng không bị giới hạn bảo mật.");
             }
+        }
+
+        // Khởi tạo cài đặt cho iframe đầu tiên lúc mở trang
+        document.getElementById('slide-frame-1').onload = function() {
+            setupIframeEvents(this);
+            const progress = (1 / slides.length) * 100;
+            progressBar.style.width = progress + "%";
+            status.innerText = `Slide 1 / ${slides.length}`;
         };
-        // Tự động lấy focus khi khởi động
+
         window.focus();
-        // Lắng nghe sự kiện từ slide con gửi lên qua postMessage
+
+        // Đón nhận tín hiệu đổi slide được kích hoạt từ menu nhảy trang bên trong các slide con
         window.addEventListener('message', function(event) {
             if (event.data.type === 'keydown') {
-                // Tạo một đối tượng giả lập sự kiện để dùng lại hàm handleKeyDown có sẵn
                 const fakeEvent = {
                     key: event.data.key,
                     preventDefault: () => {} 
                 };
                 handleKeyDown(fakeEvent);
+            } else if (event.data.type === 'navigate') {
+                // Nếu slide con gửi yêu cầu nhảy slide chỉ định (dựa vào tên file)
+                const targetIndex = slides.indexOf(event.data.slideName);
+                if (targetIndex !== -1) {
+                    updateSlide(targetIndex, "fade");
+                }
             }
         });
         

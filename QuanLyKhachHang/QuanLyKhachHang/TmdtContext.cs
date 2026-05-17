@@ -77,6 +77,9 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.Phuong)
                 .HasMaxLength(100)
                 .HasColumnName("phuong");
+            entity.Property(e => e.Quan)
+                .HasMaxLength(50)
+                .HasColumnName("quan");
             entity.Property(e => e.ThanhPho)
                 .HasMaxLength(100)
                 .HasColumnName("thanh_pho");

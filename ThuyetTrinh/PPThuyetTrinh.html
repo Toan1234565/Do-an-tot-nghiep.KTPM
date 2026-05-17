@@ -24,20 +24,13 @@
         }
 
         /* --- NÚT MENU 3 GẠCH --- */
-        .menu-btn {
-            position: fixed;
-            top: 25px;
-            left: 25px;
-            z-index: 1001;
-            cursor: pointer;
-            background: var(--primary-color);
-            padding: 12px;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
+        .menu-btn { 
+            cursor: pointer; 
+            padding: 10px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 6px; 
+            margin-right: 25px; 
         }
 
         .menu-btn:hover { background: #004a94; transform: scale(1.05); }
@@ -116,7 +109,7 @@
             z-index: 999;
         }
 
-        /* --- GIAO DIỆN CHÍNH (GIỮ NGUYÊN TỪ BẢN CŨ) --- */
+        /* --- GIAO DIỆN CHÍNH --- */
         .full-screen-slide {
             width: 100vw; height: 100vh;
             display: flex; flex-direction: column;
@@ -131,14 +124,14 @@
 
         .top-bar { position: absolute; top: 0; left: 0; width: 100%; height: 12px; background: var(--primary-color); }
 
-        header { text-align: center; }
+        header { text-align: center; margin-top: 40px; }
         header h2 { font-size: 1.8rem; font-weight: 700; color: var(--primary-color); text-transform: uppercase; letter-spacing: 2px; }
         header h3 { font-size: 1.4rem; margin-top: 10px; font-weight: 500; color: #444; }
         .divider { width: 200px; height: 4px; background: var(--accent-color); margin: 20px auto; }
 
         .main-content { text-align: center; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
         .project-type { font-size: 2.2rem; font-weight: 700; color: #e67e22; margin-bottom: 10px; text-transform: uppercase; }
-        .major { font-size: 1.4rem; color: #7f8c8d; margin-bottom: 40px; letter-spacing: 1px; }
+        .major { font-size: 1.4rem; color: #000; margin-bottom: 40px; letter-spacing: 1px; }
 
         .title-box { padding: 40px; border-top: 2px solid var(--primary-color); border-bottom: 2px solid var(--primary-color); background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(5px); margin-bottom: 50px; }
         h1.project-title { font-size: 3.2rem; color: var(--primary-color); line-height: 1.2; text-transform: uppercase; font-weight: 800; }
@@ -148,18 +141,68 @@
         .info-label { font-weight: 700; color: var(--primary-color); display: inline-block; width: 160px; }
 
         footer { text-align: center; font-size: 1.3rem; font-weight: 600; color: #555; padding-bottom: 20px; }
+
+       
+        .slide-title-area h1 { font-size: 1.3rem; text-transform: uppercase; color: #FFD700; letter-spacing: 1.5px; text-align: right; }
+
+        /* --- ĐIỀU CHỈNH LOGO NẰM GÓC TRÊN BÊN PHẢI --- */
+        
+        .header {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            z-index: 999;
+            display: flex; 
+            align-items: center;
+            justify-content: center;
+            font-family: "Arial", sans-serif; /* Đảm bảo font chữ nét dày, không chân như trong ảnh */
+            animation: slideDown 0.8s ease-out;
+        }
+
+        /* Khung bọc bên ngoài giữ nguyên bản, không cắt xén */
+        .logo-crop-wrapper { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+        }
+
+        /* Giữ nguyên tỷ lệ hình vuông gốc của logo */
+        .school-logo-img { 
+            width: 40px;          /* Giảm từ 250px xuống để cân bằng tỉ lệ với chữ */
+            height: auto;         
+            object-fit: contain;  
+        }
+
+        .text-haui { 
+            font-size: 48px;      /* Tăng font size chữ HaUI lên để tạo điểm nhấn to rõ như ảnh */
+            font-weight: 900; 
+            color: #154294;       /* ĐỔI THÀNH MÀU XANH ĐẶC TRƯNG CỦA HaUI */
+            margin-left: 8px; 
+            line-height: 1; 
+            letter-spacing: -1px; /* Thu hẹp khoảng cách các chữ một chút cho giống logo gốc */
+        }
+
+        .red-divider { 
+            width: 3px; 
+            height: 42px;         /* Tăng chiều cao thanh dọc màu đỏ để vừa vặn với font chữ mới */
+            background-color: #EE2D24; 
+            margin: 0 12px; 
+        }
+
+        .text-school { 
+            font-size: 13px;      /* Đổi tên class cho đúng ý nghĩa (Kế toán -> CNTT) */
+            font-weight: 700; 
+            color: #154294;       /* ĐỔI THÀNH MÀU XANH ĐẶC TRƯNG CỦA HaUI */
+            text-transform: uppercase; 
+            line-height: 1.2; 
+        }
     </style>
 </head>
 <body>
 
-    <!-- Menu Button -->
-    <div class="menu-btn" onclick="toggleMenu()">
-        <span></span>
-        <span></span>
-        <span></span>
-    </div>
-
-    <!-- Sidebar Navigation -->
+   <div class="menu-btn" onclick="toggleMenu()">
+            <span></span><span></span><span></span>
+        </div>
     <div class="sidebar" id="sidebar">
         <h4>Danh sách Slide</h4>
         <ul class="slide-list">
@@ -184,6 +227,15 @@
     <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
 
     <div class="top-bar"></div>
+    
+    <div class="header">
+        <div class="logo-crop-wrapper">
+            <img src="file:///D:\Đồ án tốt nghiệp\ThuyetTrinh\HinhAnh\LogoTruong.jpg" class="school-logo-img" alt="Logo">
+        </div> 
+        <div class="text-haui">HaUI</div>
+        <div class="red-divider"></div>
+        <div class="text-school">SCHOOL OF INFORMATION<br>& COMMUNICATIONS TECHNOLOGY</div>
+    </div>
 
     <div class="full-screen-slide">
         <header>
@@ -214,31 +266,22 @@
                 </div>
             </div>
         </div>
-
-       
     </div>
 
     <script>
-    /**
-     * 1. XỬ LÝ MENU & SIDEBAR
-     * Đảm bảo menu hoạt động ngay cả khi HTML thiếu thẻ overlay
-     */
     function toggleMenu() {
         const sidebar = document.getElementById('sidebar');
         let overlay = document.getElementById('overlay');
 
         if (sidebar) {
             sidebar.classList.toggle('active');
-            
-            // Nếu không tìm thấy overlay trong HTML, tự tạo mới để menu hoạt động
             if (!overlay) {
                 overlay = document.createElement('div');
                 overlay.id = 'overlay';
-                overlay.className = 'overlay'; // Đảm bảo trùng class CSS của bạn
+                overlay.className = 'overlay';
                 overlay.onclick = toggleMenu;
                 document.body.appendChild(overlay);
             }
-
             const isActive = sidebar.classList.contains('active');
             overlay.style.display = isActive ? 'block' : 'none';
         } else {
@@ -246,23 +289,14 @@
         }
     }
 
-    /**
-     * 2. ĐIỀU CHỈNH FONT SIZE (RESPONSIVE)
-     */
     function adjustLayout() {
         const width = window.innerWidth;
-        // Kiểm tra cả .project-title và .main-title để tránh lỗi
         const title = document.querySelector('.project-title') || document.querySelector('.main-title');
-        
         if (title) {
             title.style.fontSize = width < 1200 ? '2.2rem' : '3.2rem';
         }
     }
 
-    /**
-     * 3. ĐỒNG BỘ PHÍM BẤM VỚI TRANG CHỦ
-     * Giúp phím mũi tên vẫn hoạt động sau khi bạn click vào slide
-     */
     function syncKeys() {
         window.addEventListener('keydown', (e) => {
             window.parent.postMessage({
@@ -273,18 +307,13 @@
         });
     }
 
-    /**
-     * 4. KHỞI CHẠY HỆ THỐNG
-     */
     document.addEventListener('DOMContentLoaded', () => {
         adjustLayout();
         syncKeys();
-
-        // Tự động gán sự kiện click cho các nút menu có sẵn
         const btn = document.querySelector('.menu-icon') || document.querySelector('.menu-btn');
         if (btn) {
             btn.onclick = (e) => {
-                e.stopPropagation(); // Ngăn sự kiện nổi bọt
+                e.stopPropagation();
                 toggleMenu();
             };
         }

@@ -25,6 +25,16 @@ public partial class PhuongTien
 
     public bool? Trangthaigantaixe { get; set; }
 
+    public int? MaKhoHienTai { get; set; }
+
+    public DateTime? NgayCapNhatGan { get; set; }
+
+    public bool? Ca1 { get; set; }
+
+    public bool? Ca2 { get; set; }
+
+    public bool? Ca3 { get; set; }
+
     public virtual ICollection<DangKiem> DangKiems { get; set; } = new List<DangKiem>();
 
     public virtual ICollection<LichSuBaoTri> LichSuBaoTris { get; set; } = new List<LichSuBaoTri>();

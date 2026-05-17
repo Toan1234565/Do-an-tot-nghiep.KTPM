@@ -175,6 +175,7 @@ namespace QuanLyDonHang.ControllersAPI
                         TenNguoiNhan = dh.TenNguoiNhan,
                         SdtNguoiNhan = dh.SdtNguoiNhan,
                         MaDiaChiLayHang = (int)dh.MaDiaChiLayHang,
+                        MaDiaChiNhanHang = (int)dh.MaDiaChiNhanHang,
                         MaKhachHang = dh.MaKhachHang,
                     })
                     .FirstOrDefaultAsync();
@@ -389,125 +390,217 @@ namespace QuanLyDonHang.ControllersAPI
         [HttpPost("tao-moi")]
         public async Task<IActionResult> TaoDonHang([FromBody] DonHangCreate request)
         {
+            // --- KIỂM TRA ĐẦU VÀO ---
             if (request == null || request.DanhSachKienHang == null || !request.DanhSachKienHang.Any())
                 return BadRequest(new { message = "Dữ liệu đơn hàng không hợp lệ." });
 
             var client = _httpClientFactory.CreateClient();
-            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            // --- BƯỚC 1: CÁC TÁC VỤ GỌI API NGOÀI (NẰM NGOÀI TRANSACTION) ---
+            int maKhachHang;
+            int maDcLay, maDcGiao;
+            string maH3Nhan, maH3Giao;
 
             try
             {
-                // --- BƯỚC 1: ĐỒNG BỘ KHÁCH HÀNG (Dùng KhachHangService) ---
-                int maKhachHang = await _khachHangService.CheckSoDienThoaiAsync(
+                // 1. Đồng bộ khách hàng (Có thể mất đến 5.7s nhưng không gây khóa DB nữa)
+                maKhachHang = await _khachHangService.CheckSoDienThoaiAsync(
                     request.SoDienThoai,
                     request.TenKhachHang,
                     request.DiaChiLay
                 );
 
-                // --- BƯỚC 2: XỬ LÝ ĐỊA CHỈ & LẤY MÃ VÙNG H3 (Dùng DiaChiService) ---
-                var (maDcLay, maH3Nhan) = await _diaChiService.CheckDiaChiAsync(request.DiaChiLay);
-                if (maDcLay <= 0) return BadRequest(new { message = "Địa chỉ LẤY không hợp lệ." });
+                // 2. Kiểm tra địa chỉ LẤY và GIAO
+                var lyResult = await _diaChiService.CheckDiaChiAsync(request.DiaChiLay);
+                maDcLay = lyResult.maDiaChi;
+                maH3Nhan = lyResult.maVungH3;
 
-                var (maDcGiao, maH3Giao) = await _diaChiService.CheckDiaChiAsync(request.DiaChiGiao);
-                if (maDcGiao <= 0) return BadRequest(new { message = "Địa chỉ GIAO không hợp lệ." });
+                var giaoResult = await _diaChiService.CheckDiaChiAsync(request.DiaChiGiao);
+                maDcGiao = giaoResult.maDiaChi;
+                maH3Giao = giaoResult.maVungH3; 
 
-                // --- BƯỚC 3: TÌM KHO PHỤ TRÁCH (Dùng KhoBaiService) ---
-                int? maKhoGanNhat = await _khoBaiService.TimKhoGanNhatAsync(maDcLay);
+                if (maDcLay <= 0 || maDcGiao <= 0)
+                    return BadRequest(new { message = "Địa chỉ lấy hoặc giao không hợp lệ (Không thể định vị tọa độ)." });
+            }
+            catch (HttpRequestException httpEx)
+            {
+                // BẮT RIÊNG LỖI CỦA HTTP CLIENT: Nếu các API vệ tinh trả về 400, ta gửi thẳng lỗi 400 về cho Front-end
+                _logger.LogWarning($"API vệ tinh trả về lỗi nghiệp vụ: {httpEx.Message}");
 
-                // --- BƯỚC 4: TÍNH TOÁN GIÁ & HỆ SỐ ---
-                decimal tongTienGocCacKien = 0;
-                var danhSachGiaGoc = new List<decimal>();
-
-                foreach (var kien in request.DanhSachKienHang)
+                // Trả về lỗi 400 kèm lời nhắn giúp User biết họ nhập sai địa chỉ nào
+                return BadRequest(new
                 {
-                    var payloadGia = new YeuCauTinhPhi
+                    success = false,
+                    message = "Thông tin địa chỉ giao hoặc lấy hàng không thể định vị được trên bản đồ. Vui lòng kiểm tra lại chính tả (Tỉnh/Thành phố, Quận/Huyện, Phường/Xã)."
+                });
+            }
+            catch (Exception ex)
+            {
+                // Bắt các lỗi hệ thống khác (Mất mạng, sập nguồn service...)
+                _logger.LogError($"Lỗi hệ thống bất ngờ: {ex.Message}");
+                return StatusCode(500, new { success = false, message = "Hệ thống kết nối nội bộ trục trặc, vui lòng thử lại sau ít phút." });
+            }
+            
+
+            // 3. Tìm kho gần nhất (Đọc dữ liệu nhanh)
+            int? maKhoGanNhat = await _khoBaiService.TimKhoGanNhatAsync(maDcLay);
+
+
+            // --- BƯỚC 2: TÍNH TOÁN CHI PHÍ & BẢNG GIÁ (NGOÀI TRANSACTION) ---
+            // --- BƯỚC 2: TÍNH TOÁN CHI PHÍ & BẢNG GIÁ (TỐI ƯU BULK READ & LINQ MEMORY) ---
+            decimal tongTienGocCacKien = 0;
+            var danhSachGiaGoc = new List<decimal>();
+
+            // 1. Gom tất cả mã loại hàng của các kiện hàng để Query một thể
+            var danhSachMaLoaiHang = request.DanhSachKienHang
+                .Select(k => k.MaLoaiHang) // Thêm trường MaLoaiHang vào DTO nếu chưa có
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+
+            // 2. Thực hiện Bulk Read từ Database (Đúng 1 lần duy nhất)
+            var khoBangGiaRAM = await LayDanhSachBangGiaBulkAsync(request.DiaChiLay.ThanhPho, request.DiaChiGiao.ThanhPho, danhSachMaLoaiHang);
+
+            // 3. Đọc sẵn bảng giá mặc định đề phòng không tìm thấy cấu hình phù hợp
+            var bangGiaMacDinh = khoBangGiaRAM.FirstOrDefault(bg => bg.MaBangGia == 69)
+                                 ?? await _context.BangGiaVungs.AsNoTracking().FirstOrDefaultAsync(bg => bg.MaBangGia == 69);
+
+            // 4. Vòng lặp duyệt qua các kiện - Lúc này chỉ tính toán trên RAM, siêu tốc!
+            foreach (var kien in request.DanhSachKienHang)
+            {
+                // Tính trọng lượng quy đổi cho từng kiện
+                double trongLuongTheTich = (kien.TheTich) / 6000.0;
+                decimal trongLuongDeTinh = (decimal)Math.Max((double)(kien.KhoiLuong), trongLuongTheTich);
+
+                // Xác định hình thức vận chuyển của kiện
+                bool laHangNguyenChuyen = trongLuongDeTinh > 1000 || kien.MaBangGiaVung == 2; // hoặc logic phân loại của bạn
+
+                // Lọc bảng giá phù hợp từ list đã kéo về RAM bằng LINQ
+                BangGiaVung dongPhuHop = null;
+
+                if (laHangNguyenChuyen)
+                {
+                    dongPhuHop = khoBangGiaRAM.FirstOrDefault(bg => bg.LoaiTinhGia == 2 && bg.MaLoaiHang == kien.MaLoaiHang);
+                }
+                else
+                {
+                    // Tìm nấc khối lượng phù hợp cho bưu kiện
+                    var nhomTheoLoai = khoBangGiaRAM.Where(bg => bg.LoaiTinhGia == 1 && bg.MaLoaiHang == kien.MaLoaiHang).ToList();
+
+                    dongPhuHop = nhomTheoLoai.FirstOrDefault(bg =>
+                        trongLuongDeTinh >= (decimal)(bg.TrongLuongToiThieuKg ?? 0) &&
+                        trongLuongDeTinh <= (decimal)(bg.TrongLuongToiDaKg ?? 0));
+
+                    // Nếu vượt nấc tối đa thì lấy dòng có khối lượng cao nhất
+                    if (dongPhuHop == null)
                     {
-                        ThanhPhoLay = request.DiaChiLay.ThanhPho?.Trim(),
-                        ThanhPhoGiao = request.DiaChiGiao.ThanhPho?.Trim(),
-                        KhoiLuongTong = kien.KhoiLuong,
-                        TheTichTong = kien.TheTich,
-                        
-                        SoKm = request.SoKm
-                    };
+                        dongPhuHop = nhomTheoLoai.OrderByDescending(x => x.TrongLuongToiDaKg).FirstOrDefault();
+                    }
+                }
 
-                    var options = await ThucHienPhanTichGiaInternal(payloadGia);
+                // fallback về bảng giá mặc định nếu không khớp dòng nào
+                if (dongPhuHop == null)
+                {
+                    dongPhuHop = bangGiaMacDinh;
+                }
 
-                    if (options != null && options.Any())
+                if (dongPhuHop == null)
+                {
+                    return BadRequest(new { success = false, message = "Không tìm thấy cấu hình chi phí hợp lệ cho kiện hàng." });
+                }
+
+                // --- TÍNH GIÁ CHI TIẾT TRÊN RAM ---
+                decimal tongTienKien = 0;
+
+                if (dongPhuHop.LoaiTinhGia == 2) // --- XE NGUYÊN CHUYẾN ---
+                {
+                    decimal kmTinhPhi = Math.Max((decimal)(request.SoKm ?? 0), (decimal)(dongPhuHop.KmToiThieu ?? 0));
+                    tongTienKien = (kmTinhPhi * (dongPhuHop.DonGiaKm ?? 0)) + (dongPhuHop.DonGiaCoBan ?? 0) + (dongPhuHop.PhiDungDiem ?? 0);
+                }
+                else // --- CHUYỂN PHÁT BƯU KIỆN ---
+                {
+                    decimal giaGoc = dongPhuHop.DonGiaCoBan ?? 0;
+                    decimal trongLuongToiThieu = (decimal)(dongPhuHop.TrongLuongToiThieuKg ?? 0);
+                    decimal phuPhiMoiKg = dongPhuHop.PhuPhiMoiKg ?? 0;
+
+                    if (phuPhiMoiKg > 0 && trongLuongDeTinh > trongLuongToiThieu)
                     {
-                        var selectedOption = options.FirstOrDefault(o => o.MaBangGia == kien.MaBangGiaVung);
-
-                        if (selectedOption == null)
-                        {
-                            return BadRequest(new
-                            {
-                                success = false,
-                                message = $"Kiện hàng có trọng lượng {kien.KhoiLuong}kg không khớp với mã bảng giá #{kien.MaBangGiaVung} đã chọn."
-                            });
-                        }
-
-                        decimal giaDonVi = selectedOption.TongTienDuKien;
-                        int soLuong = (kien.SoLuongKienHang ?? 0) > 0 ? kien.SoLuongKienHang.Value : 1;
-                        decimal tongGiaKien = giaDonVi * soLuong;
-
-                        danhSachGiaGoc.Add(tongGiaKien);
-                        tongTienGocCacKien += tongGiaKien;
+                        decimal khoiLuongVuot = trongLuongDeTinh - trongLuongToiThieu;
+                        tongTienKien = giaGoc + (khoiLuongVuot * phuPhiMoiKg);
                     }
                     else
                     {
-                        return BadRequest(new { success = false, message = "Hệ thống không tìm thấy bảng giá hợp lệ cho tuyến đường hoặc loại hàng này." });
+                        tongTienKien = giaGoc;
                     }
                 }
 
-                // --- BƯỚC 5: ÁP DỤNG HỆ SỐ DỊCH VỤ & KHUYẾN MÃI ---
-                decimal heSoDichVu = 1.0m;
-                var mucDo = await _context.MucDoDichVus
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(m => m.MaDichVu == request.MaMucDoDv);
+                int soLuong = (kien.SoLuongKienHang ?? 0) > 0 ? kien.SoLuongKienHang.Value : 1;
+                decimal tongGiaKienHang = tongTienKien * soLuong;
 
-                if (mucDo != null)
-                {
-                    heSoDichVu = (decimal)(mucDo.HeSoNhiPhan ?? 1.0);
-                }
+                // Gán đè ngược lại mã bảng giá tìm được để lưu vào DB ở bước sau
+                kien.MaBangGiaVung = dongPhuHop.MaBangGia;
 
-                decimal tongTienDuKien = tongTienGocCacKien * heSoDichVu;
-                decimal soTienGiam = 0;
-                int? maKhuyenMai = null;
+                danhSachGiaGoc.Add(tongGiaKienHang);
+                tongTienGocCacKien += tongGiaKienHang;
+            }
 
-                if (!string.IsNullOrEmpty(request.MaGiamGia))
-                {
-                    var kmResult = await _khachHangService.ApDungKhuyenMaiAsync(request.MaGiamGia, tongTienDuKien, maKhachHang);
-                    soTienGiam = kmResult.soTienGiam;
-                    maKhuyenMai = kmResult.maKhuyenMai;
-                }
+            // --- BƯỚC 3: ÁP DỤNG HỆ SỐ DỊCH VỤ & KHUYẾN MÃI (NGOÀI TRANSACTION) ---
+            decimal heSoDichVu = 1.0m;
+            var mucDo = await _context.MucDoDichVus
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.MaDichVu == request.MaMucDoDv);
 
-                decimal tongTienThucTe = Math.Max(0, tongTienDuKien - soTienGiam);
+            if (mucDo != null)
+            {
+                heSoDichVu = (decimal)(mucDo.HeSoNhiPhan ?? 1.0);
+            }
 
-                // --- BƯỚC 6: LƯU ĐƠN HÀNG, KIỆN HÀNG, HÓA ĐƠN ---
-                var newDonHang = new QuanLyDonHang.Models.DonHang
-                {
-                    TenDonHang = request.TenDonHang ?? $"Đơn {DateTime.Now:HHmm}",
-                    MaKhachHang = maKhachHang,
-                    MaDiaChiNhanHang = maDcGiao,
-                    MaKhoHienTai = maKhoGanNhat ?? request.MaKhoHienTai,
-                    MaDiaChiLayHang = maDcLay,
-                    MaMucDoDv = request.MaMucDoDv,
-                    TongTienDuKien = tongTienDuKien,
-                    TongTienThucTe = tongTienThucTe,
-                    ThoiGianTao = DateTime.Now,
-                    TrangThaiHienTai = "Chờ lấy hàng",
-                    GhiChuDacBiet = $"Giảm giá: {soTienGiam:N0}. Kho phụ trách: {maKhoGanNhat}",
-                    TenNguoiNhan = request.TenNguoiNhan,
-                    SdtNguoiNhan = request.SdtNguoiNhan,
-                    MaKhuyenMai = maKhuyenMai,
-                    MaVungH3Giao = maH3Giao,
-                    MaVungH3Nhan = maH3Nhan,
-                    MaPttt = request.MaPTTT,
-                    TrangThaiThanhToanTong = "Chưa thanh toán"
-                };
+            decimal tongTienDuKien = tongTienGocCacKien * heSoDichVu;
+            decimal soTienGiam = 0;
+            int? maKhuyenMai = null;
+
+            if (!string.IsNullOrEmpty(request.MaGiamGia))
+            {
+                // Gọi API áp dụng mã giảm giá của service Khách Hàng ngoài Transaction
+                var kmResult = await _khachHangService.ApDungKhuyenMaiAsync(request.MaGiamGia, tongTienDuKien, maKhachHang);
+                soTienGiam = kmResult.soTienGiam;
+                maKhuyenMai = kmResult.maKhuyenMai;
+            }
+
+            decimal tongTienThucTe = Math.Max(0, tongTienDuKien - soTienGiam);
+
+
+            // --- BƯỚC 4: MỞ TRANSACTION (CHỈ DÀNH RIÊNG LƯU DỮ LIỆU XUỐNG DB) ---
+            // Lúc này Transaction diễn ra siêu tốc (vài mili-giây) vì toàn bộ data đã được tính toán xong xuôi.
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            var newDonHang = new QuanLyDonHang.Models.DonHang();
+
+            try
+            {
+                // 1. Khởi tạo thực thể Đơn hàng
+                newDonHang.TenDonHang = request.TenDonHang ?? $"Đơn {DateTime.Now:HHmm}";
+                newDonHang.MaKhachHang = maKhachHang;
+                newDonHang.MaDiaChiNhanHang = maDcGiao;
+                newDonHang.MaKhoHienTai = maKhoGanNhat ?? request.MaKhoHienTai;
+                newDonHang.MaDiaChiLayHang = maDcLay;
+                newDonHang.MaMucDoDv = request.MaMucDoDv;
+                newDonHang.TongTienDuKien = tongTienDuKien;
+                newDonHang.TongTienThucTe = tongTienThucTe;
+                newDonHang.ThoiGianTao = DateTime.Now;
+                newDonHang.TrangThaiHienTai = "Chờ lấy hàng";
+                newDonHang.GhiChuDacBiet = $"Giảm giá: {soTienGiam:N0}. Kho phụ trách: {maKhoGanNhat}";
+                newDonHang.TenNguoiNhan = request.TenNguoiNhan;
+                newDonHang.SdtNguoiNhan = request.SdtNguoiNhan;
+                newDonHang.MaKhuyenMai = maKhuyenMai;
+                newDonHang.MaVungH3Giao = maH3Giao;
+                newDonHang.MaVungH3Nhan = maH3Nhan;
+                newDonHang.MaPttt = request.MaPTTT;
+                newDonHang.TrangThaiThanhToanTong = "Đã thanh toán";
 
                 _context.DonHangs.Add(newDonHang);
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(); // Lưu trước để sinh ra MaDonHang
 
+                // 2. Lưu danh sách kiện hàng gắn liền với MaDonHang vừa sinh
                 for (int i = 0; i < request.DanhSachKienHang.Count; i++)
                 {
                     var kienReq = request.DanhSachKienHang[i];
@@ -524,79 +617,89 @@ namespace QuanLyDonHang.ControllersAPI
                     });
                 }
 
+                // 3. Tạo Hóa Đơn đi kèm
                 var newHoaDon = new HoaDon
                 {
                     MaDonHang = newDonHang.MaDonHang,
                     MaPttt = request.MaPTTT,
                     SoTienThanhToan = tongTienThucTe,
                     NgayThanhToan = DateTime.Now,
-                    TrangThaiThanhToan = "Chưa thanh toán",
+                    TrangThaiThanhToan = "Đã thanh toán",
                 };
 
                 await _context.HoaDons.AddAsync(newHoaDon);
                 await _context.SaveChangesAsync();
 
-                // Commit Transaction thành công
+                // Đảm bảo ghi xuống DB thành công, giải phóng khóa kết nối ngay lập tức!
                 await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError($"[Fatal Error] Luồng ghi DB thất bại: {ex.Message} - StackTrace: {ex.StackTrace}");
+                return StatusCode(500, new { message = "Lỗi hệ thống khi lưu đơn hàng vào Cơ sở dữ liệu." });
+            }
 
-                // --- BƯỚC 7: XỬ LÝ THANH TOÁN & QR CODE ---
-                // --- BƯỚC 7: XỬ LÝ THANH TOÁN & QR CODE ---
-                string paymentUrl = "";
-                string qrCodeUrl = "";
 
-                if (request.MaPTTT == 2)
+            // --- BƯỚC 5: XỬ LÝ THANH TOÁN & TẠO LINK QR CODE (NGOÀI TRANSACTION) ---
+            string paymentUrl = "";
+            string qrCodeUrl = "";
+
+            if (request.MaPTTT == 2) // Phương thức chuyển khoản ngân hàng qua VietQR
+            {
+                string bankId = "MB";
+                string accountNo = "0833508903";
+                string accountName = "NGUYEN DUC TOAN";
+                string addInfo = $"Thanh toan don hang {newDonHang.MaDonHang}";
+
+                qrCodeUrl = $"https://img.vietqr.io/image/{bankId}-{accountNo}-compact2.png?amount={(long)tongTienThucTe}&addInfo={Uri.EscapeDataString(addInfo)}&accountName={Uri.EscapeDataString(accountName)}";
+            }
+            else if (request.MaPTTT == 3) // Thanh toán qua cổng MoMo
+            {
+                // Lưu ý: Các biến accessKey, partnerCode, secretKey, endpoint nên được định nghĩa dạng biến toàn cục lớp hoặc lấy từ appsettings.json
+                string orderId = newDonHang.MaDonHang.ToString() + "_" + DateTime.Now.Ticks;
+                string requestId = Guid.NewGuid().ToString();
+                string orderInfo = "Thanh toán đơn hàng #" + newDonHang.MaDonHang;
+                string redirectUrl = "https://localhost:7149/api/thanhtoan/momo-callback";
+                string ipnUrl = "https://your-domain.com/api/thanhtoan/momo-ipn";
+                string amount = ((long)tongTienThucTe).ToString();
+                string extraData = "";
+
+                string rawHash = "accessKey=" + accessKey +
+                    "&amount=" + amount +
+                    "&extraData=" + extraData +
+                    "&ipnUrl=" + ipnUrl +
+                    "&orderId=" + orderId +
+                    "&orderInfo=" + orderInfo +
+                    "&partnerCode=" + partnerCode +
+                    "&redirectUrl=" + redirectUrl +
+                    "&requestId=" + requestId +
+                    "&requestType=captureWallet";
+
+                string signature = "";
+                using (HMACSHA256 hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secretKey)))
                 {
-                    string bankId = "MB";
-                    string accountNo = "0833508903";
-                    string accountName = "NGUYEN DUC TOAN";
-                    string addInfo = $"Thanh toan don hang {newDonHang.MaDonHang}";
-
-                    qrCodeUrl = $"https://img.vietqr.io/image/{bankId}-{accountNo}-compact2.png?amount={(long)tongTienThucTe}&addInfo={Uri.EscapeDataString(addInfo)}&accountName={Uri.EscapeDataString(accountName)}";
+                    byte[] hashValue = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawHash));
+                    signature = BitConverter.ToString(hashValue).Replace("-", "").ToLower();
                 }
-                else if (request.MaPTTT == 3)
+
+                var message = new
                 {
-                    // Các biến accessKey, partnerCode, secretKey, endpoint cần được định nghĩa ở cấp Class hoặc truyền từ appsettings.json
-                    string orderId = newDonHang.MaDonHang.ToString() + "_" + DateTime.Now.Ticks;
-                    string requestId = Guid.NewGuid().ToString();
-                    string orderInfo = "Thanh toán đơn hàng #" + newDonHang.MaDonHang;
-                    string redirectUrl = "https://localhost:7149/api/thanhtoan/momo-callback";
-                    string ipnUrl = "https://your-domain.com/api/thanhtoan/momo-ipn";
-                    string amount = ((long)tongTienThucTe).ToString();
-                    string extraData = "";
+                    partnerCode = partnerCode,
+                    requestId = requestId,
+                    amount = long.Parse(amount),
+                    orderId = orderId,
+                    orderInfo = orderInfo,
+                    redirectUrl = redirectUrl,
+                    ipnUrl = ipnUrl,
+                    extraData = extraData,
+                    requestType = "captureWallet",
+                    signature = signature,
+                    lang = "vi"
+                };
 
-                    string rawHash = "accessKey=" + accessKey +
-                        "&amount=" + amount +
-                        "&extraData=" + extraData +
-                        "&ipnUrl=" + ipnUrl +
-                        "&orderId=" + orderId +
-                        "&orderInfo=" + orderInfo +
-                        "&partnerCode=" + partnerCode +
-                        "&redirectUrl=" + redirectUrl +
-                        "&requestId=" + requestId +
-                        "&requestType=captureWallet";
-
-                    string signature = "";
-                    using (HMACSHA256 hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secretKey)))
-                    {
-                        byte[] hashValue = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawHash));
-                        signature = BitConverter.ToString(hashValue).Replace("-", "").ToLower();
-                    }
-
-                    var message = new
-                    {
-                        partnerCode = partnerCode,
-                        requestId = requestId,
-                        amount = long.Parse(amount),
-                        orderId = orderId,
-                        orderInfo = orderInfo,
-                        redirectUrl = redirectUrl,
-                        ipnUrl = ipnUrl,
-                        extraData = extraData,
-                        requestType = "captureWallet",
-                        signature = signature,
-                        lang = "vi"
-                    };
-
+                try
+                {
                     var responseMomo = await client.PostAsJsonAsync(endpoint, message);
                     if (responseMomo.IsSuccessStatusCode)
                     {
@@ -609,51 +712,49 @@ namespace QuanLyDonHang.ControllersAPI
                             qrCodeUrl = qrElement.GetString();
                     }
                 }
-
-               
-
-                // --- BƯỚC 8: LUỒNG HỎA TỐC (Gửi qua RabbitMQ) ---
-                if (request.MaMucDoDv?.ToString() == "3")
+                catch (Exception ex)
                 {
-                    try
-                    {
-                        // Giả định bạn đã có class RabbitMQProducer được inject hoặc khởi tạo
-                        var rabbitMQ = new RabbitMQProducer();
-                        var rmqMessage = new
-                        {
-                            MaDonHang = newDonHang.MaDonHang,
-                            MaDiaChiLayHang = maDcLay,
-                            MaDiaChiGiaoHang = maDcGiao,
-                            MaKhoVao = maKhoGanNhat ?? request.MaKhoHienTai,
-                            TongKhoiLuong = request.DanhSachKienHang.Sum(k => k.KhoiLuong),
-                            TongTheTich = request.DanhSachKienHang.Sum(k => k.TheTich),
-                            ThoiGian = DateTime.Now
-                        };
-                        await rabbitMQ.SendOrderMessageAsync(rmqMessage);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError($"Lỗi gửi tin nhắn RabbitMQ cho đơn {newDonHang.MaDonHang}: {ex.Message}");
-                    }
+                    _logger.LogError($"Lỗi gọi cổng thanh toán MoMo: {ex.Message}");
+                    // Không chặn đứng tiến trình vì đơn hàng đã lưu DB thành công.
                 }
+            }
 
-                // --- TRẢ VỀ CHO FRONT-END ---
-                return Ok(new
-                {
-                    Success = true,
-                    MaDonHang = newDonHang.MaDonHang,
-                    H3 = maH3Nhan,
-                    TongTien = tongTienThucTe,
-                    PaymentUrl = paymentUrl,
-                    QrCodeUrl = qrCodeUrl
-                });
-            }
-            catch (Exception ex)
+
+            // --- BƯỚC 6: LUỒNG HỎA TỐC (GỬI QUA RABBITMQ) ---
+            if (request.MaMucDoDv?.ToString() == "3")
             {
-                await transaction.RollbackAsync(); // Hoàn tác dữ liệu nếu có lỗi hệ thống
-                _logger.LogError($"[Fatal Error] TaoDonHang: {ex.Message} - StackTrace: {ex.StackTrace}");
-                return StatusCode(500, new { message = "Lỗi hệ thống khi tạo đơn hàng", detail = ex.Message });
+                try
+                {
+                    // KHUYẾN NGHỊ: Nên Inject IRabbitMQProducer qua Constructor thay vì tạo mới bằng từ khóa `new` thủ công
+                    var rabbitMQ = new RabbitMQProducer();
+                    var rmqMessage = new
+                    {
+                        MaDonHang = newDonHang.MaDonHang,
+                        MaDiaChiLayHang = maDcLay,
+                        MaDiaChiGiaoHang = maDcGiao,
+                        MaKhoVao = maKhoGanNhat ?? request.MaKhoHienTai,
+                        TongKhoiLuong = request.DanhSachKienHang.Sum(k => k.KhoiLuong),
+                        TongTheTich = request.DanhSachKienHang.Sum(k => k.TheTich),
+                        ThoiGian = DateTime.Now
+                    };
+                    await rabbitMQ.SendOrderMessageAsync(rmqMessage);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Lỗi gửi tin nhắn RabbitMQ cho đơn hỏa tốc {newDonHang.MaDonHang}: {ex.Message}");
+                }
             }
+
+            // --- TRẢ VỀ KẾT QUẢ THÀNH CÔNG CHO FRONT-END ---
+            return Ok(new
+            {
+                Success = true,
+                MaDonHang = newDonHang.MaDonHang,
+                H3 = maH3Nhan,
+                TongTien = tongTienThucTe,
+                PaymentUrl = paymentUrl,
+                QrCodeUrl = qrCodeUrl
+            });
         }
 
         [HttpPost("phan-tich-dich-vu-phu-hop")]
@@ -674,89 +775,292 @@ namespace QuanLyDonHang.ControllersAPI
             }
         }
 
+
         private async Task<List<KetQuaPhanTichGia>> ThucHienPhanTichGiaInternal(YeuCauTinhPhi request)
         {
             // --- 1. CHUẨN HÓA DỮ LIỆU ĐẦU VÀO ---
-            // Loại bỏ khoảng trắng thừa để so khớp chính xác với SQL
-            string nhanLay = request.ThanhPhoLay?.Trim() ?? "";
-            string nhanGiao = request.ThanhPhoGiao?.Trim() ?? "";
+            string thanhPhoLay = request.ThanhPhoLay?.Trim() ?? "";
+            string thanhPhoGiao = request.ThanhPhoGiao?.Trim() ?? "";
 
-            // Tính trọng lượng quy đổi (Dành cho bưu kiện)
+            // Tính trọng lượng quy đổi (Dành cho bưu kiện: Dài x Rộng x Cao / 6000)
             double trongLuongTheTich = (request.TheTichTong ?? 0) / 6000.0;
             decimal trongLuongDeTinh = (decimal)Math.Max((double)(request.KhoiLuongTong ?? 0), trongLuongTheTich);
 
-            // Giả định nếu trên 1 tấn là hàng nặng, ưu tiên tính theo chuyến (LoaiTinhGia = 2)
-            bool laHangNang = trongLuongDeTinh > 1000;
+            // Xác định hình thức vận chuyển dựa trên trọng lượng hoặc yêu cầu cụ thể
+            bool laHangNguyenChuyen = trongLuongDeTinh > 1000 || request.LoaiTinhGia == 2;
 
-            // --- 2. TRUY VẤN DỮ LIỆU ---
-            // Ở đây ta lọc trực tiếp theo Tên Tỉnh (Hà Nội, Đà Nẵng...) thay vì Miền
-            var tatCaBangGia = await _context.BangGiaVungs
-                .AsNoTracking()
-                .Where(bg => bg.IsActive == true
-                       && bg.KhuVucLay == nhanLay
-                       && bg.KhuVucGiao == nhanGiao)
-                .ToListAsync();
+            // --- 2. XÁC ĐỊNH VÙNG MIỀN DỰA TRÊN ĐẦU VÀO ---
+            // --- 2. XÁC ĐỊNH VÙNG MIỀN DỰA TRÊN ĐẦU VÀO ---
+            string phanLoaiVung = "Liên miền";
+            string chiTietVung = "Liên miền";
 
-            // --- 3. LỌC BẢNG GIÁ PHÙ HỢP VỚI CẤU HÌNH HÀNG HÓA ---
-            var danhSachLoc = tatCaBangGia.Where(bg => {
-                // Khớp loại hàng (nếu có yêu cầu cụ thể)
-                if (request.MaLoaiHang > 0 && bg.MaLoaiHang != request.MaLoaiHang) return false;
+            if (thanhPhoLay.Equals(thanhPhoGiao, StringComparison.OrdinalIgnoreCase))
+            {
+                phanLoaiVung = "Nội tỉnh";
+                chiTietVung = "Nội Cụm";
+            }
+            else if (XacDinhCungMien(thanhPhoLay, thanhPhoGiao))
+            {
+                phanLoaiVung = "Nội miền";
+                chiTietVung = "Nội miền";
+            }
+            else
+            {
+                // ĐƯỜNG ĐI LIÊN MIỀN: Gán nhãn trực tiếp theo vùng để khớp database bảng giá vừng
+                phanLoaiVung = LayTenMienCuaTinh(thanhPhoLay);  // Ví dụ: Trả về "Miền Trung"
+                chiTietVung = LayTenMienCuaTinh(thanhPhoGiao);   // Ví dụ: Trả về "Miền Nam"
+            }
 
-                // Nếu là hàng nặng (>1000kg), ưu tiên lấy bảng giá tính theo Km
-                if (laHangNang) return bg.LoaiTinhGia == 2;
+            // --- 3. TRUY VẤN DỮ LIỆU BẢNG GIÁ ---
+            IQueryable<BangGiaVung> query = _context.BangGiaVungs.AsNoTracking().Where(bg => bg.IsActive == true);
 
-                // Đối với hàng bưu kiện (LoaiTinhGia = 1), kiểm tra khoảng trọng lượng
-                if (bg.LoaiTinhGia == 1)
+            if (laHangNguyenChuyen)
+            {
+                query = query.Where(bg => bg.LoaiTinhGia == 2 &&
+                                         (bg.KhuVucLay == thanhPhoLay || bg.KhuVucLay == "Hà Nội & Khác" || bg.KhuVucLay == "Mặc định"));
+            }
+            else
+            {
+                query = query.Where(bg => bg.LoaiTinhGia == 1 &&
+                                          bg.KhuVucLay == phanLoaiVung &&
+                                          (bg.KhuVucGiao == chiTietVung || bg.KhuVucGiao == "Đặc biệt"));
+            }
+
+            if (request.MaLoaiHang > 0)
+            {
+                query = query.Where(bg => bg.MaLoaiHang == request.MaLoaiHang);
+            }
+
+            var tatCaBangGiaPhanLoai = await query.ToListAsync();
+
+            // --- 4. LỌC KHỐI LƯỢNG (CHỈ ÁP DỤNG CHO BƯU KIỆN) ---
+            var danhSachLoc = new List<BangGiaVung>();
+
+            if (laHangNguyenChuyen)
+            {
+                danhSachLoc = tatCaBangGiaPhanLoai;
+            }
+            else
+            {
+                var nhomTheoLoaiHang = tatCaBangGiaPhanLoai.GroupBy(x => x.MaLoaiHang);
+
+                foreach (var nhom in nhomTheoLoaiHang)
                 {
-                    var dsCungLoai = tatCaBangGia.Where(x => x.LoaiTinhGia == 1 && x.MaLoaiHang == bg.MaLoaiHang).ToList();
-                    decimal maxTrongLuong = dsCungLoai.Any() ? (decimal)dsCungLoai.Max(x => x.TrongLuongToiDaKg ?? 0) : 0;
+                    var dongPhuHop = nhom.FirstOrDefault(bg =>
+                        trongLuongDeTinh >= (decimal)(bg.TrongLuongToiThieuKg ?? 0) &&
+                        trongLuongDeTinh <= (decimal)(bg.TrongLuongToiDaKg ?? 0));
 
-                    return (trongLuongDeTinh >= (decimal)(bg.TrongLuongToiThieuKg ?? 0) && trongLuongDeTinh <= (decimal)(bg.TrongLuongToiDaKg ?? 0))
-                           || (trongLuongDeTinh > maxTrongLuong && (decimal)(bg.TrongLuongToiDaKg ?? 0) == maxTrongLuong);
+                    if (dongPhuHop != null)
+                    {
+                        danhSachLoc.Add(dongPhuHop);
+                    }
+                    else
+                    {
+                        var dongMax = nhom.OrderByDescending(x => x.TrongLuongToiDaKg).FirstOrDefault();
+                        if (dongMax != null) danhSachLoc.Add(dongMax);
+                    }
                 }
+            }
 
-                return bg.LoaiTinhGia == 2; // Giữ lại các bảng giá tính theo Km để người dùng lựa chọn
-            })
-            .OrderBy(x => x.LoaiTinhGia) // Ưu tiên bưu kiện hiện lên trước
-            .ToList();
+            // =========================================================================
+            // --- BỔ SUNG: FIX LẤY BẢNG GIÁ MẶC ĐỊNH (ID = 69) NẾU KHÔNG TÌM THẤY ---
+            // =========================================================================
+            if (!danhSachLoc.Any())
+            {
+                var bangGiaMacDinh = await _context.BangGiaVungs
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(bg => bg.MaBangGia == 69); // Giả định khóa chính là MaBangGia
 
-            // --- 4. TÍNH TOÁN CHI TIẾT SỐ TIỀN ---
+                if (bangGiaMacDinh != null)
+                {
+                    danhSachLoc.Add(bangGiaMacDinh);
+                }
+            }
+            // =========================================================================
+
+            // --- 5. TÍNH TOÁN CHI TIẾT GIÁ THÀNH ---
             return danhSachLoc.Select(bg => {
                 decimal tongTien = 0;
                 string moTa = "";
 
-                if (bg.LoaiTinhGia == 2) // Tính theo Km (Nguyên chuyến)
+                if (bg.LoaiTinhGia == 2) // --- XE NGUYÊN CHUYẾN (TÍNH THEO KM) ---
                 {
                     decimal kmTinhPhi = Math.Max((decimal)(request.SoKm ?? 0), (decimal)(bg.KmToiThieu ?? 0));
-                    tongTien = (kmTinhPhi * (bg.DonGiaKm ?? 0)) + (bg.DonGiaCoBan ?? 0) + (bg.PhiDungDiem ?? 0);
-                    moTa = $"Cước: {kmTinhPhi}km x {bg.DonGiaKm:N0}đ + Phí sàn: {bg.DonGiaCoBan:N0}đ";
+                    decimal donGiaKm = bg.DonGiaKm ?? 0;
+                    decimal phiCoBan = bg.DonGiaCoBan ?? 0;
+
+                    tongTien = (kmTinhPhi * donGiaKm) + phiCoBan + (bg.PhiDungDiem ?? 0);
+                    moTa = $"Xe chuyến: {kmTinhPhi}km x {donGiaKm:N0}đ/km + Vé bến/Sàn: {phiCoBan:N0}đ";
                 }
-                else // Tính theo Bưu kiện (Khối lượng)
+                else // --- CHUYỂN PHÁT BƯU KIỆN (TÍNH THEO NẤC KHỐI LƯỢNG) ---
                 {
                     decimal giaGoc = bg.DonGiaCoBan ?? 0;
-                    decimal mucToiDa = (decimal)(bg.TrongLuongToiDaKg ?? 0);
-                    decimal khoiLuongVuot = Math.Max(0, trongLuongDeTinh - mucToiDa);
+                    decimal trongLuongToiThieu = (decimal)(bg.TrongLuongToiThieuKg ?? 0);
+                    decimal phuPhiMoiKg = bg.PhuPhiMoiKg ?? 0;
 
-                    tongTien = giaGoc + (khoiLuongVuot * (bg.PhuPhiMoiKg ?? 0));
-                    moTa = khoiLuongVuot > 0
-                           ? $"Giá mốc ({mucToiDa}kg): {giaGoc:N0}đ + Phí vượt: {khoiLuongVuot:N1}kg x {bg.PhuPhiMoiKg:N0}đ"
-                           : $"Giá trọn gói: {giaGoc:N0}đ";
+                    if (phuPhiMoiKg > 0 && trongLuongDeTinh > trongLuongToiThieu)
+                    {
+                        decimal khoiLuongVuot = trongLuongDeTinh - trongLuongToiThieu;
+                        tongTien = giaGoc + (khoiLuongVuot * phuPhiMoiKg);
+                        moTa = $"Giá mốc ({trongLuongToiThieu}kg): {giaGoc:N0}đ + Vượt mốc: {khoiLuongVuot:N2}kg x {phuPhiMoiKg:N0}đ/kg";
+                    }
+                    else
+                    {
+                        tongTien = giaGoc;
+                        moTa = $"Giá trọn gói nấc ({bg.TrongLuongToiThieuKg}-{bg.TrongLuongToiDaKg}kg): {giaGoc:N0}đ";
+                    }
                 }
 
                 return new KetQuaPhanTichGia
                 {
                     MaBangGia = bg.MaBangGia,
-                    TenDichVu = bg.LoaiTinhGia == 2 ? "Vận tải nguyên chuyến" : "Chuyển phát bưu kiện",
-                    LoaiHinh = bg.LoaiTinhGia ?? 0,
+                    TenDichVu = bg.LoaiTinhGia == 2 ? $"Vận tải xe ({bg.KhuVucLay})" : $"Chuyển phát ({bg.KhuVucLay} -> {bg.KhuVucGiao})",
+                    LoaiHinh = bg.LoaiTinhGia ?? 1,
                     TrongLuongTinhPhi = trongLuongDeTinh,
                     TongTienDuKien = tongTien,
                     MoTaGia = moTa,
-                    KhuVuc = $"{nhanLay} -> {nhanGiao}"
+                    KhuVuc = bg.LoaiTinhGia == 2 ? bg.KhuVucLay : $"{phanLoaiVung} ({chiTietVung})"
                 };
             }).OrderBy(x => x.TongTienDuKien).ToList();
         }
 
-        
+        private string LayTenMienCuaTinh(string tinhThanh)
+        {
+            string tinh = tinhThanh?.Trim().ToLower() ?? "";
+
+            var mienBac = new HashSet<string>
+            { 
+                // Dữ liệu gốc của bạn
+                "hà nội", "cao bằng", "điện biên", "hà tĩnh", "lai châu", "lạng sơn",
+                "nghệ an", "quảng ninh", "sơn la", "thanh hóa", "bắc ninh", "hải phòng",
+                "hưng yên", "lào cai", "thái nguyên", "tuyên quang", "ninh bình", "phú thọ",
+
+                // Bổ sung đầy đủ cho Miền Bắc (Tổng cộng 25 tỉnh/thành phố)
+                "hà giang", "bắc kạn", "yên bái", "hòa bình", "thái bình", "hà nam",
+                "nam định", "hải dương", "vĩnh phúc", "bắc giang"
+            };
+
+            var mienTrung = new HashSet<string>
+            { 
+                // Dữ liệu gốc của bạn
+                "đà nẵng", "huế", "gia lai", "khánh hòa", "quảng ngãi", "quảng trị",
+
+                // Bổ sung đầy đủ cho Miền Trung (Bao gồm Bắc Trung Bộ, Nam Trung Bộ và Tây Nguyên - 19 tỉnh/thành phố)
+                "quảng bình", "thừa thiên huế", // Thêm biến thể đầy đủ của Huế
+                "quảng nam", "bình định", "phú yên", "ninh thuận", "bình thuận",
+                "kon tum", "đắk lắk", "đắc lắc", "đắk nông", "đắc nông", // Thêm biến thể gõ chữ "c" và "k"
+                "lâm đồng"
+            };
+          
+            if (mienBac.Contains(tinh)) return "Miền Bắc";
+            if (mienTrung.Contains(tinh)) return "Miền Trung";
+
+            return "Miền Nam"; // Mặc định hoặc thuộc miền Nam (bao gồm Cà Mau)
+        }
+        /// <summary>
+        /// Kiểm tra xem địa chỉ nhận và giao có cùng thuộc một miền hay không (Nội miền)
+        /// </summary>
+        private bool XacDinhCungMien(string tinhLay, string tinhGiao)
+        {
+            // Cấu chuẩn dữ liệu chuỗi để tránh sai lệch khoảng trắng và chữ hoa/thường
+            string lay = tinhLay?.Trim().ToLower() ?? "";
+            string giao = tinhGiao?.Trim().ToLower() ?? "";
+
+            if (string.IsNullOrEmpty(lay) || string.IsNullOrEmpty(giao)) return false;
+            if (lay == giao) return true; // Cùng 1 tỉnh chắc chắn thuộc cùng 1 miền (Nội tỉnh)
+
+            // Chuẩn hóa hàm kiểm tra đầu vào trước khi đối chiếu: 
+            // string tinhThanhClean = thanhPhoTrim.ToLower().Replace("thành phố ", "").Replace("tỉnh ", "").Trim();
+
+            // Danh mục Miền Bắc chuẩn (25 tỉnh/thành phố)
+            var mienBac = new HashSet<string>
+            {
+                // Đồng bằng & Trung du sông Hồng
+                "hà nội", "hải phòng", "bắc ninh", "hà nam", "hải dương",
+                "hưng yên", "nam định", "ninh bình", "thái bình", "vĩnh phúc",
+
+                // Đông Bắc Bộ
+                "hà giang", "cao bằng", "bắc kạn", "lạng sơn", "tuyên quang",
+                "thái nguyên", "phú thọ", "bắc giang", "quảng ninh",
+
+                // Tây Bắc Bộ
+                "điện biên", "lai châu", "sơn la", "hòa bình", "lào cai", "yên bái"
+            };
+
+                        // Danh mục Miền Trung chuẩn (Bao gồm Bắc Trung Bộ, Nam Trung Bộ và Tây Nguyên - 19 tỉnh/thành)
+                        var mienTrung = new HashSet<string>
+            {
+                // Bắc Trung Bộ (Đã dời Thanh - Nghệ - Tĩnh về đúng Miền Trung)
+                "thanh hóa", "nghệ an", "hà tĩnh", "quảng bình", "quảng trị", "thừa thiên huế", "huế",
+
+                // Nam Trung Bộ
+                "đà nẵng", "quảng nam", "quảng ngãi", "bình định", "phú yên", "khánh hòa", "ninh thuận", "bình thuận",
+
+                // Tây Nguyên (Đã dời Lâm Đồng, Đắk Lắk về đây và chặn trùng lặp ở Miền Nam)
+                "kon tum", "gia lai", "đắk lắk", "đắc lắc", "đak lak", "đắk nông", "đắc nông", "lâm đồng"
+            };
+
+                        // Danh mục Miền Nam chuẩn (Bao gồm Đông Nam Bộ và Tây Nam Bộ - 19 tỉnh/thành)
+                        var mienNam = new HashSet<string>
+            {
+                // Đông Nam Bộ (Bổ sung đầy đủ các thủ phủ công nghiệp)
+                "hồ chí minh", "tp hcm", "tphcm", "saigon", "sài gòn", // Đón đầu các biến thể người dùng gõ
+                "bà rịa - vũng tàu", "bà rịa vũng tàu", "vũng tàu",
+                "bình dương", "bình phước", "đồng nai", "tây ninh",
+
+                // Tây Nam Bộ (Đồng bằng sông Cửu Long - Tuyệt đối không sót tỉnh nào)
+                "an giang", "bạc liêu", "bến tre", "cà mau", "cần thơ",
+                "đồng tháp", "hậu giang", "kiên giang", "long an", "sóc trăng",
+                "tiền giang", "trà vinh", "vĩnh long"
+            };
+            // Kiểm tra xem cả 2 tỉnh có cùng thuộc 1 trong các tập hợp trên không
+            if (mienBac.Contains(lay) && mienBac.Contains(giao)) return true;
+            if (mienTrung.Contains(lay) && mienTrung.Contains(giao)) return true;
+            if (mienNam.Contains(lay) && mienNam.Contains(giao)) return true;
+
+            return false;
+        }
+
+        private async Task<List<BangGiaVung>> LayDanhSachBangGiaBulkAsync(string tpLay, string tpGiao, List<int> danhSachMaLoaiHang)
+        {
+            string thanhPhoLay = tpLay?.Trim() ?? "";
+            string thanhPhoGiao = tpGiao?.Trim() ?? "";
+
+            // --- 1. XÁC ĐỊNH VÙNG MIỀN (Giữ nguyên logic của bạn) ---
+            string phanLoaiVung = "Liên miền";
+            string chiTietVung = "Liên miền";
+
+            if (thanhPhoLay.Equals(thanhPhoGiao, StringComparison.OrdinalIgnoreCase))
+            {
+                phanLoaiVung = "Nội tỉnh";
+                chiTietVung = "Nội Cụm";
+            }
+            else if (XacDinhCungMien(thanhPhoLay, thanhPhoGiao))
+            {
+                phanLoaiVung = "Nội miền";
+                chiTietVung = "Nội miền";
+            }
+            else
+            {
+                phanLoaiVung = LayTenMienCuaTinh(thanhPhoLay);
+                chiTietVung = LayTenMienCuaTinh(thanhPhoGiao);
+            }
+
+            // --- 2. MỘT QUERY DUY NHẤT LẤY TẤT CẢ ---
+            // Gom cả điều kiện bưu kiện (LoaiTinhGia = 1) và xe chuyến (LoaiTinhGia = 2)
+            return await _context.BangGiaVungs
+                .AsNoTracking()
+                .Where(bg => bg.IsActive == true
+                             && danhSachMaLoaiHang.Contains(bg.MaLoaiHang)
+                             && (
+                                 // Khớp điều kiện bưu kiện
+                                 (bg.LoaiTinhGia == 1 && bg.KhuVucLay == phanLoaiVung && (bg.KhuVucGiao == chiTietVung || bg.KhuVucGiao == "Đặc biệt"))
+                                 ||
+                                 // Khớp điều kiện xe nguyên chuyến
+                                 (bg.LoaiTinhGia == 2 && (bg.KhuVucLay == thanhPhoLay || bg.KhuVucLay == "Hà Nội & Khác" || bg.KhuVucLay == "Mặc định"))
+                             ))
+                .ToListAsync();
+        }
 
         [HttpGet("PTTT")]
         public async Task<IActionResult> PTTT()
@@ -815,60 +1119,144 @@ namespace QuanLyDonHang.ControllersAPI
         {
             try
             {
-                // 1. Eager Loading + AsNoTracking: Lấy đơn hàng cùng danh sách kiện hàng
-                var donHangs = await _context.DonHangs
+                // Kiểm tra và gán trạng thái mặc định nếu request không truyền lên
+                string trangThaiLoc = string.IsNullOrEmpty(request.TrangThaiDonHang) ? "Chờ lấy hàng" : request.TrangThaiDonHang;
+
+                // 1. Eager Loading + AsNoTracking: Lấy đơn hàng cùng danh sách kiện hàng theo điều kiện tối ưu
+                var query = _context.DonHangs
                     .Include(dh => dh.KienHangs)
-                    .Where(dh => dh.TrangThaiHienTai == "Chờ lấy hàng"
-                              && dh.MaDiaChiNhanHang != null // Phải có địa chỉ lấy
-                              && dh.MaVungH3Nhan != null    // Phải có vùng H3 nhận
-                              && dh.MaMucDoDv != 3)         // Ví dụ: Loại biên 3 không gom nhóm
-                    .AsNoTracking()
-                    .Take(5000)
-                    .ToListAsync();
+                    .Where(dh => dh.TrangThaiHienTai == trangThaiLoc
+                              && dh.MaDiaChiNhanHang != null
+                              && dh.MaVungH3Nhan != null
+                              && dh.MaMucDoDv != 3); // Bỏ qua đơn hàng ưu tiên đặc biệt hoặc hỏa tốc độc lập
+
+                var donHangs = await query.AsNoTracking().Take(5000).ToListAsync();
 
                 if (!donHangs.Any())
-                    return NotFound(new { message = "Không có đơn hàng cần thu gom." });
+                    return NotFound(new { message = $"Không có đơn hàng nào ở trạng thái [{trangThaiLoc}] cần thu gom, điều phối." });
 
-                // 2. Gom nhóm theo vùng H3 của bên NHẬN (MaVungH3Nhan)
-                var clusters = donHangs
-                    .GroupBy(dh => dh.MaVungH3Nhan)
-                    .Select(group => {
-                        // Lấy đơn hàng đầu tiên trong nhóm làm đại diện để lấy mã địa chỉ
-                        var representativeOrder = group.First();
-                        var allKienHangs = group.SelectMany(dh => dh.KienHangs).ToList();
+                var clusters = new List<ClusterResult>();
 
-                        return new ClusterResult
+                // =======================================================================
+                // 2. PHÂN LOẠI LOGIC GOM NHÓM THEO TỪNG CHẶNG CỦA CHUỖI CUNG ỨNG
+                // =======================================================================
+
+                if (trangThaiLoc == "Chờ lấy hàng")
+                {
+                    // --- CHẶNG 1: GOM HÀNG NGOÀI PHỐ (First Mile) ---
+                    // Gom nhóm theo điểm lấy hàng (MaDiaChiLayHang) để tối ưu cung đường xe đi gom hàng tại kho người bán
+                    clusters = donHangs
+                        .Where(dh => dh.MaDiaChiLayHang != null)
+                        .GroupBy(dh => dh.MaDiaChiLayHang)
+                        .Select(group =>
                         {
-                            MaVungH3 = group.Key!,
-                            SoLuongDonHang = group.Count(),
-                            // Đảm bảo gán MaDiaChiLayHang vì bên kia dùng trường này ưu tiên
-                            MaDiaChiLayHang = (int)representativeOrder.MaDiaChiLayHang ,
-                            MaDiaChiCum = (int)representativeOrder.MaDiaChiLayHang ,
-                            MaDiaChiNhanHang = (int)(representativeOrder.MaDiaChiNhanHang ?? 0),
-                            DanhSachMaDonHang = group.Select(dh => dh.MaDonHang).ToList(),
-                            TongKhoiLuong = allKienHangs.Sum(kh => kh.KhoiLuong ?? 0),
-                            TongTheTich = allKienHangs.Sum(kh => kh.TheTich ?? 0)
-                        };
-                    })
-                    // Có thể lọc thêm: Chỉ lấy cụm có từ N đơn hàng trở lên (nếu request yêu cầu)
-                    // .Where(c => c.SoLuongDonHang >= (request.MinOrdersPerCluster ?? 1))
-                    .OrderByDescending(c => c.SoLuongDonHang)
-                    .ToList();
+                            var allKienHangs = group.SelectMany(dh => dh.KienHangs).ToList();
 
-                // 3. Xử lý Signal/Cache (Giữ nguyên logic của bạn)
-                _resetCacheSignal.Cancel();
+                            return new ClusterResult
+                            {
+                                MaVungH3 = "FIRST_MILE", // Gom tại điểm đi, chưa phân cụm vùng đích H3
+                                SoLuongDonHang = group.Count(),
+                                MaDiaChiLayHang = (int)group.Key!,
+                                MaDiaChiCum = (int)group.Key!, // Điểm gom chính là địa chỉ lấy hàng
+                                MaDiaChiNhanHang = 0, // Nhiều địa chỉ nhận khác nhau, để 0 để xử lý gom độc lập
+                                DanhSachMaDonHang = group.Select(dh => dh.MaDonHang).ToList(),
+                                TongKhoiLuong = allKienHangs.Sum(kh => kh.KhoiLuong ?? 0),
+                                TongTheTich = allKienHangs.Sum(kh => kh.TheTich ?? 0)
+                            };
+                        }).ToList();
+                }
+                else if (trangThaiLoc == "Chờ trung chuyển")
+                {
+                    // --- CHẶNG 2: TRUNG CHUYỂN TRỤC (Linehaul / Hub-to-Hub) ---
+                    // Gom nhóm dựa trên TIỀN TỐ VÙNG NHẬN để đóng xe lớn chạy liên tỉnh/liên miền
+                    clusters = donHangs
+                        .GroupBy(dh =>
+                        {
+                            string fullH3 = dh.MaVungH3Nhan!.Trim();
+                            string prefix3 = fullH3.Length >= 3 ? fullH3.Substring(0, 3) : fullH3;
+                            string prefix6 = fullH3.Length >= 6 ? fullH3.Substring(0, 6) : fullH3;
+
+                            // SỬA LỖI ĐỊA LÝ ĐẶC THÙ: Ép Hải Phòng & Bắc Giang (872ea3) về cụm trục MIEN_BAC (Kho 11)
+                            if (prefix3 == "871" || prefix6 == "872ea3")
+                                return "MIEN_BAC";
+
+                            if (prefix3 == "872")
+                                return "MIEN_TRUNG"; // Các phân vùng còn lại của đầu mã 872 (Kho 15)
+
+                            return "MIEN_NAM"; // Các đầu mã vùng phía nam như 876... (Kho 17)
+                        })
+                        .Select(group =>
+                        {
+                            var representativeOrder = group.First();
+                            var allKienHangs = group.SelectMany(dh => dh.KienHangs).ToList();
+
+                            return new ClusterResult
+                            {
+                                MaVungH3 = group.Key, // Gán định danh miền đích làm mã vùng cụm (MIEN_BAC, MIEN_TRUNG, MIEN_NAM)
+                                SoLuongDonHang = group.Count(),
+                                MaDiaChiLayHang = (int)(representativeOrder.MaDiaChiLayHang ?? 0),
+                                MaDiaChiCum = (int)(representativeOrder.MaDiaChiLayHang ?? 0), // Kho xuất phát trung chuyển
+                                MaDiaChiNhanHang = 0, // Điểm đến là cả một vùng trung tâm (Hub nhận), xử lý map tọa độ Hub ở tầng Service điều phối
+                                DanhSachMaDonHang = group.Select(dh => dh.MaDonHang).ToList(),
+                                TongKhoiLuong = allKienHangs.Sum(kh => kh.KhoiLuong ?? 0),
+                                TongTheTich = allKienHangs.Sum(kh => kh.TheTich ?? 0)
+                            };
+                        }).ToList();
+                }
+                else if (trangThaiLoc == "Chờ giao hàng")
+                {
+                    // --- CHẶNG 3: PHÁT HÀNG CHẶNG CUỐI (Last Mile) ---
+                    // Gom nhóm chi tiết theo từng ô lục giác H3 nơi nhận để phân tuyến cho Shipper đi phát tận nhà
+                    clusters = donHangs
+                        .GroupBy(dh => dh.MaVungH3Nhan!.Trim())
+                        .Select(group =>
+                        {
+                            var representativeOrder = group.First();
+                            var allKienHangs = group.SelectMany(dh => dh.KienHangs).ToList();
+
+                            return new ClusterResult
+                            {
+                                MaVungH3 = group.Key,
+                                SoLuongDonHang = group.Count(),
+                                MaDiaChiLayHang = (int)(representativeOrder.MaDiaChiLayHang ?? 0),
+                                // ĐỒNG BỘ LOGIC: Điểm dừng trung gian phục vụ OR-Tools tính toán khoảng cách
+                                MaDiaChiCum = (int)(representativeOrder.MaDiaChiNhanHang ?? 0),
+                                MaDiaChiNhanHang = (int)(representativeOrder.MaDiaChiNhanHang ?? 0),
+                                DanhSachMaDonHang = group.Select(dh => dh.MaDonHang).ToList(),
+                                TongKhoiLuong = allKienHangs.Sum(kh => kh.KhoiLuong ?? 0),
+                                TongTheTich = allKienHangs.Sum(kh => kh.TheTich ?? 0)
+                            };
+                        }).ToList();
+                }
+
+                // Áp dụng bộ lọc số lượng đơn hàng tối thiểu cho mỗi cụm nếu có yêu cầu từ Client
+                if (request.MinOrdersPerCluster.HasValue && request.MinOrdersPerCluster.Value > 1)
+                {
+                    clusters = clusters.Where(c => c.SoLuongDonHang >= request.MinOrdersPerCluster.Value).ToList();
+                }
+
+                // 3. Xử lý Signal/Cache (Giữ nguyên luồng giải phóng bộ nhớ đệm hệ thống của bạn)
+                if (_resetCacheSignal != null)
+                {
+                    _resetCacheSignal.Cancel();
+                    _resetCacheSignal.Dispose();
+                }
                 _resetCacheSignal = new CancellationTokenSource();
+
+                // Tính toán tổng số đơn sau khi đã qua bộ lọc MinOrdersPerCluster
+                int totalOrdersInClusters = clusters.Sum(c => c.SoLuongDonHang);
 
                 return Ok(new
                 {
                     TotalClusters = clusters.Count,
-                    TotalOrders = donHangs.Count,
-                    Clusters = clusters
+                    TotalOrdersProcessed = totalOrdersInClusters,
+                    TotalOrdersLoaded = donHangs.Count,
+                    Clusters = clusters.OrderByDescending(c => c.SoLuongDonHang).ToList()
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi thực hiện thuật toán gom nhóm đơn hàng H3");
+                _logger.LogError(ex, "Lỗi khi thực hiện thuật toán gom nhóm đơn hàng H3 đa tầng");
                 return StatusCode(500, "Lỗi Server nội bộ khi xử lý gom nhóm: " + ex.Message);
             }
         }
@@ -985,6 +1373,121 @@ namespace QuanLyDonHang.ControllersAPI
                 await transaction.RollbackAsync();
                 _logger.LogError($"Lỗi: {ex.Message}");
                 return StatusCode(500, "Lỗi hệ thống.");
+            }
+        }
+
+        [HttpGet("vi-tri-hien-tai/{maDonHang}")]
+        public async Task<IActionResult> GetViTriHienTaiDonHang(int maDonHang)
+        {
+            if (maDonHang <= 0)
+            {
+                return BadRequest("Mã đơn hàng không hợp lệ.");
+            }
+
+            try
+            {
+                // Lấy vị trí và thông tin điều hướng của đơn hàng dựa trên Model định nghĩa
+                var viTriDonHang = await _context.DonHangs
+                    .Where(dh => dh.MaDonHang == maDonHang)
+                    .Select(dh => new DonHangViTriDto
+                    {
+                        MaDonHang = dh.MaDonHang,
+                        TenDonHang = dh.TenDonHang,
+                        TrangThaiHienTai = dh.TrangThaiHienTai,
+                        MaKhoHienTai = dh.MaKhoHienTai,
+                        MaVungH3Nhan = dh.MaVungH3Nhan,
+                        MaVungH3Giao = dh.MaVungH3Giao
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (viTriDonHang == null)
+                {
+                    return NotFound($"Không tìm thấy vị trí cho đơn hàng mã {maDonHang}.");
+                }
+
+                return Ok(viTriDonHang);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy vị trí hiện tại của đơn hàng {MaDonHang}", maDonHang);
+                return StatusCode(500, "Lỗi hệ thống khi truy vấn vị trí đơn hàng.");
+            }
+        }
+
+        [HttpGet("thong-tin-giao-hang/{maDonHang}")]
+        public async Task<IActionResult> GetThongTinGiaoHang(int maDonHang)
+        {
+            if (maDonHang <= 0)
+            {
+                return BadRequest("Mã đơn hàng cung cấp không hợp lệ.");
+            }
+
+            try
+            {
+                // 1. TRUY VẤN DỮ LIỆU ĐƠN HÀNG GỐC
+                var donHang = await _context.DonHangs
+                    .Where(dh => dh.MaDonHang == maDonHang)
+                    .Select(dh => new
+                    {
+                        dh.MaDonHang,
+                        dh.MaDiaChiNhanHang,
+                        dh.MaDiaChiLayHang,
+                        MaVungH3GiaoChuan = dh.MaVungH3Giao != null ? dh.MaVungH3Giao.Trim() : string.Empty
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (donHang == null)
+                {
+                    return NotFound($"Không tìm thấy thông tin đơn hàng với ID {maDonHang} trong hệ thống.");
+                }
+
+                // 2. CHUẨN HÓA LOGIC PHÂN TÍCH TIỀN TỐ H3 XÁC ĐỊNH VÙNG MIỀN ĐÍCH
+                string mienGiaoHang = "North"; // Đặt mặc định hoặc cấu hình mặc định hệ thống
+
+                if (!string.IsNullOrEmpty(donHang.MaVungH3GiaoChuan))
+                {
+                    string h3 = donHang.MaVungH3GiaoChuan;
+
+                    // BƯỚC A: Kiểm tra các tiền tố đặc thù của MIỀN TRUNG trước (Độ dài 4 ký tự để tránh nuốt mã)
+                    if (h3.StartsWith("878a") || h3.StartsWith("87b0") || h3.StartsWith("887"))
+                    {
+                        mienGiaoHang = "Central";
+                    }
+                    // BƯỚC B: Kiểm tra các tiền tố thuộc MIỀN NAM & TÂY NGUYÊN
+                    else if (h3.StartsWith("8760") || h3.StartsWith("87f2") ||
+                             h3.StartsWith("87d5") || h3.StartsWith("87c9") || h3.StartsWith("886"))
+                    {
+                        mienGiaoHang = "South";
+                    }
+                    // BƯỚC C: Kiểm tra dải rộng của MIỀN BẮC (Sau khi loại trừ các vùng trên)
+                    else if (h3.StartsWith("87") || h3.StartsWith("882"))
+                    {
+                        mienGiaoHang = "North";
+                    }
+                    // BƯỚC D: Trường hợp mã vùng H3 lạ không nằm trong danh sách cấu hình hệ thống hiện tại
+                    else
+                    {
+                        mienGiaoHang = "North"; // Fallback an toàn cho hệ thống
+                    }
+                }
+                else
+                {
+                    mienGiaoHang = "Unknown";
+                }
+
+                // 3. ĐẨY DỮ LIỆU DTO ĐỒNG BỘ TRẢ VỀ CHO CONTROLLER ĐIỀU PHỐI
+                return Ok(new
+                {
+                    mienGiaoHang = mienGiaoHang,
+                    maDiaChiNhanHang = donHang.MaDiaChiNhanHang,
+                    maDiaChiLayHang = donHang.MaDiaChiLayHang,
+                    maVungH3Giao = donHang.MaVungH3GiaoChuan
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi hệ thống khi bóc tách thông tin vùng miền giao hàng cho đơn: {MaDonHang}", maDonHang);
+                return StatusCode(500, "Lỗi Server nội bộ khi bóc tách thông tin luân chuyển vùng: " + ex.Message);
             }
         }
     }

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLTMS - Lời Cảm Ơn</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #003366;
+            --secondary: #2980b9;
+            --accent: #e67e22;
+            --bg: #f4f7f9;
+            --card-bg: #ffffff;
+            --text-dark: #2c3e50;
+            --text-muted: #555555;
+            --shadow: 0 12px 40px rgba(0,0,0,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- HEADER --- */
+        .slide-header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 2.5vh 4vw 1.5vh 4vw;
+            border-bottom: 5px solid var(--primary);
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header-left h2 {
+            font-size: clamp(1.4rem, 2.2vw, 1.8rem);
+            color: var(--primary);
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        /* --- MAIN CONTENT (CENTERED THANK YOU) --- */
+        .main-container {
+            flex-grow: 1;
+            min-height: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 4vh 4vw;
+        }
+
+        .thank-you-card {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 900px;
+            padding: 6vh 5vw;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            border: 1px solid #eaedf0;
+            border-top: 8px solid var(--accent);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            animation: fadeInUp 1s cubic-bezier(0.1, 0.8, 0.3, 1);
+        }
+
+        .icon-heart {
+            font-size: clamp(3rem, 6vh, 4.5rem);
+            color: var(--accent);
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        .thank-you-text {
+            font-size: clamp(2rem, 4.2vh, 3.2rem);
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1.4;
+            letter-spacing: -0.5px;
+            text-transform: uppercase;
+        }
+
+        .sub-text {
+            font-size: clamp(1.2rem, 2.2vh, 1.6rem);
+            color: var(--text-dark);
+            font-weight: 600;
+            background: #ebf5ff;
+            padding: 10px 25px;
+            border-radius: 30px;
+            border: 1px solid #cce5ff;
+            display: inline-block;
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            flex-shrink: 0;
+            padding: 1.5vh 4vw;
+            text-align: right;
+            font-size: clamp(0.85rem, 1vw, 1rem);
+            font-weight: 600;
+            color: var(--text-muted);
+            background: white;
+            border-top: 1px solid #e1e4e8;
+        }
+
+        /* --- SIDEBAR MENU --- */
+        .menu-btn { 
+            cursor: pointer; padding: 8px; display: flex; flex-direction: column; gap: 5px; 
+            background: var(--primary); border-radius: 6px; transition: all 0.3s ease;
+        }
+        .menu-btn:hover { background: var(--secondary); transform: scale(1.05); }
+        .menu-btn span { display: block; width: 22px; height: 3px; background: white; border-radius: 2px; }
+
+        .sidebar {
+            position: fixed; top: 0; left: -320px; width: 320px; height: 100%;
+            background: #111f38; z-index: 1000; transition: 0.4s cubic-bezier(0.77, 0, 0.175, 1);
+            padding: 30px 20px; display: flex; flex-direction: column; box-shadow: 10px 0 30px rgba(0,0,0,0.4);
+        }
+        .sidebar.active { left: 0; }
+        .sidebar h4 {
+            color: #f1c40f; text-transform: uppercase; font-size: 1.1rem; letter-spacing: 1px; 
+            margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px;
+        }
+        .slide-list { list-style: none; overflow-y: auto; }
+        .slide-list a {
+            color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.95rem;
+            display: block; padding: 12px 15px; border-radius: 6px; transition: 0.2s; margin-bottom: 5px;
+        }
+        .slide-list a:hover { background: rgba(255,255,255,0.1); color: white; padding-left: 20px; border-left: 3px solid #f1c40f; }
+        
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); display: none; z-index: 999;
+        }
+
+        /* --- LOGO HAUI --- */
+        .header { display: flex; align-items: center; font-family: "Arial", sans-serif; }
+        .logo-crop-wrapper { display: flex; justify-content: center; align-items: center; }
+        .school-logo-img { width: 40px; height: auto; object-fit: contain; }
+        .text-haui { font-size: 36px; font-weight: 900; color: #154294; margin-left: 8px; line-height: 1; letter-spacing: -1px; }
+        .red-divider { width: 3px; height: 32px; background-color: #EE2D24; margin: 0 10px; }
+        .text-school { font-size: 10px; font-weight: 700; color: #154294; text-transform: uppercase; line-height: 1.2; }
+
+        /* --- ANIMATIONS --- */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Overlay & Sidebar Menu -->
+    <div class="overlay" id="overlay"></div>
+    <div class="sidebar" id="sidebar">
+        <h4>Danh sách Slide</h4>
+        <ul class="slide-list">
+            <li><a href="PPThuyetTrinh.html">Tiêu đề</a></li>
+            <li><a href="1_slide_LyDo.html">1. Lý do chọn đề tài</a></li>
+            <li><a href="2_slide_gioithieuduan.html">2. Giới thiệu dự án</a></li>
+            <li><a href="3_slide_congNghe.html">3. Công nghệ sử dụng</a></li>
+            <li><a href="4_slide_usecase_TQ.html">4. Use Case tổng quát</a></li>
+            <li><a href="5_slide_DanhSachChucNang.html">5. Danh sách chức năng</a></li>
+            <li><a href="6_slide_ChucNangDonHang.html">6. Quản lý đơn hàng</a></li>
+            <li><a href="7_slide_ChucNangDieuPhoi.html">7. Điều phối vận tải</a></li>
+            <li><a href="8_slide_ChucNangQuanLyLoTrinh.html">8. Giám sát lộ trình</a></li>
+            <li><a href="9_silde_ThietKeDuLieu.html">9. Thiết kế dữ liệu</a></li>
+            <li><a href="10_slide_CaiDat.html">10. Cài đặt hệ thống</a></li>
+            <li><a href="11_slide_kiemThu01.html">11. Kiểm thử ghi dữ liệu đồng thời</a></li>
+            <li><a href="12_slide_kiemThu02.html">12. Kiểm thử sức bền và độ ổn định</a></li>
+            <li><a href="13_slide_kiemThu03.html">13. Kiểm thử chức năng Điều phối tự động</a></li>
+            <li><a href="14_slide_Kiemthu_04.html">14. RabbitMQ khi server sập</a></li>
+            <li><a href="#" style="color: #f1c40f; font-weight: bold;">15. Lời cảm ơn</a></li>
+        </ul>
+    </div>
+
+    <!-- Header -->
+    <header class="slide-header">             
+        <div class="header">
+            <div class="logo-crop-wrapper">
+                <img src="HinhAnh/LogoTruong.jpg" class="school-logo-img" alt="Logo">
+            </div> 
+            <div class="text-haui">HaUI</div>
+            <div class="red-divider"></div>
+            <div class="text-school">SCHOOL OF INFORMATION<br>& COMMUNICATIONS TECHNOLOGY</div>
+        </div>    
+    </header>
+
+    <!-- Main Content (Lời cảm ơn) -->
+    <div class="main-container">
+        <div class="thank-you-card">
+            <div class="icon-heart">✨ Thank You ✨</div>
+            <h1 class="thank-you-text">
+                Chân thành cảm ơn<br>Quý hội đồng và các bạn đã lắng nghe
+            </h1>
+           
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        SV: Nguyễn Đức Toán | Đồ án tốt nghiệp HaUI 2026
+    </footer>
+
+    <script>
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('active');
+                overlay.style.display = sidebar.classList.contains('active') ? 'block' : 'none';
+            }
+        }
+
+        function syncKeys() {
+            window.addEventListener('keydown', (e) => {
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'keydown', key: e.key, keyCode: e.keyCode
+                    }, '*');
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            syncKeys();
+            const btn = document.getElementById('menuToggle');
+            const overlay = document.getElementById('overlay');
+            
+            if (btn) btn.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu(); });
+            if (overlay) overlay.addEventListener('click', toggleMenu);
+        });
+    </script>
+</body>
+</html>

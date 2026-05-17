@@ -446,49 +446,41 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
             }
         }
 
-        
-
         //GanTaiXe_PhuongTien
-
-        [HttpGet("gan-tai-xe-phuong-tien/{maKho}")] // Chuyển sang HttpGet vì đây là thao tác lấy dữ liệu
-        public async Task<IActionResult> GetDanhSachTaiXeTheoKho(int maKho, [FromQuery] bool? trangthai = false)
+        [HttpGet("gan-tai-xe-phuong-tien/{maKho}")]
+        public async Task<IActionResult> GetDanhSachTaiXeTheoKho(int maKho, [FromQuery] bool? trangthai)
         {
             try
             {
-                // 1. Tạo query cơ bản từ NguoiDung, kết hợp (Join) với TaiXe
+                // 1. Khởi tạo query. Loại bỏ Include vì Select bên dưới sẽ tự động Join.
                 var query = _context.NguoiDungs
-                    .Include(tx => tx.TaiXe)
                     .AsNoTracking()
-                    .Where(nd => nd.MaKho == maKho && nd.MaChucVu == 16); // Chỉ lấy những người có bản ghi TaiXe
+                    .Where(nd => nd.MaKho == maKho
+                              && nd.MaChucVu == 16
+                              && nd.TaiXe != null); // Đảm bảo phải có thông tin tài xế
 
-                // 2. Lọc theo trạng thái gán của Tài xế
+                // 2. Lọc theo trạng thái gán (nếu có truyền vào)
                 if (trangthai.HasValue)
                 {
                     query = query.Where(nd => nd.TaiXe.Trangthaigan == trangthai.Value);
                 }
 
-                // 3. Thực thi truy vấn và Map dữ liệu ra Model
+                // 3. Thực thi truy vấn và Map dữ liệu
                 var result = await query.Select(nd => new
                 {
                     MaNguoiDung = nd.MaNguoiDung,
                     HoTen = nd.HoTenNhanVien,
-                    // Vì nd.TaiXe là navigation property, ta truy cập trực tiếp vào nó
-                    LoaiBangLai = nd.TaiXe != null ? nd.TaiXe.LoaiBangLai : "Chưa cập nhật"
+                    SoDienThoai = nd.SoDienThoai,
+                    // Sử dụng null-conditional để an toàn tuyệt đối
+                    LoaiBangLai = nd.TaiXe.LoaiBangLai ?? "Chưa cập nhật",
+                    TrangThaiGan = nd.TaiXe.Trangthaigan
                 }).ToListAsync();
 
-                // 4. Kiểm tra danh sách rỗng
-                if (result == null || !result.Any())
-                {
-                    return NotFound(new
-                    {
-                        success = false,
-                        message = $"Không tìm thấy tài xế nào tại kho {maKho} có trạng thái gán: {trangthai}"
-                    });
-                }
-
+                // 4. Trả về Ok kèm danh sách (dù rỗng) để Frontend dễ map
                 return Ok(new
                 {
                     success = true,
+                    message = result.Any() ? "Lấy dữ liệu thành công" : "Danh sách trống",
                     data = result
                 });
             }
@@ -513,76 +505,7 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
             await _context.SaveChangesAsync();
             return Ok();
         }
-
-        [HttpGet("lich-trinh-tai-xe")]
-        public async Task<IActionResult> GetLichTrinhTaiXe([FromQuery] int maKho, [FromQuery] string? loaiXeYeuCau)
-        {
-            try
-            {
-                var now = DateTime.Now;
-                var today = DateOnly.FromDateTime(now);
-                var yesterday = today.AddDays(-1);
-                var currentTime = TimeOnly.FromDateTime(now);
-
-                var query = _context.TaiXes.AsNoTracking()
-                    .Include(tx => tx.MaNguoiDungNavigation)
-                    .ThenInclude(n => n.DangKyCaTrucs)
-                    .ThenInclude(dk => dk.MaCaNavigation)
-                    .AsQueryable();
-
-                // 1. Lọc theo kho và trạng thái cơ bản của tài xế
-                query = query.Where(tx => tx.MaNguoiDungNavigation.MaKho == maKho
-                                       && tx.TrangThaiHoatDong == "Sẵn sàng"
-                                       && tx.NgayHetHanBang > today);
-
-                // 2. Lọc theo loại xe/bằng lái nếu có yêu cầu (Sử dụng ToUpper để tránh lệch chữ hoa/thường)
-                if (!string.IsNullOrEmpty(loaiXeYeuCau))
-                {
-                    var req = loaiXeYeuCau.ToUpper();
-                    query = query.Where(tx => tx.LoaiBangLai.ToUpper().Contains(req));
-                }
-
-                var tatCaTaiXePhuHop = await query.ToListAsync();
-
-                // 3. Lọc thủ công trong bộ nhớ để xử lý logic ca trực phức tạp (Xuyên đêm)
-                var danhSachTaiXe = tatCaTaiXePhuHop.Where(tx =>
-                    tx.MaNguoiDungNavigation.DangKyCaTrucs.Any(dk =>
-                        dk.TrangThai == "Đã duyệt" && (
-                            // TH1: Ca trực thuộc ngày hôm nay
-                            (dk.NgayTruc == today && (
-                                (dk.MaCaNavigation.GioBatDau <= dk.MaCaNavigation.GioKetThuc && currentTime >= dk.MaCaNavigation.GioBatDau && currentTime <= dk.MaCaNavigation.GioKetThuc) ||
-                                (dk.MaCaNavigation.GioBatDau > dk.MaCaNavigation.GioKetThuc && (currentTime >= dk.MaCaNavigation.GioBatDau || currentTime <= dk.MaCaNavigation.GioKetThuc))
-                            ))
-                            ||
-                            // TH2: Ca trực xuyên đêm bắt đầu từ hôm qua nhưng kết thúc vào hôm nay
-                            (dk.NgayTruc == yesterday && dk.MaCaNavigation.GioBatDau > dk.MaCaNavigation.GioKetThuc && currentTime <= dk.MaCaNavigation.GioKetThuc)
-                        )
-                    )
-                )
-                .Select(tx => new
-                {
-                    tx.MaNguoiDung,
-                    HoTen = tx.MaNguoiDungNavigation.HoTenNhanVien,
-                    SoDienThoai = tx.MaNguoiDungNavigation.SoDienThoai,
-                    tx.LoaiBangLai,
-                    tx.KinhNghiemNam,
-                    tx.DiemUyTin,
-                    TenCa = tx.MaNguoiDungNavigation.DangKyCaTrucs
-                                .Where(dk => dk.NgayTruc == today || (dk.NgayTruc == yesterday && dk.MaCaNavigation.GioBatDau > dk.MaCaNavigation.GioKetThuc))
-                                .Select(dk => dk.MaCaNavigation.TenCa)
-                                .FirstOrDefault()
-                })
-                .OrderByDescending(tx => tx.DiemUyTin)
-                .ToList();
-
-                return Ok(danhSachTaiXe);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
-            }
-        }
-
+       
         [HttpPost("cap-nhat-trang-thai")]
         public async Task<IActionResult> UpdateTrangThaiTaiXe([FromBody] UpdateTaiXeTrangTai model)
         {
@@ -651,38 +574,54 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
 
             if (taiXe == null)
             {
-                return NotFound(new { SanSang = false, Message = "Không tìm thấy tài xế này trong hệ thống." });
+                return NotFound(new { DangDiLam = false, SanSang = false, Message = "Không tìm thấy tài xế này trong hệ thống." });
             }
 
-            // 2. Logic kiểm tra tính sẵn sàng
-            // Điều kiện 1: Trạng thái hoạt động phải là 'Đang rảnh' (hoặc 'Nghỉ ngơi' tùy bạn định nghĩa)
-            // Điều kiện 2: Bằng lái phải còn hạn (NgayHetHanBang > Ngày hiện tại)
+            // 2. Logic kiểm tra xem tài xế CÓ ĐANG ĐI LÀM (VÀO CA) KHÔNG
+            // Tài xế được tính là ĐANG ĐI LÀM khi họ thuộc các trạng thái hoạt động trong ca (Sẵn sàng, Đang chạy chuyến, Bận,...)
+            // Ngược lại, nếu là "Off ca", "Nghỉ ca", "Vắng mặt" hoặc "Nghỉ việc" thì tính là không đi làm.
+            string trangThai = taiXe.TrangThaiHoatDong ?? "";
 
+            bool dangDiLam = trangThai == "Sẵn sàng"
+                          || trangThai == "Đang chạy chuyến"
+                          || trangThai == "Bận";
+            // Bạn có thể thêm các trạng thái làm việc khác của hệ thống vào đây tại đây
+
+            // 3. Logic kiểm tra tính sẵn sàng nhận lệnh điều phối (Giữ nguyên nghiệp vụ cũ)
             var ngayHienTai = DateOnly.FromDateTime(DateTime.Now);
             bool bangConHan = taiXe.NgayHetHanBang > ngayHienTai;
+            bool trangThaiSanSang = trangThai == "Sẵn sàng";
+            bool sanSangDieuPhoi = dangDiLam && trangThaiSanSang && bangConHan;
 
-            // Giả sử trạng thái sẵn sàng trong DB của bạn lưu là "Đang rảnh"
-            bool trangThaiSanSang = taiXe.TrangThaiHoatDong == "Sẵn sàng";
-
-            if (trangThaiSanSang && bangConHan)
+            // 4. Xây dựng thông báo trạng thái trực quan
+            string message;
+            if (!dangDiLam)
             {
-                return Ok(new
-                {
-                    MaNguoiDung = id,
-                    SanSang = true,
-                    Message = "Tài xế sẵn sàng nhận lệnh."
-                });
+                message = $"Tài xế hiện tại không đi làm (Trạng thái: {trangThai}).";
+            }
+            else if (!bangConHan)
+            {
+                message = "Tài xế đang đi làm nhưng bằng lái đã hết hạn.";
+            }
+            else if (trangThai == "Đang chạy chuyến" || trangThai == "Bận")
+            {
+                message = $"Tài xế đang đi làm nhưng hiện đang bận ({trangThai}).";
+            }
+            else
+            {
+                message = "Tài xế đang đi làm và sẵn sàng nhận lệnh điều phối.";
             }
 
-            // 3. Trả về lý do cụ thể nếu không sẵn sàng
-            string lyDo = !bangConHan ? "Bằng lái đã hết hạn." : $"Tài xế hiện đang: {taiXe.TrangThaiHoatDong}";
-
+            // 5. Trả về kết quả chứa cả 2 cờ trạng thái: DangDiLam và SanSang
             return Ok(new
             {
                 MaNguoiDung = id,
-                SanSang = false,
-                Message = lyDo
+                DangDiLam = dangDiLam,       // True/False theo yêu cầu mới của bạn
+                SanSang = sanSangDieuPhoi,   // Kiểm tra đủ điều kiện để kéo đi chạy chuyến hay không
+                Message = message
             });
         }
+
+
     }
 }

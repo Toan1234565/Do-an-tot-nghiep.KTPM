@@ -46,16 +46,18 @@ builder.Services.AddCors(options =>
                    .AllowCredentials();
     });
 });
+// --- ĐĂNG KÝ CÁC CLIENT SERVICE (DEPENDENCY INJECTION) ---
 builder.Services.AddScoped<INhanVienService, ThongTinNhanVienClient>();
 builder.Services.AddScoped<IDiaChiService, DiaChiServiceClient>();
 builder.Services.AddScoped<IDonHangService, DonHangServiceClient>();
 builder.Services.AddScoped<IKhachHangServiceClient, ChiTietKhachHangServerClient>();
 builder.Services.AddScoped<IPhuongTienServiceClient, PhuongTienServiceClient>();
+builder.Services.AddScoped<IKhoBaiService, KhoBaiSevicrClient>();
+builder.Services.AddScoped<IPhuongTienTaiXeService, PhuongTienTaiXeService>();
 
 // --- 5. ĐĂNG KÝ BACKGROUND SERVICE (Kích hoạt RabbitMQ Consumer) ---
 // Đăng ký class RoutingOrderConsumer để nó tự động chạy khi bật Server
 builder.Services.AddHostedService<RoutingOrderConsumer>();
-builder.Services.AddScoped<IPhuongTienTaiXeService, PhuongTienTaiXeService>();
 // Nếu bạn có class Producer ở server này để gửi ngược lại phản hồi:
 // builder.Services.AddScoped<IRabbitMQProducer, RabbitMQProducer>();
 

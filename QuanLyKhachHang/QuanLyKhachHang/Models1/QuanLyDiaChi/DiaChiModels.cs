@@ -7,6 +7,7 @@
         public string? Duong { get; set; }
 
         public string? Phuong { get; set; }
+        public string? Quan { get; set; }
         public string? ThanhPho { get; set; }
 
         public string? MaBuuDien { get; set; }

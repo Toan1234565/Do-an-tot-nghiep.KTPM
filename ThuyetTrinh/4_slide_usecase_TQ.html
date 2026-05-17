@@ -26,18 +26,6 @@
             color: #2c3e50;
         }
 
-        /* --- HEADER --- */
-        header { 
-            background: var(--primary); 
-            color: white; 
-            padding: 15px 30px; 
-            display: flex; 
-            align-items: center; 
-            flex-shrink: 0; 
-            z-index: 10;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-        
         .main-title { font-size: 1.8rem; font-weight: 800; letter-spacing: 0.5px; }
 
         .menu-btn { 
@@ -48,7 +36,7 @@
             gap: 6px; 
             margin-right: 25px; 
         }
-        .menu-btn span { display: block; width: 30px; height: 4px; background: white; border-radius: 2px; transition: 0.3s; }
+        .menu-btn span { display: block; width: 30px; height: 4px; background: var(--primary); border-radius: 2px; transition: 0.3s; }
 
         /* --- NAVIGATION SIDEBAR --- */
         .nav-sidebar {
@@ -76,7 +64,14 @@
         .main-layout { display: flex; flex: 1; padding: 25px; gap: 30px; overflow: hidden; }
 
         /* --- INFO SIDEBAR (LEFT) --- */
-        .info-content-sidebar { flex: 0 0 420px; display: flex; flex-direction: column; gap: 15px; }
+        .info-content-sidebar { 
+            flex: 0 0 420px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            overflow-y: auto; /* Thêm cuộn nếu danh sách tác nhân quá dài */
+            padding-right: 5px;
+        }
         
         .section-title { 
             font-size: 1.4rem; 
@@ -86,15 +81,6 @@
             padding-left: 15px; 
             margin-bottom: 10px;
             text-transform: uppercase;
-        }
-
-        .badge-sys {
-            display: inline-block;
-            padding: 6px 15px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            margin-bottom: 5px;
         }
 
         .card { 
@@ -158,11 +144,68 @@
             to { transform: scale(1); opacity: 1; }
         }
 
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; z-index: 999; }
         
-        /* GRID CHO HỆ THỐNG NGOÀI */
-        .system-actors { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        /* HEADER LOGO & SLIDE TITLE */
+        .slide-header {
+            margin-bottom: 1vh;
+            border-bottom: 4px solid var(--primary);
+            padding: 15px 25px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            position: relative;
+            background: #fff;
+        }
 
+        .header {
+            margin-left: auto; /* Đẩy toàn bộ cụm Logo sang bên phải cực mượt */
+            display: flex; 
+            align-items: center;
+            font-family: "Arial", sans-serif;
+            animation: slideDown 0.8s ease-out;
+        }
+
+        .logo-crop-wrapper { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+        }
+
+        .school-logo-img { 
+            width: 45px;          
+            height: auto;          
+            object-fit: contain;  
+        }
+
+        .text-haui { 
+            font-size: 42px;      
+            font-weight: 900; 
+            color: #154294;       
+            margin-left: 8px; 
+            line-height: 1; 
+            letter-spacing: -1px; 
+        }
+
+        .red-divider { 
+            width: 3px; 
+            height: 38px;         
+            background-color: #EE2D24; 
+            margin: 0 12px; 
+        }
+
+        .text-school { 
+            font-size: 11px;      
+            font-weight: 700; 
+            color: #154294;       
+            text-transform: uppercase; 
+            line-height: 1.2; 
+        }
     </style>
 </head>
 <body>
@@ -175,29 +218,50 @@
         <img id="modalImg" src="" alt="Zoomed Image">
     </div>
 
+    <!-- Sidebar Menu -->
     <div class="nav-sidebar" id="navSidebar">
-        <h4 style="color: var(--accent); margin-bottom: 20px; font-size: 1.4rem; border-bottom: 2px solid var(--accent);">DANH SÁCH SLIDE</h4>
+        <h4 style="color: var(--accent); margin-bottom: 20px; font-size: 1.4rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px;">DANH SÁCH SLIDE</h4>
         <ul class="slide-list">
+            <li><a href="PPThuyetTrinh.html">Tiêu đề</a></li>
             <li><a href="1_slide_LyDo.html">1. Lý do chọn đề tài</a></li>
+            <li><a href="2_slide_gioithieuduan.html">2. Giới thiệu dự án</a></li>
+            <li><a href="3_slide_congNghe.html">3. Công nghệ sử dụng</a></li>
             <li><a href="4_slide_usecase_TQ.html">4. Use Case tổng quát</a></li>
+            <li><a href="5_slide_DanhSachChucNang.html">5. Danh sách chức năng</a></li>
+            <li><a href="6_slide_ChucNangDonHang.html">6. Quản lý đơn hàng</a></li>
+            <li><a href="7_slide_ChucNangDieuPhoi.html">7. Điều phối vận tải</a></li>
+            <li><a href="8_slide_ChucNangQuanLyLoTrinh.html">8. Giám sát lộ trình</a></li>
+            <li><a href="9_silde_ThietKeDuLieu.html">9. Thiết kế dữ liệu</a></li>
+            <li><a href="10_slide_CaiDat.html">10. Cài đặt hệ thống</a></li>
+            <li><a href="11_slide_kiemThu01.html">11. Kiểm thử ghi dữ liệu đồng thời </a></li>
+            <li><a href="12_slide_kiemThu02.html">12. Kiểm thử sức bền và độ ổn định</a></li>
+            <li><a href="13_slide_kiemThu03.html">13. Kiểm thử chức năng Điều phối và lập lộ trình vận tải tự động </a></li>
             <li><a href="14_slide_Kiemthu_04.html">14. RabbitMQ khi server sập</a></li>
-            <!-- Các mục khác... -->
         </ul>
     </div>
 
-    <header>
+    <!-- Thanh tiêu đề trên cùng -->
+    <header class="slide-header">
         <div class="menu-btn" id="menuToggle">
             <span></span><span></span><span></span>
         </div>
-        <h2 class="main-title">2.1. Phân tích Tác nhân & Use Case</h2>
+        <h1>2.1. Phân tích Tác nhân & Use Case</h1>
+        
+        <div class="header">
+            <div class="logo-crop-wrapper">
+                <img src="D:\Đồ án tốt nghiệp\ThuyetTrinh\HinhAnh\LogoTruong.jpg" class="school-logo-img" alt="Logo">
+            </div> 
+            <div class="text-haui">HaUI</div>
+            <div class="red-divider"></div>
+            <div class="text-school">SCHOOL OF INFORMATION<br>& COMMUNICATIONS TECHNOLOGY</div>
+        </div>    
     </header>
 
+    <!-- Khu vực nội dung chính -->
     <div class="main-layout">
         <!-- BÊN TRÁI: TÁC NHÂN -->
         <div class="info-content-sidebar">
             <div class="section-title">Tác nhân hệ thống</div>
-
-          
 
             <div class="card" style="border-left: 6px solid var(--primary);">
                 <h3>1. Quản trị viên</h3>
@@ -218,40 +282,23 @@
                 <h3>4. Quản lý Nhân sự & Xe</h3>
                 <p>Quản lý hồ sơ tài xế, danh mục phương tiện và nhắc lịch bảo trì định kỳ.</p>
             </div>
-
-            <!-- <span class="badge-sys" style="background: #d1ecf1; color: #0c5460; margin-top: 10px;">HỆ THỐNG BÊN NGOÀI</span>
-            
-            <div class="system-actors">
-                <div class="card" style="padding: 12px; text-align: center;">
-                    <strong style="color: var(--primary); display: block; margin-bottom: 5px;">MAPS API</strong>
-                    <p style="font-size: 0.9rem;">Địa lý & ETA</p>
-                </div>
-                <div class="card" style="padding: 12px; text-align: center;">
-                    <strong style="color: var(--primary); display: block; margin-bottom: 5px;">PAYMENT</strong>
-                    <p style="font-size: 0.9rem;">Thanh toán số</p>
-                </div>
-            </div> -->
         </div>
 
         <!-- BÊN PHẢI: BIỂU ĐỒ -->
         <div class="content-area">
             <div class="section-title">Biểu đồ Use Case tổng quát</div>
             <div class="img-container" id="zoomTrigger">
-                <img src="file:///D:/Đồ án tốt nghiệp/ThuyetTrinh/HinhAnh/usecase_tongquan.png" 
-                     id="sourceImg"
-                     alt="Biểu đồ Use Case Tổng Quát">
-                <div style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem;">
+                <img src="D:/Đồ án tốt nghiệp/ThuyetTrinh/HinhAnh/usecase_tongquan.png" id="sourceImg" alt="Biểu đồ Use Case Tổng Quát">
+                <div style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem;">
                     Click để phóng to 🔍
                 </div>
             </div>
         </div>
     </div>
 
-    
     <script>
         /**
          * 1. XỬ LÝ MENU & SIDEBAR
-         * Giữ nguyên logic tự tạo Overlay nếu HTML thiếu
          */
         function toggleMenu() {
             const sidebar = document.getElementById('navSidebar');
@@ -260,12 +307,11 @@
             if (sidebar) {
                 sidebar.classList.toggle('active');
                 
-                // Tự động tạo overlay nếu chưa có trong DOM
                 if (!overlay) {
                     overlay = document.createElement('div');
                     overlay.id = 'overlay';
                     overlay.className = 'overlay';
-                    overlay.onclick = toggleMenu; // Click vào overlay để đóng menu
+                    overlay.onclick = toggleMenu;
                     document.body.appendChild(overlay);
                 }
 
@@ -275,58 +321,53 @@
                 console.error("Lỗi: Không tìm thấy ID 'navSidebar'.");
             }
         }
+
         /**
          * 2. XỬ LÝ PHÓNG TO ẢNH (ZOOM MODAL)
          */
         function setupImageZoom() {
             const container = document.getElementById('zoomTrigger');
             const sourceImg = document.getElementById('sourceImg');
+            let modal = document.getElementById('imageModal');
             
             if (!container || !sourceImg) return;
 
-            // Tự động tạo Modal Zoom nếu chưa có
-            let modal = document.getElementById('imageModal');
             if (!modal) {
                 modal = document.createElement('div');
                 modal.id = 'imageModal';
-                modal.className = 'modal'; // Đảm bảo CSS .modal đã có như file trước
+                modal.className = 'modal';
                 modal.innerHTML = `<img id="modalImg" src="" alt="Zoomed">`;
                 document.body.appendChild(modal);
-                
-                // Click ra ngoài ảnh để đóng
-                modal.onclick = () => modal.style.display = 'none';
             }
 
             const modalImg = document.getElementById('modalImg');
 
-            // Sự kiện click vào ảnh để phóng to
             container.onclick = () => {
                 modal.style.display = 'flex';
                 modalImg.src = sourceImg.src;
             };
+
+            modal.onclick = () => {
+                modal.style.display = 'none';
+            };
         }
 
         /**
-         * 2. ĐIỀU CHỈNH FONT SIZE (RESPONSIVE)
-         * Giữ nguyên logic resize font tiêu đề
+         * 3. ĐIỀU CHỈNH FONT SIZE (RESPONSIVE)
          */
         function adjustLayout() {
             const width = window.innerWidth;
-            const title = document.querySelector('.project-title') || document.querySelector('.main-title');
-            
+            const title = document.querySelector('.main-title');
             if (title) {
-                // Màn hình nhỏ hơn 1200px thì thu nhỏ font
-                title.style.fontSize = width < 1200 ? '1.5rem' : '2rem';
+                title.style.fontSize = width < 1200 ? '1.4rem' : '1.8rem';
             }
         }
 
         /**
-         * 3. ĐỒNG BỘ PHÍM BẤM VỚI TRANG CHỦ
-         * Truyền tín hiệu phím bấm lên cửa sổ cha (Parent Window)
+         * 4. ĐỒNG BỘ PHÍM BẤM VỚI TRANG CHỦ
          */
         function syncKeys() {
             window.addEventListener('keydown', (e) => {
-                // Gửi thông tin phím bấm để trang chủ có thể chuyển slide
                 if (window.parent) {
                     window.parent.postMessage({
                         type: 'keydown',
@@ -338,31 +379,31 @@
         }
 
         /**
-         * 4. KHỞI CHẠY HỆ THỐNG
+         * 5. KHỞI CHẠY HỆ THỐNG
          */
         document.addEventListener('DOMContentLoaded', () => {
             adjustLayout();
             syncKeys();
+            setupImageZoom(); // ĐÃ SỬA: Gọi hàm kích hoạt tính năng zoom ảnh
 
-            // Gán sự kiện cho nút menu
-            const btn = document.getElementById('mainMenuBtn');
+            // ĐÃ SỬA: Thay đổi 'mainMenuBtn' thành 'menuToggle' để khớp với HTML
+            const btn = document.getElementById('menuToggle'); 
             if (btn) {
                 btn.onclick = (e) => {
-                    e.stopPropagation(); // Ngăn chặn sự kiện nổi bọt
+                    e.stopPropagation(); 
                     toggleMenu();
                 };
             }
             
-            // Đóng menu khi nhấn link
+            // Đóng menu khi nhấn vào link slide
             document.querySelectorAll('.slide-list a').forEach(link => {
                 link.onclick = () => {
                     const sidebar = document.getElementById('navSidebar');
-                    if(sidebar.classList.contains('active')) toggleMenu();
+                    if(sidebar && sidebar.classList.contains('active')) toggleMenu();
                 };
             });
         });
 
-        // Lắng nghe sự kiện thay đổi kích thước màn hình
         window.addEventListener('resize', adjustLayout);
     </script>
 </body>

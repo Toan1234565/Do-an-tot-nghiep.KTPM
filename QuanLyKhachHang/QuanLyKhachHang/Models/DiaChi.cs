@@ -19,5 +19,7 @@ public partial class DiaChi
 
     public string? MaVungH3 { get; set; }
 
+    public string? Quan { get; set; }
+
     public virtual ICollection<KhachHang> KhachHangs { get; set; } = new List<KhachHang>();
 }

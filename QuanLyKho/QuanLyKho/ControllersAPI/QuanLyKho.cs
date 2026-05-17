@@ -499,6 +499,8 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau.");
             }
         }
+        
+        // lay danh sach don hang theo lo de thuc hien dieu phoi
         [HttpPost("tim-kho-theo-lo")]
         public async Task<IActionResult> TimKhoTheoLo([FromBody] BatchKhoRequest request)
         {
@@ -542,6 +544,7 @@ namespace QuanLyKho.ControllersAPI
                             tenKho = khoCungVung.TenKhoBai,
                             maDiaChi = khoCungVung.MaDiaChi,
                             maVungH3 = khoCungVung.MaVungH3,
+                            loaiKho = khoCungVung.MaLoaiKho,
                             distance = "0 km (Cùng vùng H3)"
                         };
                     }
@@ -594,8 +597,8 @@ namespace QuanLyKho.ControllersAPI
             }
         }
 
-        [HttpGet("tim-kho-gan-nhat")]
-        public async Task<IActionResult> TimKhoGanNhat([FromQuery] int maDiaChi)
+        [HttpGet("tim-kho-gan-nhat/{maDiaChi}")] // Thêm {maDiaChi} vào đây để đón nhận Path Parameter
+        public async Task<IActionResult> TimKhoGanNhat([FromRoute] int maDiaChi) // Đổi thành [FromRoute]
         {
             if (maDiaChi <= 0) return BadRequest("Mã địa chỉ không hợp lệ.");
 
@@ -616,21 +619,20 @@ namespace QuanLyKho.ControllersAPI
                     .Where(k => k.TrangThai == "Hoạt động")
                     .ToListAsync();
 
-                // 3. CHIẾN THUẬT 1: Tìm kho cùng vùng H3 (Nhanh nhất)
+                // 3. CHIẾN THUẬT 1: Tìm kho cùng vùng H3
                 var khoCungVung = khoBais.FirstOrDefault(k => !string.IsNullOrEmpty(k.MaVungH3) && k.MaVungH3 == toaDoDich.MaVungH3);
                 if (khoCungVung != null)
                 {
                     return Ok(new
                     {
-                        MaKho = khoCungVung.MaKho,
-                        TenKho = khoCungVung.TenKhoBai,
-                        Distance = 0,
-                        Note = "Cùng vùng H3"
+                        maKho = khoCungVung.MaKho, // Viết thường chữ cái đầu theo chuẩn JSON CamelCase
+                        tenKho = khoCungVung.TenKhoBai,
+                        distance = 0.0,            // Nên trả về kiểu số (double) thay vì chuỗi
+                        note = "Cùng vùng H3"
                     });
                 }
 
-                // 4. CHIẾN THUẬT 2: Tính khoảng cách Haversine để tìm kho vật lý gần nhất
-                // Lấy tọa độ của tất cả các kho
+                // 4. CHIẾN THUẬT 2: Tính khoảng cách Haversine
                 var maDiaChiKhos = khoBais.Select(k => k.MaDiaChi).Distinct().ToList();
                 var resToaDoKhos = await client.PostAsJsonAsync("https://localhost:7149/api/quanlydiachi/lay-toa-do-danh-sach", maDiaChiKhos);
                 var danhSachToaDoKho = await resToaDoKhos.Content.ReadFromJsonAsync<List<ToaDoResponseDto>>();
@@ -651,16 +653,22 @@ namespace QuanLyKho.ControllersAPI
 
                 if (khoGanNhat != null && khoGanNhat.Distance < double.MaxValue)
                 {
-                    // Tìm dòng này trong Controller QuanLyKho của KhoApi:
                     return Ok(new
                     {
-                        MaKho = khoGanNhat.Kho.MaKho,
-                        TenKho = khoGanNhat.Kho.TenKhoBai,
-                        Distance = Math.Round(khoGanNhat.Distance, 2).ToString(), // Thêm .ToString() ở đây
-                        Note = "Tính theo khoảng cách vật lý"
+                        maKho = khoGanNhat.Kho.MaKho,
+                        tenKho = khoGanNhat.Kho.TenKhoBai,
+                        distance = Math.Round(khoGanNhat.Distance, 2), // Trả về dạng số (double) để đồng bộ kiểu dữ liệu
+                        note = "Tính theo khoảng cách vật lý"
                     });
+                }
 
-
+                // CHIẾN THUẬT DỰ PHÒNG CUỐI (FALLBACK):
+                // Nếu không tìm thấy kho theo H3 hay khoảng cách, tránh trả về NotFound(404) phá vỡ luồng tạo đơn hàng, 
+                // Hãy trả về Kho tổng hoặc Kho đầu tiên có trong danh sách.
+                var khoMacDinh = khoBais.FirstOrDefault();
+                if (khoMacDinh != null)
+                {
+                    return Ok(new { maKho = khoMacDinh.MaKho, tenKho = khoMacDinh.TenKhoBai, distance = -1.0, note = "Kho mặc định dự phòng" });
                 }
 
                 return NotFound("Không tìm thấy kho phù hợp.");

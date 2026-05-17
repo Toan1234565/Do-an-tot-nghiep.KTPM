@@ -3,14 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slide 2 - Mở đầu</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <title>Slide 2 - Mở đầu & Mục tiêu</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lexend:wght@600;700;800&display=swap" rel="stylesheet">
+    
     <style>
         :root {
             --primary: #003366;
+            --primary-light: rgba(0, 51, 102, 0.04);
             --accent: #e67e22;
-            --text-dark: #1a252f;
-            --bg-subtle: #f8fbff;
+            --accent-light: rgba(230, 126, 34, 0.08);
+            --text-dark: #2c3e50;
+            --text-muted: #7f8c8d;
+            --logo-blue: #154294;
+            --bg-gradient: radial-gradient(circle at top right, rgba(0, 51, 102, 0.05) 0%, transparent 50%),
+                            radial-gradient(circle at bottom left, rgba(230, 126, 34, 0.05) 0%, transparent 50%);
         }
 
         * {
@@ -24,101 +31,171 @@
             width: 100%;
             overflow: hidden;
             font-family: 'Inter', sans-serif;
-            background-color: white;
+            background-color: #ffffff;
+            color: var(--text-dark);
         }
 
-        /* Container bao phủ 100% màn hình */
+        /* Container bao phủ toàn màn hình */
         .slide-full {
             width: 100vw;
             height: 100vh;
             display: flex;
             flex-direction: column;
-            padding: 4vh 5vw;
+            padding: 3vh 4vw 2.5vh 4vw;
             position: relative;
-            background-image: 
-                radial-gradient(circle at top right, rgba(0, 51, 102, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at bottom left, rgba(230, 126, 34, 0.05) 0%, transparent 40%);
+            background-image: var(--bg-gradient);
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
 
-        /* Thanh tiêu đề trên cùng */
-        .header-section {
+        /* Slide Header */
+        .slide-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3.5vh;
+            padding-bottom: 1.5vh;
+            border-bottom: 2px solid rgba(0, 51, 102, 0.08);
+        }
+
+        .header-left {
             display: flex;
             align-items: center;
-            border-bottom: 4px solid var(--primary);
-            padding-bottom: 15px;
-            margin-bottom: 4vh;
+            gap: 15px;
         }
 
-        .slide-id {
-            background: var(--primary);
-            color: white;
-            font-size: 2rem;
-            font-weight: 800;
-            padding: 5px 20px;
-            border-radius: 4px;
-            margin-right: 25px;
-        }
-
-        h2.main-title {
-            font-size: 2.8rem;
+        .header-left h2 {
+            font-family: 'Lexend', sans-serif;
+            font-size: clamp(1.6rem, 2.2vw, 2.2rem);
             color: var(--primary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 800;
+            font-weight: 700;
         }
 
-        /* Bố cục nội dung chính */
+        /* CSS Logo trường học hiển thị Flexbox tự nhiên */
+        .header-right-logo {
+            display: flex; 
+            align-items: center;
+            font-family: "Arial", sans-serif;
+        }
+
+        .logo-crop-wrapper { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+        }
+
+        .school-logo-img { 
+            width: 40px;          
+            height: auto;         
+            object-fit: contain;  
+        }
+
+        .text-haui { 
+            font-size: 36px;      
+            font-weight: 900; 
+            color: #154294;       
+            margin-left: 10px; 
+            line-height: 1; 
+            letter-spacing: -1px;
+        }
+
+        .red-divider { 
+            width: 3px; 
+            height: 34px;         
+            background-color: #EE2D24; 
+            margin: 0 12px; 
+        }
+
+        .text-school { 
+            font-size: 10px;      
+            font-weight: 700; 
+            color: #154294;       
+            text-transform: uppercase; 
+            line-height: 1.3; 
+        }
+
+        /* Bố cục nội dung chính kiểu Grid 2 cột */
         .content-layout {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 4vw;
+            gap: 2.5vw;
             flex-grow: 1;
+            align-content: start;
         }
 
         .section-box {
             display: flex;
             flex-direction: column;
+            gap: 3vh;
+        }
+
+        /* Định dạng các khối Card bao bọc nội dung */
+        .card-item {
+            background: #ffffff;
+            border-left: 6px solid var(--accent);
+            border-radius: 4px 16px 16px 4px;
+            padding: 3.5vh 2.5vw;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.03);
+            transition: all 0.3s ease;
+            position: relative;
+            height: 100%;
+        }
+
+        .card-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+        }
+        
+        .card-item.primary-theme {
+            border-left-color: var(--primary);
+            background: linear-gradient(to right, var(--primary-light), transparent);
         }
 
         h3.sub-title {
+            font-family: 'Lexend', sans-serif;
             color: var(--accent);
-            font-size: 2rem;
-            margin-bottom: 25px;
-            display: flex;
-            align-items: center;
+            font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+            margin-bottom: 2.5vh;
             font-weight: 700;
+            border-bottom: 1px dashed rgba(0,0,0,0.08);
+            padding-bottom: 1vh;
         }
 
-        h3.sub-title::before {
-            content: "";
-            width: 12px;
-            height: 35px;
-            background: var(--accent);
-            margin-right: 15px;
-            display: inline-block;
+        .primary-theme h3.sub-title {
+            color: var(--primary);
         }
 
-        /* Danh sách nội dung với font chữ lớn */
+        /* Danh sách nội dung */
         ul {
             list-style: none;
         }
 
         li {
-            font-size: 1.4rem; /* Chữ to rõ cho presentation */
+            font-size: clamp(0.95rem, 1.25vw, 1.15rem);
             line-height: 1.6;
-            margin-bottom: 20px;
+            margin-bottom: 2vh;
             color: var(--text-dark);
             position: relative;
-            padding-left: 30px;
+            padding-left: 24px;
+            text-align: justify;
+        }
+
+        li:last-child {
+            margin-bottom: 0;
         }
 
         li::before {
-            content: "•";
-            color: var(--primary);
-            font-weight: bold;
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
             position: absolute;
-            left: 0;
-            font-size: 1.8rem;
+            left: 4px;
+            top: 0.6rem;
+        }
+
+        .primary-theme li::before {
+            background: var(--primary);
         }
 
         strong {
@@ -126,107 +203,80 @@
             font-weight: 700;
         }
 
-        /* Tech Pills trang trí */
-        .tech-container {
-            margin-top: 15px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .pill {
-            background: var(--primary);
-            color: white;
-            padding: 6px 15px;
-            border-radius: 50px;
-            font-size: 1rem;
-            font-weight: 600;
-            text-transform: uppercase;
+        .primary-theme strong {
+            color: var(--primary);
         }
 
         /* Footer */
         footer {
             margin-top: auto;
-            border-top: 1px solid #eee;
-            padding-top: 15px;
+            border-top: 1px solid #edf2f7;
+            padding-top: 2vh;
             display: flex;
             justify-content: space-between;
-            color: #7f8c8d;
+            color: var(--text-muted);
             font-weight: 600;
-            font-size: 1.1rem;
+            font-size: clamp(0.85rem, 1.1vw, 1rem);
         }
 
-        /* Animation cho slide */
-        .slide-full {
-            animation: slideUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+        /* Menu Button */
+        .menu-btn { 
+            cursor: pointer; 
+            padding: 10px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 5px; 
+            border-radius: 6px;
+            transition: background 0.2s;
+            /* FIX: Xóa bỏ hoàn toàn viền xanh khi click */
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
         }
+        
+        .menu-btn:hover { background: rgba(0, 51, 102, 0.05); }
+        .menu-btn span { display: block; width: 22px; height: 3px; background: var(--primary); border-radius: 2px; }
 
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        /* --- SIDEBAR DANH SÁCH SLIDE --- */
-        /* --- CSS CHO NÚT MENU 3 GẠCH --- */
-        .menu-btn {
-            position: fixed;
-            top: 25px;
-            left: 25px;
-            z-index: 1001;
-            cursor: pointer;
-            background: #003366; /* Màu xanh chủ đạo */
-            padding: 12px;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            transition: 0.3s;
-        }
-
-        .menu-btn:hover { transform: scale(1.05); background: #004a94; }
-
-        .menu-btn span {
-            display: block;
-            width: 25px;
-            height: 3px;
-            background: white;
-            border-radius: 2px;
-        }
-
-        /* --- CSS CHO SIDEBAR DANH SÁCH --- */
+        /* --- CSS SIDEBAR MENU --- */
         .sidebar {
             position: fixed;
             top: 0;
-            left: -320px; /* Trạng thái ẩn bên trái */
+            left: -320px;
             width: 320px;
             height: 100%;
-            background: rgba(0, 51, 102, 0.98); /* Nền xanh trong suốt nhẹ */
+            background: rgba(0, 51, 102, 0.98);
             z-index: 1000;
             transition: 0.4s cubic-bezier(0.77, 0, 0.175, 1);
-            padding: 80px 20px 20px 20px;
+            padding: 40px 20px 20px 20px;
             display: flex;
             flex-direction: column;
             box-shadow: 10px 0 30px rgba(0,0,0,0.3);
         }
 
-        /* Class kích hoạt để hiện Sidebar */
         .sidebar.active { left: 0; }
 
         .sidebar h4 {
-            color: #f1c40f; /* Màu vàng nhấn */
+            color: #f1c40f;
             text-transform: uppercase;
-            font-size: 0.9rem;
+            font-family: 'Lexend', sans-serif;
+            font-size: 1.1rem;
             letter-spacing: 2px;
+            margin-top: 10px;
             margin-bottom: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
+            border-bottom: 2px solid rgba(255,255,255,0.2);
             padding-bottom: 10px;
         }
 
         .slide-list {
             list-style: none;
-            overflow-y: auto; /* Cuộn danh sách nếu quá dài */
+            overflow-y: auto;
             flex-grow: 1;
         }
+
+        .slide-list li {
+            padding-left: 0;
+            margin-bottom: 5px;
+        }
+        .slide-list li::before { display: none; }
 
         .slide-list a {
             color: rgba(255,255,255,0.8);
@@ -235,38 +285,39 @@
             display: block;
             padding: 12px 15px;
             border-radius: 6px;
-            transition: 0.2s;
-            margin-bottom: 5px;
+            transition: all 0.2s;
         }
 
         .slide-list a:hover {
             background: rgba(255,255,255,0.1);
             color: white;
-            padding-left: 25px;
+            padding-left: 22px;
             border-left: 4px solid #f1c40f;
         }
 
-        /* Lớp phủ mờ nền khi mở menu */
         .overlay {
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(2px);
             display: none;
             z-index: 999;
         }
-   
+
+        /* Animations */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
-    <!-- Menu Button -->
-    <div class="menu-btn" onclick="toggleMenu()">
-        <span></span>
-        <span></span>
-        <span></span>
-    </div>
 
-    <!-- Sidebar Navigation -->
+    <!-- Overlay để đóng menu -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Sidebar Menu điều hướng -->
     <div class="sidebar" id="sidebar">
         <h4>Danh sách Slide</h4>
         <ul class="slide-list">
@@ -281,138 +332,112 @@
             <li><a href="8_slide_ChucNangQuanLyLoTrinh.html">8. Giám sát lộ trình</a></li>
             <li><a href="9_silde_ThietKeDuLieu.html">9. Thiết kế dữ liệu</a></li>
             <li><a href="10_slide_CaiDat.html">10. Cài đặt hệ thống</a></li>
-            <li><a href="11_slide_kiemThu01.html">11. Kiểm thử ghi dữ liệu đồng thời </a></li>
+            <li><a href="11_slide_kiemThu01.html">11. Kiểm thử ghi dữ liệu đồng thời</a></li>
             <li><a href="12_slide_kiemThu02.html">12. Kiểm thử sức bền và độ ổn định</a></li>
-            <li><a href="13_slide_kiemThu03.html">13. Kiểm thử chức năng Điều phối và lập lộ trình vận tải tự động </a></li>
+            <li><a href="13_slide_kiemThu03.html">13. Kiểm thử chức năng Điều phối và lập lộ trình tự động</a></li>
             <li><a href="14_slide_Kiemthu_04.html">14. RabbitMQ khi server sập</a></li>
         </ul>
     </div>
 
-
+    <!-- Container Slide chính -->
     <div class="slide-full">
-        <div class="header-section">
-            <div class="slide-id">1.1</div>
-            <h2 class="main-title">MỞ ĐẦU: Lý do & Mục tiêu</h2>
-        </div>
+        <header class="slide-header">
+            <div class="header-left">
+                <div class="menu-btn" id="menuToggle">
+                    <span></span><span></span><span></span>
+                </div>
+                <h2>1.1 Lý do & Mục tiêu</h2>
+            </div>
+            
+            <div class="header-right-logo">
+                <div>
+                    <img src="file:///D:\Đồ án tốt nghiệp\ThuyetTrinh\HinhAnh\LogoTruong.jpg" class="school-logo-img" alt="Logo">
+                </div> 
+                <div class="text-haui">HaUI</div>
+                <div class="red-divider"></div>
+                <div class="text-school">SCHOOL OF INFORMATION<br>& COMMUNICATIONS TECHNOLOGY</div>
+            </div>    
+        </header>
 
         <div class="content-layout">
+            <!-- Cột trái: Lý do chọn đề tài -->
             <div class="section-box">
-                <h3 class="sub-title">Lý do chọn đề tài</h3>
-                <ul>
-                    <li><strong>Thực tiễn:</strong> Tối ưu hóa "mạch máu" Logistics trong kỷ nguyên thương mại điện tử.</li>
-                    <li><strong>Kỹ thuật:</strong> Làm chủ kiến trúc <strong>Microservices</strong> và hệ sinh thái <strong>.NET 8</strong>.</li>
-                    <li><strong>Tính mới:</strong> Ứng dụng giải thuật <strong>Clustering</strong> và <strong>Bin Packing</strong> vào điều phối thực tế.</li>
-                </ul>
-
-                <h3 class="sub-title" style="margin-top: 30px;">Mục tiêu cốt lõi</h3>
-                <ul>
-                    <li><strong>Số hóa:</strong> Chuyển đổi 100% quy trình vận hành sang nền tảng số.</li>
-                    <li><strong>Thông minh:</strong> Lập lộ trình tối ưu (VRP), giảm quãng đường rỗng.</li>
-                </ul>
-            </div>
-
-            <div class="section-box">
-                <h3 class="sub-title">Giải pháp công nghệ</h3>
-                <ul>
-                    <li><strong>H3 Indexing:</strong> Tối ưu hóa xử lý dữ liệu không gian.</li>
-                    <li><strong>RabbitMQ:</strong> Đảm bảo tính ổn định và hàng chờ xử lý đơn.</li>
-                    <li><strong>SignalR:</strong> Giám sát hành trình thời gian thực (Real-time).</li>
-                </ul>
-                <div class="tech-container">
-                    <div class="pill">ASP.NET Core</div>
-                    <div class="pill">Redis</div>
-                    <div class="pill">Docker</div>
-                    <div class="pill">SQL Server</div>
+                <div class="card-item">
+                    <h3 class="sub-title">Lý do chọn đề tài</h3>
+                    <ul>
+                        <li>
+                            <strong>Bối cảnh thực tiễn:</strong> Sự bùng nổ của <strong>Thương mại điện tử</strong> đặt áp lực vô cùng lớn lên hệ thống hạ tầng chuỗi cung ứng toàn cầu hiện nay.
+                        </li>
+                        <li>
+                            <strong>Yêu cầu cấp bách:</strong> Đòi hỏi khắt khe về việc tối ưu hóa toàn bộ quy trình từ khâu vận hành <strong>kho bãi, điều phối phương tiện</strong> đến bài toán lộ trình giao nhận.
+                        </li>
+                        <li>
+                            <strong>Giải pháp đột phá từ SLTMS:</strong> Thực hiện quá trình <strong>số hóa toàn diện</strong>, thay thế các phương thức điều phối truyền thống bằng hệ thống tự động thông minh.
+                        </li>
+                        <li>
+                            <strong>Thuật toán tối ưu:</strong> Tích hợp các mô hình xử lý nâng cao về <strong>Gom cụm địa lý</strong> và <strong>Tối ưu hóa tải trọng</strong>, giúp cắt giảm tối đa chi phí vận hành cho doanh nghiệp.
+                        </li>
+                    </ul>
                 </div>
-
-                <h3 class="sub-title" style="margin-top: 30px;">Phạm vi & Sản phẩm</h3>
-                <ul>
-                    <li><strong>Đối tượng:</strong> Quản trị chuỗi cung ứng & vận tải đường bộ.</li>
-                    <li><strong>Sản phẩm:</strong> Hệ thống Web hoàn thiện kèm Dashboard điều hành và giám sát sự cố.</li>
-                </ul>
             </div>
-        </div>
 
+            <!-- Cột phải: Mục tiêu nghiên cứu -->
+            <div class="section-box">              
+                <div class="card-item primary-theme">
+                    <h3 class="sub-title">Mục tiêu nghiên cứu</h3>
+                    <ul>
+                        <li>
+                            <strong>Số hóa quy trình:</strong> Xây dựng luồng xử lý tự động khép kín từ bước tiếp nhận đơn hàng, phân phối chặng, tính cước phí đến khi giao hàng thành công.
+                        </li>
+                        <li>
+                            <strong>Tối ưu nguồn lực:</strong> Kiểm soát khoa học và chặt chẽ vòng đời của các phương tiện vận tải cũng như đo lường chính xác hiệu suất làm việc của đội ngũ tài xế.
+                        </li>
+                        <li>
+                            <strong>Tự động hóa tài chính:</strong> Thiết lập cấu trúc <strong>Bảng giá vùng linh hoạt</strong>, tự động hóa toàn bộ việc tính toán biểu phí vận chuyển thời gian thực.
+                        </li>
+                        <li>
+                            <strong>Năng lực điều hành thông minh:</strong> Ứng dụng bản đồ số kết hợp thuật toán tiên tiến nhằm giải quyết triệt để bài toán lập lộ trình tối ưu <strong>(VRP)</strong>.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>      
+        
+        <!-- Thanh Footer chân trang -->
         <footer>
-            <span>Trường CNTT & Truyền thông - HaUI</span>
+            <span>Đồ án tốt nghiệp - Ngành Kỹ thuật Phần mềm</span>
             <span>Sinh viên: Nguyễn Đức Toán</span>
         </footer>
     </div>
 
-     <script>
-        /**
-         * 1. XỬ LÝ MENU & SIDEBAR
-         * Đảm bảo menu hoạt động ngay cả khi HTML thiếu thẻ overlay
-         */
+    <!-- Javascript xử lý sự kiện -->
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const menuToggle = document.getElementById('menuToggle');
+
         function toggleMenu() {
-            const sidebar = document.getElementById('sidebar');
-            let overlay = document.getElementById('overlay');
-
-            if (sidebar) {
-                sidebar.classList.toggle('active');
-                
-                // Nếu không tìm thấy overlay trong HTML, tự tạo mới để menu hoạt động
-                if (!overlay) {
-                    overlay = document.createElement('div');
-                    overlay.id = 'overlay';
-                    overlay.className = 'overlay'; // Đảm bảo trùng class CSS của bạn
-                    overlay.onclick = toggleMenu;
-                    document.body.appendChild(overlay);
-                }
-
-                const isActive = sidebar.classList.contains('active');
-                overlay.style.display = isActive ? 'block' : 'none';
-            } else {
-                console.error("Lỗi: Không tìm thấy ID 'sidebar'. Hãy kiểm tra lại HTML của slide.");
-            }
+            sidebar.classList.toggle('active');
+            overlay.style.display = sidebar.classList.contains('active') ? 'block' : 'none';
         }
 
-        /**
-         * 2. ĐIỀU CHỈNH FONT SIZE (RESPONSIVE)
-         */
-        function adjustLayout() {
-            const width = window.innerWidth;
-            // Kiểm tra cả .project-title và .main-title để tránh lỗi
-            const title = document.querySelector('.project-title') || document.querySelector('.main-title');
-            
-            if (title) {
-                title.style.fontSize = width < 1200 ? '2.2rem' : '3.2rem';
-            }
-        }
+        if (menuToggle) menuToggle.addEventListener('click', toggleMenu);
+        if (overlay) overlay.addEventListener('click', toggleMenu);
 
-        /**
-         * 3. ĐỒNG BỘ PHÍM BẤM VỚI TRANG CHỦ
-         * Giúp phím mũi tên vẫn hoạt động sau khi bạn click vào slide
-         */
+        // Đồng bộ phím điều hướng slide lên parent window (nếu chạy dạng iframe)
         function syncKeys() {
             window.addEventListener('keydown', (e) => {
-                window.parent.postMessage({
-                    type: 'keydown',
-                    key: e.key,
-                    keyCode: e.keyCode
-                }, '*');
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'keydown',
+                        key: e.key,
+                        keyCode: e.keyCode
+                    }, '*');
+                }
             });
         }
 
-        /**
-         * 4. KHỞI CHẠY HỆ THỐNG
-         */
-        document.addEventListener('DOMContentLoaded', () => {
-            adjustLayout();
-            syncKeys();
-
-            // Tự động gán sự kiện click cho các nút menu có sẵn
-            const btn = document.querySelector('.menu-icon') || document.querySelector('.menu-btn');
-            if (btn) {
-                btn.onclick = (e) => {
-                    e.stopPropagation(); // Ngăn sự kiện nổi bọt
-                    toggleMenu();
-                };
-            }
-        });
-
-        window.addEventListener('resize', adjustLayout);
+        document.addEventListener('DOMContentLoaded', syncKeys);
     </script>
-    
 </body>
 </html>

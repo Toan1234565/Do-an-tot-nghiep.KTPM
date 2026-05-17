@@ -184,10 +184,14 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-bold small text-success">BÊN NHẬN</label>
                                 <div class="input-group mb-2">
+                                    <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                                    <input type="tel" class="form-control" id="sdtNguoiNhan" placeholder="SĐT người nhận">
+                                </div>
+                                <div class="input-group mb-2">
                                     <span class="input-group-text"><i class="bi bi-person"></i></span>
                                     <input type="text" class="form-control" id="tenNguoiNhan" placeholder="Họ tên người nhận">
                                 </div>
-                                <input type="tel" class="form-control" id="sdtNguoiNhan" placeholder="SĐT người nhận">
+                                
                             </div>
                         </div>
                     </div>
@@ -335,13 +339,12 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // --- CẤU HÌNH HẰNG SỐ ---
         const PORT_7149 = "https://localhost:7149";
         const PORT_7264 = "https://localhost:7264";
-
         const API_PROVINCE = "https://provinces.open-api.vn/api";
 
-
-
+        // --- TRẠNG THÁI ỨNG DỤNG ---
         let state = {
             maKhachHang: 0,
             loaiHangs: [],
@@ -350,42 +353,71 @@
             tongTienGoc: 0,
             soTienGiam: 0,
             maGiamGiaChon: null,
-               
-            phuongThucThanhToans: [], // Thêm dòng này
-            selectedPTTT: null        // Lưu phương thức khách chọn
+            phuongThucThanhToans: [],
+            selectedPTTT: null,
+            tongThanhToan: 0
         };
 
+        // Biến dùng cho kỹ thuật Debounce kỹ thuật số điện thoại
+        let checkKhachHangTimeout = null;
 
+        // --- HÀM BỔ TRỢ (UTILITIES) ---
+        function cleanCityName(name) {
+            if (!name) return "";
+            return name.replace(/^(Thành phố|Tỉnh)\s+/i, "").trim();
+        }
+
+        function safeSetText(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.innerText = text;
+        }
+
+        function showLoading(s) {
+            const el = document.getElementById('loading');
+            if (el) el.style.display = s ? 'flex' : 'none';
+        }
+
+        // --- LOGIC NGHIỆP VỤ ---
+
+        /**
+         * Kiểm tra số điện thoại khách hàng (Có Debounce chống spam API)
+         */
+        function onPhoneInput() {
+            clearTimeout(checkKhachHangTimeout);
+            checkKhachHangTimeout = setTimeout(() => {
+                checkKhachHang();
+            }, 350); // Chờ 350ms sau khi người dùng dừng gõ mới gọi API
+        }
 
         async function checkKhachHang() {
-            const sdt = document.getElementById('soDienThoai').value;
+            const inputSdt = document.getElementById('soDienThoai');
+            if (!inputSdt) return;
 
-            // Kiểm tra độ dài cơ bản để tránh gọi API liên tục khi mới gõ vài số
-            // if (sdt.length < 10) {
-            //     state.maKhachHang = 0;
-            //     return;
-            // }
+            const sdt = inputSdt.value.trim();
+
+            // Độ dài số điện thoại VN thông thường từ 10-11 số
+            if (sdt.length < 10) {
+                state.maKhachHang = 0;
+                return;
+            }
 
             try {
-                // Sửa link theo định dạng Query String
-                const res = await axios.get(`${PORT_7149}/api/quanlykhachhang/check-phone?soDienThoai=${sdt}`);
+                const res = await axios.get(`${PORT_7149}/api/quanlykhachhang/check-phone`, {
+                    params: { soDienThoai: sdt }
+                });
 
                 const result = res.data;
+                const inputTenKH = document.getElementById('tenKhachHang');
 
-                if (result.exists && result.data) {
-                    // Nếu tìm thấy khách hàng: Điền thông tin và lưu ID
-                    // Lưu ý: Kiểm tra lại tên thuộc tính trả về là 'tenLienHe' hay 'hoTen' cho khớp với C#
-                    document.getElementById('tenKhachHang').value = result.data.tenLienHe || result.data.tenCongTy;
-                    state.maKhachHang = result.data.maKhachHang;
-
-                    // Thông báo nhỏ để người dùng biết đã nhận diện được khách
-                    console.log("Đã tìm thấy khách hàng cũ.");
-
-                    autoCalculate(); // Tính lại để check voucher theo hạng khách
+                if (result && result.exists && result.data) {
+                    if (inputTenKH) {
+                        inputTenKH.value = result.data.tenLienHe || result.data.tenCongTy || "";
+                    }
+                    state.maKhachHang = result.data.maKhachHang || 0;
+                    console.log("Đã tìm thấy khách hàng cũ:", state.maKhachHang);
+                    autoCalculate();
                 } else {
-                    // Nếu không tìm thấy (Khách mới)
                     state.maKhachHang = 0;
-                    // document.getElementById('tenKhachHang').value = ""; // Có thể xóa trống hoặc để người dùng tự nhập
                 }
             } catch (e) {
                 console.error("Lỗi khi kiểm tra khách hàng:", e);
@@ -393,128 +425,147 @@
             }
         }
 
-
-
-        // Loại bỏ chữ "Tỉnh/Thành phố" để khớp với DB Backend
-        function cleanCityName(name) {
-            if (!name) return "";
-            return name.replace(/^(Thành phố|Tỉnh)\s+/i, "").trim();
-        }
-
-
-
-        // Khởi tạo dữ liệu khi tải trang
+        /**
+         * Khởi tạo dữ liệu trang
+         */
         window.addEventListener('DOMContentLoaded', async () => {
+            // Gắn sự kiện input cho Số điện thoại để dùng debounce
+            const inputSdt = document.getElementById('soDienThoai');
+            if (inputSdt) {
+                inputSdt.addEventListener('input', onPhoneInput);
+            }
+
             showLoading(true);
             try {
-                       
-            const [p, lh, dv, pttt] = await Promise.all([ // Thêm pttt ở đây
-                axios.get(`${API_PROVINCE}/p/`),
-                axios.get(`${PORT_7264}/api/danhmucloaihang/laytatcaloaihang`),
-                axios.get(`${PORT_7264}/api/mucdichvu/dsmucdichvu?trangThai=active`),
-                axios.get(`${PORT_7264}/api/quanlydonhang/PTTT`),
-            ]);
+                const [p, lh, dv, pttt] = await Promise.all([
+                    axios.get(`${API_PROVINCE}/p/`).catch(err => { console.error("Lỗi API Tỉnh thành:", err); return { data: [] }; }),
+                    axios.get(`${PORT_7264}/api/danhmucloaihang/laytatcaloaihang`).catch(err => { console.error("Lỗi API Loại hàng:", err); return { data: [] }; }),
+                    axios.get(`${PORT_7264}/api/mucdichvu/dsmucdichvu?trangThai=active`).catch(err => { console.error("Lỗi API Dịch vụ:", err); return { data: [] }; }),
+                    axios.get(`${PORT_7264}/api/quanlydonhang/PTTT`).catch(err => { console.error("Lỗi API PTTT:", err); return { data: [] }; })
+                ]);
 
-                // Load tỉnh thành vào select
-                const pOptions = p.data.map(i => `<option value="${i.name}" data-code="${i.code}">${i.name}</option>`).join('');
-                document.getElementById('lay_thanhPho').innerHTML += pOptions;
-                document.getElementById('giao_thanhPho').innerHTML += pOptions;
+                // Gán dữ liệu vào state
+                state.loaiHangs = lh.data || [];
+                state.mucDichVus = dv.data || [];
+                state.phuongThucThanhToans = pttt.data || [];
 
-                state.loaiHangs = lh.data;
-                state.mucDichVus = dv.data;
-                state.phuongThucThanhToans = pttt.data;
+                // Render tỉnh thành
+                if (p.data && p.data.length > 0) {
+                    const pOptions = p.data.map(i => `<option value="${i.name}" data-code="${i.code}">${i.name}</option>`).join('');
+                    const elLayTp = document.getElementById('lay_thanhPho');
+                    const elGiaoTp = document.getElementById('giao_thanhPho');
 
-                addPackage(); // Tạo kiện hàng đầu tiên
-                renderDichVu(); // Hiển thị danh sách dịch vụ (Tiết kiệm, Hỏa tốc...)                
-                renderPTTT(); // Hàm vẽ giao diện PTTT
+                    if (elLayTp) elLayTp.innerHTML += pOptions;
+                    if (elGiaoTp) elGiaoTp.innerHTML += pOptions;
+                }
+
+                addPackage();
+                renderDichVu();
+                renderPTTT();
 
             } catch (e) {
-                console.error("Lỗi khởi tạo:", e);
-                alert("Không thể kết nối đến máy chủ. Vui lòng kiểm tra API.");
+                console.error("Lỗi nghiêm trọng khi khởi tạo trang:", e);
+                alert("Không thể kết nối đến hệ thống máy chủ. Vui lòng thử lại sau!");
             } finally {
                 showLoading(false);
             }
         });
 
-                // Lấy quận huyện khi chọn tỉnh
+        /**
+         * Tải Quận/Huyện dựa vào Tỉnh/Thành
+         */
         async function fetchDistricts(type) {
             const pSelect = document.getElementById(`${type}_thanhPho`);
             const dSelect = document.getElementById(`${type}_quanHuyen`);
-            const wSelect = document.getElementById(`${type}_phuongXa`); // Lấy thêm ô Phường/Xã
+            const wSelect = document.getElementById(`${type}_phuongXa`);
+
+            if (!pSelect || !dSelect) return;
 
             const selectedOption = pSelect.options[pSelect.selectedIndex];
+            if (!selectedOption) return;
+
             const pCode = selectedOption.getAttribute('data-code');
 
-            // Quan trọng: Reset cả Quận và Phường khi đổi Tỉnh
             dSelect.innerHTML = '<option value="">Chọn Quận/Huyện</option>';
             if (wSelect) wSelect.innerHTML = '<option value="">Chọn Phường/Xã</option>';
 
             if (!pCode) return;
 
             try {
-                // Depth=2 để lấy danh sách districts
                 const res = await axios.get(`${API_PROVINCE}/p/${pCode}?depth=2`);
-
-                // Cần thêm data-code vào đây để hàm fetchWards có cái mà dùng
-                const options = res.data.districts.map(d =>
-                    `<option value="${d.name}" data-code="${d.code}">${d.name}</option>`
-                ).join('');
-
-                dSelect.innerHTML += options;
+                if (res.data && res.data.districts) {
+                    dSelect.innerHTML += res.data.districts.map(d =>
+                        `<option value="${d.name}" data-code="${d.code}">${d.name}</option>`
+                    ).join('');
+                }
                 autoCalculate();
             } catch (e) {
                 console.error("Lỗi tải quận huyện:", e);
             }
         }
 
-                // Lấy phường xã khi chọn quận huyện
+        /**
+         * Tải Phường/Xã dựa vào Quận/Huyện
+         */
         async function fetchWards(type) {
             const dSelect = document.getElementById(`${type}_quanHuyen`);
             const wSelect = document.getElementById(`${type}_phuongXa`);
 
-            const selectedOption = dSelect.options[dSelect.selectedIndex];
-            const dCode = selectedOption.getAttribute('data-code'); // Lấy code từ option vừa chọn
+            if (!dSelect || !wSelect) return;
 
-            // Reset ô phường xã
+            const selectedOption = dSelect.options[dSelect.selectedIndex];
+            if (!selectedOption) return;
+
+            const dCode = selectedOption.getAttribute('data-code');
+
             wSelect.innerHTML = '<option value="">Chọn Phường/Xã</option>';
 
             if (!dCode) return;
 
             try {
-                // Depth=2 để lấy danh sách wards
                 const res = await axios.get(`${API_PROVINCE}/d/${dCode}?depth=2`);
-
-                const options = res.data.wards.map(w =>
-                    `<option value="${w.name}" data-code="${w.code}">${w.name}</option>`
-                ).join('');
-
-                wSelect.innerHTML += options;
+                if (res.data && res.data.wards) {
+                    wSelect.innerHTML += res.data.wards.map(w =>
+                        `<option value="${w.name}" data-code="${w.code}">${w.name}</option>`
+                    ).join('');
+                }
                 autoCalculate();
             } catch (e) {
                 console.error("Lỗi tải phường xã:", e);
             }
         }
-                // Gắn sự kiện để tự động tính khi thay đổi thông tin quan trọng
-               async function autoCalculate() {
-            // 1. Lấy thông tin tỉnh thành (đã xóa chữ "Tỉnh/Thành phố" để khớp DB)
-            const rawTpLay = document.getElementById('lay_thanhPho').value;
-            const rawTpGiao = document.getElementById('giao_thanhPho').value;
-            const tpLay = cleanCityName(rawTpLay);
-            const tpGiao = cleanCityName(rawTpGiao);
 
-            const soKmHanhTrinh = parseFloat(document.getElementById('soKm')?.value) || 0;
+        /**
+         * Tự động phân tích dịch vụ và tính giá gốc cho các kiện hàng
+         */
+        async function autoCalculate() {
+            const elLayTp = document.getElementById('lay_thanhPho');
+            const elGiaoTp = document.getElementById('giao_thanhPho');
+            const elSoKm = document.getElementById('soKm');
+
+            if (!elLayTp || !elGiaoTp) return;
+
+            const tpLay = cleanCityName(elLayTp.value);
+            const tpGiao = cleanCityName(elGiaoTp.value);
+            const soKmHanhTrinh = elSoKm ? (parseFloat(elSoKm.value) || 0) : 0;
 
             if (!tpLay || !tpGiao) return;
 
             const kiens = document.querySelectorAll('.package-item');
+            if (kiens.length === 0) return;
+
             let totalGoc = 0;
 
-            // Duyệt qua từng kiện hàng để tính giá
             const promises = Array.from(kiens).map(async (k) => {
-                const weight = parseFloat(k.querySelector('[name="khoiLuong"]').value) || 0;
-                const volume = parseFloat(k.querySelector('[name="theTich"]').value) || 0;
-                const qty = parseInt(k.querySelector('[name="soLuongKienHang"]').value) || 1;
-                const maLH = parseInt(k.querySelector('[name="maLoaiHang"]').value) || 0;
+                const elWeight = k.querySelector('[name="khoiLuong"]');
+                const elVolume = k.querySelector('[name="theTich"]');
+                const elQty = k.querySelector('[name="soLuongKienHang"]');
+                const elMaLH = k.querySelector('[name="maLoaiHang"]');
+
+                const weight = elWeight ? (parseFloat(elWeight.value) || 0) : 0;
+                const volume = elVolume ? (parseFloat(elVolume.value) || 0) : 0;
+                const qty = elQty ? (parseInt(elQty.value) || 1) : 1;
+                const maLH = elMaLH ? (parseInt(elMaLH.value) || 0) : 0;
 
                 const payload = {
                     thanhPhoLay: tpLay,
@@ -526,7 +577,6 @@
                 };
 
                 try {
-                    // Gọi API mới của bạn
                     const res = await axios.post(`${PORT_7264}/api/quanlydonhang/phan-tich-dich-vu-phu-hop`, payload);
 
                     let noteEl = k.querySelector('.price-note');
@@ -538,36 +588,32 @@
                     }
 
                     if (res.data && res.data.length > 0) {
-                        // API đã OrderBy giá tăng dần, lấy [0] là phương án tối ưu nhất
                         const opt = res.data[0];
+                        k.dataset.maBangGiaThucTe = opt.maBangGia || 0;
+                        k.dataset.donGia = opt.tongTienDuKien || 0;
 
-                        // Lưu ID bảng giá vào dataset để hàm submitOrder lấy được
-                        k.dataset.maBangGiaThucTe = opt.maBangGia;
-                        k.dataset.donGia = opt.tongTienDuKien;
+                        totalGoc += ((opt.tongTienDuKien || 0) * qty);
 
-                        totalGoc += (opt.tongTienDuKien * qty);
-
-                        // Hiển thị mô tả giá (Ví dụ: "Giá mốc (10kg): 50,000đ + Phí vượt...")
                         noteEl.innerHTML = `
                             <div class="d-flex justify-content-between align-items-center">
-                                <span><i class="fas fa-truck-loading me-1"></i> <strong>${opt.tenDichVu}</strong></span>
-                                <span class="badge bg-danger">${opt.tongTienDuKien.toLocaleString()}đ/kiện</span>
+                                <span><i class="fas fa-truck-loading me-1"></i> <strong>${opt.tenDichVu || ""}</strong></span>
+                                <span class="badge bg-danger">${(opt.tongTienDuKien || 0).toLocaleString()}đ/kiện</span>
                             </div>
-                            <div class="text-muted" style="font-size: 0.75rem">${opt.moTaGia}</div>
+                            <div class="text-muted" style="font-size: 0.75rem">${opt.moTaGia || ""}</div>
                         `;
                     } else {
-                        noteEl.innerHTML = `<span class="text-warning"><i class="fas fa-exclamation-triangle"></i> Không tìm thấy bảng giá cho tuyến này.</span>`;
+                        k.dataset.maBangGiaThucTe = 0;
+                        k.dataset.donGia = 0;
+                        noteEl.innerHTML = `<span class="text-warning"><i class="fas fa-exclamation-triangle"></i> Không tìm thấy bảng giá hợp lệ.</span>`;
                     }
                 } catch (e) {
-                    console.error("Lỗi API tính giá:", e);
+                    console.error("Lỗi API tính giá kiện hàng:", e);
                 }
             });
 
             await Promise.all(promises);
-
             state.tongTienGoc = totalGoc;
 
-            // Cập nhật lại UI tổng (Voucher, Thành tiền)
             if (state.maGiamGiaChon) {
                 await reValidateVoucher();
             } else {
@@ -575,19 +621,21 @@
             }
         }
 
-        // Hiển thị danh sách dịch vụ (Vùng chọn màu xanh)
+        /**
+         * Hiển thị danh sách mức dịch vụ (Tiết kiệm, hỏa tốc...)
+         */
         function renderDichVu() {
             const container = document.getElementById('serviceContainer');
+            if (!container) return;
+
             if (!state.mucDichVus || state.mucDichVus.length === 0) {
                 container.innerHTML = '<p class="text-muted small">Đang tải dịch vụ...</p>';
                 return;
             }
 
-            // Lấy ID đã chọn từ state - Sử dụng MaDichVu theo Backend
             const selectedId = state.selectedDV ? String(state.selectedDV.maDichVu) : null;
 
             container.innerHTML = state.mucDichVus.map(dv => {
-                // Chuẩn hóa ID và Tên theo đúng API: MaDichVu, TenDichVu
                 const id = String(dv.maDichVu);
                 const name = dv.tenDichVu || "Dịch vụ vận chuyển";
                 const heSo = dv.heSoNhiPhan || 1;
@@ -609,29 +657,21 @@
         }
 
         function selectDV(id) {
-            // Tìm dịch vụ dựa trên MaDichVu
             const selected = state.mucDichVus.find(dv => String(dv.maDichVu) === String(id));
-
             if (selected) {
                 state.selectedDV = selected;
-                console.log("Đã chọn dịch vụ:", selected);
-
-                renderDichVu(); // Vẽ lại để cập nhật class .selected và dấu tick
-                updateUI();     // Tính toán lại giá tiền thực tế
+                renderDichVu();
+                updateUI();
             }
         }
 
-              
-        // --- PHẦN KHUYẾN MÃI HOÀN THIỆN ---
-
         /**
-         * Tải danh sách các mã giảm giá mà khách hàng có thể sử dụng dựa trên tổng tiền hiện tại
+         * Tải mã giảm giá khả dụng lên Modal
          */
         async function loadAvailablePromotions() {
             const container = document.getElementById('promotion-list');
             if (!container) return;
 
-            // Tính tổng tiền dựa trên dịch vụ đã chọn để gửi lên Backend check điều kiện DonHangToiThieu
             const heSo = state.selectedDV ? state.selectedDV.heSoNhiPhan : 1;
             const tongTienHienTai = state.tongTienGoc * heSo;
 
@@ -653,20 +693,16 @@
                         maKhachHang: parseInt(state.maKhachHang) || 0
                     }
                 });
-
-                console.log("Dữ liệu KM từ Backend:", res.data);
                 renderPromotionList(res.data);
             } catch (e) {
-                console.error("Lỗi tải KM:", e);
+                console.error("Lỗi tải danh sách KM:", e);
                 container.innerHTML = '<div class="alert alert-danger small">Không thể kết nối máy chủ để tải khuyến mãi.</div>';
             }
         }
 
-        /**
-         * Hiển thị danh sách mã lên Giao diện (Modal)
-         */
         function renderPromotionList(promotions) {
             const container = document.getElementById('promotion-list');
+            if (!container) return;
 
             if (!promotions || promotions.length === 0) {
                 container.innerHTML = `
@@ -678,10 +714,9 @@
             }
 
             container.innerHTML = promotions.map(km => {
-                // Xử lý linh hoạt tên thuộc tính (Backend trả về PascalCase hoặc camelCase)
                 const code = km.codeKhuyenMai || km.code || km.maCode;
                 const ten = km.tenChuongTrinh || "Mã giảm giá";
-                const moTa = km.moTa || "Ưu đãi cho đơn hàng vận chuyển";
+                const moTa = km.moTa || "Ưu đãi đơn hàng";
                 const isUsed = km.daSuDung === true;
 
                 return `
@@ -698,46 +733,33 @@
                                 ${isUsed ? 'Đã dùng' : 'Áp dụng'}
                             </button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
         }
 
-        /**
-         * Chọn mã từ danh sách và đóng Modal
-         */
-         async function selectVoucher(code) {
+        async function selectVoucher(code) {
             if (!code) return;
 
             state.maGiamGiaChon = code;
-            document.getElementById('maGiamGia').value = code;
+            const inputMa = document.getElementById('maGiamGia');
+            if (inputMa) inputMa.value = code;
 
-            // 1. Lấy instance của Modal
             const modalEl = document.getElementById('modalKhuyenMai');
-            const modalInstance = bootstrap.Modal.getInstance(modalEl);
-
-            if (modalInstance) {
-                // 2. Đóng modal
-                modalInstance.hide();
-
-                // 3. CƯỠNG ÉP XÓA BACKDROP (Khắc phục lỗi màn hình đen)
-                // Đợi modal đóng xong rồi xóa các lớp phủ còn sót lại
-                modalEl.addEventListener('hidden.bs.modal', function () {
-                    const backdrops = document.querySelectorAll('.modal-backdrop');
-                    backdrops.forEach(el => el.remove());
-                    document.body.classList.remove('modal-open');
-                    document.body.style.overflow = '';
-                    document.body.style.paddingRight = '';
-                }, { once: true });
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    modalEl.addEventListener('hidden.bs.modal', function () {
+                        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                        document.body.classList.remove('modal-open');
+                        document.body.style.overflow = '';
+                        document.body.style.paddingRight = '';
+                    }, { once: true });
+                }
             }
-
-            // Sau đó mới thực hiện tính toán tiền
             await reValidateVoucher();
         }
 
-        /**
-         * Kiểm tra lại tính hợp lệ của mã khi có sự thay đổi về tiền hoặc dịch vụ
-         */
         async function reValidateVoucher() {
             if (!state.maGiamGiaChon) {
                 state.soTienGiam = 0;
@@ -755,14 +777,13 @@
                     maKhachHang: state.maKhachHang
                 });
 
-                if (res.data.success) {
-                    state.soTienGiam = res.data.data.soTienGiam;
-                    console.log("Áp dụng mã thành công, giảm:", state.soTienGiam);
+                if (res.data && res.data.success) {
+                    state.soTienGiam = res.data.data.soTienGiam || 0;
                 } else {
-                    throw new Error(res.data.message);
+                    throw new Error(res.data?.message || "Mã không hợp lệ.");
                 }
             } catch (e) {
-                console.warn("Hủy mã KM:", e.response?.data?.message || e.message);
+                console.warn("Hủy áp dụng mã KM:", e.response?.data?.message || e.message);
                 state.maGiamGiaChon = null;
                 state.soTienGiam = 0;
                 const inputMa = document.getElementById('maGiamGia');
@@ -772,35 +793,24 @@
         }
 
         /**
-         * Hàm cập nhật UI tổng quát (Phải được gọi sau mỗi lần thay đổi dữ liệu)
+         * Cập nhật số tiền hiển thị lên Giao diện công khai công thức
          */
-        async function updateUI() {
-            // 1. Tính toán dựa trên hệ số của mức dịch vụ (Tiết kiệm/Hỏa tốc)
+        function updateUI() {
             const heSo = state.selectedDV ? state.selectedDV.heSoNhiPhan : 1;
             const tongDuKien = state.tongTienGoc * heSo;
-
-            // 2. Tính tổng thực tế sau khi trừ giảm giá (không để âm)
             const tongThucTe = Math.max(0, tongDuKien - state.soTienGiam);
 
-            // 3. Cập nhật vào state để hàm submitOrder lấy dữ liệu cuối cùng
             state.tongThanhToan = tongThucTe;
 
-            // 4. Cập nhật HTML (đảm bảo các ID này tồn tại trong HTML của bạn)
-            const setLabel = (id, val) => {
-                const el = document.getElementById(id);
-                if (el) el.innerText = val.toLocaleString() + " đ";
-            };
-
-            setLabel('display_tongTienDuKien', tongDuKien);
+            safeSetText('display_tongTienDuKien', tongDuKien.toLocaleString() + " đ");
 
             const elGiam = document.getElementById('display_soTienGiam');
             if (elGiam) {
                 elGiam.innerText = (state.soTienGiam > 0 ? "-" : "") + state.soTienGiam.toLocaleString() + " đ";
             }
 
-            setLabel('display_tongThanhToan', tongThucTe);
+            safeSetText('display_tongThanhToan', tongThucTe.toLocaleString() + " đ");
 
-            // Hiển thị ghi chú mã giảm giá nếu có
             const promoNote = document.getElementById('promo_note');
             if (promoNote) {
                 promoNote.innerHTML = state.maGiamGiaChon
@@ -809,12 +819,9 @@
             }
         }
 
-        function safeSetText(id, text) {
-            const el = document.getElementById(id);
-            if (el) el.innerText = text;
-        }
-        
-         // Vẽ danh sách PTTT vào thẻ <select>
+        /**
+         * Phương thức thanh toán (Dropdown)
+         */
         function renderPTTT() {
             const selectEl = document.getElementById('selectPTTT');
             if (!selectEl) return;
@@ -824,49 +831,55 @@
                 return;
             }
 
-            // Nạp danh sách option
             selectEl.innerHTML = '<option value="">-- Chọn phương thức thanh toán --</option>' +
                 state.phuongThucThanhToans.map(pt => {
-                    // Chú ý: Dùng đúng tên biến JSON do C# trả về là maPttt và tenPttt
                     const isSelected = (state.selectedPTTT == pt.maPttt) ? 'selected' : '';
                     return `<option value="${pt.maPttt}" ${isSelected}>${pt.tenPttt}</option>`;
                 }).join('');
         }
 
-        // Hàm cập nhật state khi người dùng chọn trong Dropdown
         function selectPTTT(id) {
-            // Chuyển id về kiểu số nếu maPttt trong DB là int, nếu là chuỗi thì giữ nguyên
             state.selectedPTTT = parseInt(id) || id;
-            console.log("Đã chọn PTTT:", state.selectedPTTT);
+            console.log("Đã chọn PTTT ID:", state.selectedPTTT);
         }
 
-
-
+        /**
+         * Hiển thị QR Code thanh toán
+         */
         function showQRCodeFromUrl(qrUrl, soTien, maDonHang) {
             const imgQR = document.getElementById('imgQR');
             const qrAmount = document.getElementById('qrAmount');
             const qrContent = document.getElementById('qrContent');
+            const modalQrEl = document.getElementById('modalQR');
 
             if (imgQR) imgQR.src = qrUrl;
-            if (qrAmount) qrAmount.innerText = soTien.toLocaleString() + " đ";
-            if (qrContent) qrContent.innerText = `Thanh toán đơn hàng #${maDonHang}`;
+            if (qrAmount) qrAmount.innerText = (soTien || 0).toLocaleString() + " đ";
+            if (qrContent) qrContent.innerText = `Thanh toán đơn hàng #${maDonHang || ""}`;
 
-            const modalQR = new bootstrap.Modal(document.getElementById('modalQR'));
-            modalQR.show();
+            if (modalQrEl && typeof bootstrap !== 'undefined') {
+                const modalQR = new bootstrap.Modal(modalQrEl);
+                modalQR.show();
 
-            // Reset trang khi đóng modal thanh toán
-            document.getElementById('modalQR').addEventListener('hidden.bs.modal', () => {
+                modalQrEl.addEventListener('hidden.bs.modal', () => {
+                    location.reload();
+                }, { once: true });
+            } else {
+                alert("Tạo đơn hàng thành công! Đơn hàng #" + maDonHang);
                 location.reload();
-            }, { once: true });
+            }
         }
 
-        // Thêm kiện hàng mới
+        /**
+         * Thêm Kiện hàng động
+         */
         function addPackage() {
             const container = document.getElementById('packageList');
+            if (!container) return;
+
             const div = document.createElement('div');
             div.className = 'package-item position-relative border p-3 mb-3 rounded bg-white shadow-sm';
             div.innerHTML = `
-                <button class="btn-close position-absolute top-0 end-0 m-2" onclick="this.parentElement.remove(); autoCalculate();"></button>
+                <button type="button" class="btn-close position-absolute top-0 end-0 m-2" onclick="this.parentElement.remove(); autoCalculate();"></button>
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="small fw-bold text-secondary">Loại hàng</label>
@@ -890,7 +903,7 @@
                         <div class="row g-2">
                             <div class="col-md-6">
                                 <label class="small fw-bold text-secondary">Yêu cầu bảo quản</label>
-                                <input type="text" class="form-control form-control-sm" name="yeuCauBaoQuan" placeholder="Ví dụ: Giữ lạnh, tránh ánh nắng...">
+                                <input type="text" class="form-control form-control-sm" name="yeuCauBaoQuan" placeholder="Ví dụ: Giữ lạnh...">
                             </div>
                             <div class="col-md-6">
                                 <label class="small fw-bold text-secondary">Ghi chú kiện</label>
@@ -902,93 +915,113 @@
             container.appendChild(div);
             autoCalculate();
         }
-        // Gửi đơn hàng về server
 
+        /**
+         * Submit Đơn hàng (Validation nghiêm ngặt + Trích xuất lỗi API sâu)
+         */
         async function submitOrder() {
-            // Validation cơ bản
+            // 1. Kiểm tra Mức dịch vụ và PTTT từ state
             if (!state.selectedDV) return alert("Vui lòng chọn mức dịch vụ vận chuyển!");
             if (!state.selectedPTTT) return alert("Vui lòng chọn phương thức thanh toán!");
 
-            const tenKH = document.getElementById('tenKhachHang').value.trim();
-            const sdtKH = document.getElementById('soDienThoai').value.trim();
-            const sdtNhan = document.getElementById('tenNguoiNhan').value.trim();
-            const tenNhan = document.getElementById('sdtNguoiNhan').value.trim();
-            
+            // 2. Kiểm tra phần tử DOM tồn tại và lấy giá trị
+            const getValById = (id) => {
+                const el = document.getElementById(id);
+                return el ? el.value.trim() : "";
+            };
+
+            const tenKH = getValById('tenKhachHang');
+            const sdtKH = getValById('soDienThoai');
+            const sdtNhan = getValById('sdtNguoiNhan');
+            const tenNhan = getValById('tenNguoiNhan');
+
             if (!tenKH || !sdtKH || !tenNhan || !sdtNhan) {
                 return alert("Vui lòng nhập đầy đủ thông tin người gửi và người nhận!");
             }
 
-            // Xây dựng Payload
+            const kiens = document.querySelectorAll('.package-item');
+            if (kiens.length === 0) {
+                return alert("Đơn hàng phải có ít nhất 1 kiện hàng!");
+            }
+
+            // 3. Xây dựng danh sách kiện hàng an toàn
+            const danhSachKienHang = Array.from(kiens).map(k => {
+                const elWeight = k.querySelector('[name="khoiLuong"]');
+                const elVolume = k.querySelector('[name="theTich"]');
+                const elQty = k.querySelector('[name="soLuongKienHang"]');
+                const elMaLH = k.querySelector('[name="maLoaiHang"]');
+                const elYcbq = k.querySelector('[name="yeuCauBaoQuan"]');
+
+                return {
+                    khoiLuong: elWeight ? (parseFloat(elWeight.value) || 0) : 0,
+                    theTich: elVolume ? (parseFloat(elVolume.value) || 0) : 0,
+                    soLuongKienHang: elQty ? (parseInt(elQty.value) || 1) : 1,
+                    maLoaiHang: elMaLH ? (parseInt(elMaLH.value) || 0) : 0,
+                    maBangGiaVung: parseInt(k.dataset.maBangGiaThucTe) || 0,
+                    yeuCauBaoQuan: elYcbq ? elYcbq.value.trim() : ""
+                };
+            });
+
+            // Kiểm tra xem có kiện hàng nào bị thiếu bảng giá không trước khi submit
+            const coKienGiaLoi = danhSachKienHang.some(k => k.maBangGiaVung === 0);
+            if (coKienGiaLoi) {
+                return alert("Có kiện hàng chưa tìm thấy bảng giá phù hợp. Không thể tạo đơn!");
+            }
+
+            // 4. Đóng gói payload gửi lên backend
             const payload = {
                 tenDonHang: `Đơn hàng - ${tenKH} - ${new Date().toLocaleDateString()}`,
                 soDienThoai: sdtKH,
                 tenKhachHang: tenKH,
                 tenNguoiNhan: tenNhan,
                 sdtNguoiNhan: sdtNhan,
-                soKm: parseFloat(document.getElementById('soKm')?.value) || 0,
-
-                // Dữ liệu từ state
+                soKm: parseFloat(getValById('soKm')) || 0,
                 maMucDoDv: parseInt(state.selectedDV.maDichVu),
                 maPTTT: parseInt(state.selectedPTTT),
                 maGiamGia: state.maGiamGiaChon,
                 tongTien: state.tongThanhToan,
                 soTienGiam: state.soTienGiam,
-
-                // Địa chỉ
                 diaChiLay: {
-                    duong: document.getElementById('lay_duong').value.trim(),
-                   
-                    phuong: document.getElementById('lay_phuongXa').value,
-                    quanHuyen: document.getElementById('lay_quanHuyen').value,
-
-                    thanhPho: cleanCityName(document.getElementById('lay_thanhPho').value)
+                    duong: getValById('lay_duong'),
+                    phuong: getValById('lay_phuongXa'),
+                    quan: getValById('lay_quanHuyen'),
+                    thanhPho: cleanCityName(getValById('lay_thanhPho'))
                 },
                 diaChiGiao: {
-                    duong: document.getElementById('giao_duong').value.trim(),
-                    phuong: document.getElementById('giao_phuongXa').value,
-                    quanHuyen: document.getElementById('giao_quanHuyen').value,
-                    thanhPho: cleanCityName(document.getElementById('giao_thanhPho').value)
+                    duong: getValById('giao_duong'),
+                    phuong: getValById('giao_phuongXa'),
+                    quan: getValById('giao_quanHuyen'),
+                    thanhPho: cleanCityName(getValById('giao_thanhPho'))
                 },
-
-                // Danh sách kiện hàng
-                danhSachKienHang: Array.from(document.querySelectorAll('.package-item')).map(k => ({
-                    khoiLuong: parseFloat(k.querySelector('[name="khoiLuong"]').value) || 0,
-                    theTich: parseFloat(k.querySelector('[name="theTich"]').value) || 0,
-                    soLuongKienHang: parseInt(k.querySelector('[name="soLuongKienHang"]').value) || 1,
-                    maLoaiHang: parseInt(k.querySelector('[name="maLoaiHang"]').value) || 0,
-
-                    // QUAN TRỌNG: Lấy mã bảng giá đã được phân tích từ dataset
-                    maBangGiaVung: parseInt(k.dataset.maBangGiaThucTe) || 0,
-
-                    yeuCauBaoQuan: k.querySelector('[name="yeuCauBaoQuan"]')?.value.trim() || ""
-                }))
+                danhSachKienHang: danhSachKienHang
             };
 
-            console.log("Dữ liệu gửi đi:", payload);
+            console.log("Dữ liệu gửi lên Server:", payload);
 
             showLoading(true);
             try {
-                // Gửi về API tạo đơn (Kiểm tra lại Port của bạn là 7264 hay 7149)
                 const res = await axios.post(`${PORT_7264}/api/quanlydonhang/tao-moi`, payload);
 
-                if (res.data.success || res.status === 200) {
+                if (res.status === 200 || res.data.success) {
                     const result = res.data;
-                    if (result.qrCodeUrl) {
+                    if (result && result.qrCodeUrl) {
                         showQRCodeFromUrl(result.qrCodeUrl, result.tongTien, result.maDonHang);
                     } else {
                         alert("Tạo đơn hàng thành công!");
                         location.reload();
                     }
+                } else {
+                    alert("Yêu cầu không thành công: " + (res.data?.message || "Lỗi không xác định"));
                 }
             } catch (e) {
-                console.error("Lỗi submit:", e);
-                alert("Lỗi: " + (e.response?.data?.message || "Không thể tạo đơn hàng"));
+                console.error("Lỗi khi gọi API submit đơn hàng:", e);
+                // Trích xuất thông báo lỗi sâu từ Backend (C# BadRequest(new { message = "..." }))
+                const msgServer = e.response?.data?.message || e.response?.data || "Không thể kết nối đến máy chủ";
+                alert("Lỗi tạo đơn hàng: " + msgServer);
             } finally {
                 showLoading(false);
             }
         }
-
-        function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
     </script>
 </body>
 </html>

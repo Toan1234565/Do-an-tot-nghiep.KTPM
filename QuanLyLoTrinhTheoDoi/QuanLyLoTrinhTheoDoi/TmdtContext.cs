@@ -167,6 +167,7 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.ThoiGianKetThucThucTe)
                 .HasColumnType("datetime")
                 .HasColumnName("thoi_gian_ket_thuc_thuc_te");
+            entity.Property(e => e.TongKhoiLuongKg).HasColumnName("tong_khoi_luong_kg");
             entity.Property(e => e.TrangThai)
                 .HasMaxLength(50)
                 .HasColumnName("trang_thai");

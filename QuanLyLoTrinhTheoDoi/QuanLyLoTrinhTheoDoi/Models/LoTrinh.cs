@@ -23,6 +23,8 @@ public partial class LoTrinh
 
     public int? MaPtTx { get; set; }
 
+    public double? TongKhoiLuongKg { get; set; }
+
     public virtual ICollection<ChiPhiLoTrinh> ChiPhiLoTrinhs { get; set; } = new List<ChiPhiLoTrinh>();
 
     public virtual ICollection<ChiTietLoTrinhKienHang> ChiTietLoTrinhKienHangs { get; set; } = new List<ChiTietLoTrinhKienHang>();

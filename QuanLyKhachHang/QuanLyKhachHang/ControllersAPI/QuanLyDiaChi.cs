@@ -1,13 +1,14 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using H3;
+using H3.Extensions;
+using H3.Model;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using QuanLyKhachHang.Models;
 using QuanLyKhachHang.Models1.QuanLyDiaChi;
 using QuanLyKhachHang.Models1.QuanLyKhachHang;
-using H3;
-using H3.Extensions;
-using H3.Model;
+using static QuanLyKhachHang.ControllersAPI.KhachHangAPI;
 
 namespace QuanLyKhachHang.ControllersAPI
 {
@@ -139,48 +140,75 @@ namespace QuanLyKhachHang.ControllersAPI
         [HttpPost("check_dia_chi")]
         public async Task<IActionResult> CheckOrCreateDiaChi([FromBody] DiaChiModels request)
         {
+            if (request == null || string.IsNullOrWhiteSpace(request.ThanhPho))
+            {
+                return BadRequest(new { success = false, message = "Dữ liệu địa chỉ đầu vào không đầy đủ." });
+            }
+
+            // Tiến hành Trim sạch khoảng trắng thừa
+            string duongTrim = request.Duong?.Trim() ?? "";
+            string phuongTrim = request.Phuong?.Trim() ?? "";
+            string quanTrim = request.Quan?.Trim() ?? "";
+            string thanhPhoTrim = request.ThanhPho?.Trim() ?? "";
+
             try
             {
-                // 1. Tìm địa chỉ cũ
+                // 1. Tìm địa chỉ trong DB
                 var existingAddress = await _context.DiaChis
-                    .FirstOrDefaultAsync(dc => dc.ThanhPho == request.ThanhPho &&
-                                               dc.Phuong == request.Phuong &&
-                                               dc.Duong == request.Duong);
+                    .FirstOrDefaultAsync(dc => dc.ThanhPho == thanhPhoTrim &&
+                                               dc.Phuong == phuongTrim &&
+                                               dc.Quan == quanTrim &&
+                                               dc.Duong == duongTrim);
 
                 if (existingAddress != null)
                 {
-                    // Nếu thiếu tọa độ hoặc mã H3 thì bổ sung
-                    if (string.IsNullOrEmpty(existingAddress.MaVungH3) || existingAddress.ViDo == null)
+                    if (!string.IsNullOrEmpty(existingAddress.MaVungH3) && existingAddress.ViDo != null)
                     {
-                        var (lat, lon) = await GetCoordinatesAsync(existingAddress.Duong, existingAddress.Phuong, existingAddress.ThanhPho);
-                        if (lat.HasValue && lon.HasValue)
-                        {
-                            var h3IndexObj = H3Index.FromLatLng(new LatLng(lat.Value, lon.Value), 7);
-                            existingAddress.MaVungH3 = h3IndexObj.ToString();
-                            existingAddress.ViDo = lat; // Ép kiểu nếu DB dùng decimal
-                            existingAddress.KinhDo = lon;
-
-                            _context.DiaChis.Update(existingAddress);
-                            await _context.SaveChangesAsync();
-                        }
+                        return Ok(new { success = true, maDiaChi = existingAddress.MaDiaChi, maVungH3 = existingAddress.MaVungH3 });
                     }
-                    return Ok(new { maDiaChi = existingAddress.MaDiaChi, maVungH3 = existingAddress.MaVungH3 });
+
+                    // Bù đắp dữ liệu nếu bản ghi cũ thiếu tọa độ
+                    var (lat, lon) = await GetCoordinatesAsync(duongTrim, phuongTrim, quanTrim, thanhPhoTrim);
+
+                    if (!lat.HasValue || !lon.HasValue)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            message = "Địa chỉ này tồn tại trong hệ thống nhưng bản đồ không thể định vị được tọa độ địa lý. Vui lòng kiểm tra lại chính tả đường phố."
+                        });
+                    }
+
+                    var h3IndexObj = H3Index.FromLatLng(new LatLng(lat.Value, lon.Value), 7);
+                    existingAddress.MaVungH3 = h3IndexObj.ToString();
+                    existingAddress.ViDo = lat;
+                    existingAddress.KinhDo = lon;
+
+                    _context.DiaChis.Update(existingAddress);
+                    await _context.SaveChangesAsync();
+
+                    return Ok(new { success = true, maDiaChi = existingAddress.MaDiaChi, maVungH3 = existingAddress.MaVungH3 });
                 }
 
-                // 2. Nếu chưa có thì tạo mới (Sử dụng hàm GetCoordinatesAsync đã có fallback ở trên)
-                var (newLat, newLon) = await GetCoordinatesAsync(request.Duong, request.Phuong, request.ThanhPho);
+                // 2. Nếu chưa có địa chỉ này trong DB -> Tiến hành định vị mới
+                var (newLat, newLon) = await GetCoordinatesAsync(duongTrim, phuongTrim, quanTrim, thanhPhoTrim);
 
                 if (newLat == null || newLon == null)
                 {
-                    return BadRequest(new { message = "Không thể xác định tọa độ cho địa chỉ hoặc phường xã này." });
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Thông tin địa chỉ giao hoặc lấy hàng không thể định vị được trên bản đồ. Vui lòng kiểm tra lại chính tả (Tỉnh/Thành phố, Quận/Huyện, Phường/Xã)."
+                    });
                 }
 
                 var h3IndexNew = H3Index.FromLatLng(new LatLng(newLat.Value, newLon.Value), 7);
                 var newDc = new DiaChi
                 {
-                    ThanhPho = request.ThanhPho,
-                    Phuong = request.Phuong, // Lưu tên Phường vào đây
-                    Duong = request.Duong,
+                    ThanhPho = thanhPhoTrim,
+                    Quan = quanTrim,
+                    Phuong = phuongTrim,
+                    Duong = duongTrim,
                     KinhDo = newLon,
                     ViDo = newLat,
                     MaVungH3 = h3IndexNew.ToString()
@@ -189,30 +217,37 @@ namespace QuanLyKhachHang.ControllersAPI
                 _context.DiaChis.Add(newDc);
                 await _context.SaveChangesAsync();
 
-                return Ok(new { maDiaChi = newDc.MaDiaChi, maVungH3 = newDc.MaVungH3 });
+                return Ok(new { success = true, maDiaChi = newDc.MaDiaChi, maVungH3 = newDc.MaVungH3 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi xử lý địa chỉ");
-                return StatusCode(500, "Lỗi hệ thống");
+                _logger.LogError(ex, $"Lỗi nghiêm trọng khi xử lý địa chỉ: {request.Duong}, {request.Phuong}, {request.ThanhPho}");
+                return StatusCode(500, new { success = false, message = "Lỗi hệ thống nội bộ khi phân tích dữ liệu địa chỉ." });
             }
         }
 
-        private async Task<(double? lat, double? lon)> GetCoordinatesAsync(string? duong, string? phuong, string? thanhPho)
+        private async Task<(double? lat, double? lon)> GetCoordinatesAsync(string? duong, string? phuong, string? quan, string? thanhPho)
         {
             if (string.IsNullOrWhiteSpace(thanhPho)) return (null, null);
 
             try
             {
+                // Tái sử dụng HttpClient thông qua khuyến nghị của .NET thay vì tạo mới liên tục để tránh Socket Exhaustion
                 using var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "QuanLyVanchuyenApp/1.0");
+                client.DefaultRequestHeaders.Add("User-Agent", "SmartLogisticsSLTMS/1.0");
 
-                // Lớp 1: Tìm địa chỉ đầy đủ
-                var levels = new List<string[]>
+                var levels = new List<string[]>();
+
+                // Chuẩn hóa tên đường bằng cách loại bỏ các tiền tố thô sơ như "số 1", "ngõ 2" để tăng tỷ lệ Match của OSM
+                string cleanDuong = CleanStreetName(duong);
+
+                if (!string.IsNullOrWhiteSpace(cleanDuong))
                 {
-                    new[] { duong, phuong, thanhPho }, // Ưu tiên 1: Đầy đủ
-                    new[] { phuong, thanhPho }        // Ưu tiên 2: Chỉ lấy Phường/Xã nếu Đường không tìm thấy
-                };
+                    levels.Add(new[] { cleanDuong, phuong, quan, thanhPho });
+                }
+
+                levels.Add(new[] { phuong, quan, thanhPho }); // Dự phòng bậc 2: Định vị về trung tâm Phường/Xã
+                levels.Add(new[] { quan, thanhPho });         // Dự phòng bậc 3: Định vị về trung tâm Quận/Huyện
 
                 foreach (var parts in levels)
                 {
@@ -223,6 +258,14 @@ namespace QuanLyKhachHang.ControllersAPI
                     string url = $"https://nominatim.openstreetmap.org/search?q={Uri.EscapeDataString(fullAddress)}&format=json&limit=1";
 
                     var response = await client.GetAsync(url);
+
+                    // Xử lý lỗi Rate Limit (HTTP 429) hoặc tạm hoãn giữa các tầng fallback để tránh bị OSM Block
+                    if ((int)response.StatusCode == 429)
+                    {
+                        await Task.Delay(1000); // Đợi 1 giây rồi thử lại tầng tiếp theo
+                        continue;
+                    }
+
                     if (response.IsSuccessStatusCode)
                     {
                         var json = await response.Content.ReadAsStringAsync();
@@ -230,13 +273,17 @@ namespace QuanLyKhachHang.ControllersAPI
 
                         if (data != null && data.Count > 0)
                         {
-                            double.TryParse(data[0].lat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double latRes);
-                            double.TryParse(data[0].lon, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lonRes);
-
-                            _logger.LogInformation("Tìm thấy tọa độ cho: {Address}", fullAddress);
-                            return (latRes, lonRes);
+                            if (double.TryParse(data[0].lat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double latRes) &&
+                                double.TryParse(data[0].lon, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lonRes))
+                            {
+                                _logger.LogInformation("Định vị thành công: {Address} -> ({Lat}, {Lon})", fullAddress, latRes, lonRes);
+                                return (latRes, lonRes);
+                            }
                         }
                     }
+
+                    // Giãn cách ngắn giữa các lần gọi fallback để bảo vệ cấu trúc Request sang Nominatim
+                    await Task.Delay(600);
                 }
             }
             catch (Exception ex)
@@ -245,14 +292,15 @@ namespace QuanLyKhachHang.ControllersAPI
             }
             return (null, null);
         }
-        // Lớp Mapping JSON
-        public class GeocodeResult
-        {
-            [System.Text.Json.Serialization.JsonPropertyName("lat")]
-            public string? lat { get; set; }
 
-            [System.Text.Json.Serialization.JsonPropertyName("lon")]
-            public string? lon { get; set; }
+        // Hàm bổ trợ làm sạch chuỗi đường phố nhằm tối ưu hóa kết quả tìm kiếm cho OpenStreetMap
+        private string CleanStreetName(string? duong)
+        {
+            if (string.IsNullOrWhiteSpace(duong)) return "";
+
+            // Loại bỏ các từ số nhà, ngách hẻm đứng đầu vì Nominatim không lưu trữ chi tiết số nhà nhỏ tại Việt Nam
+            string result = System.Text.RegularExpressions.Regex.Replace(duong, @"^(số\s+\d+|sh\d+|lô\s+\d+|[\d+/]+)\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            return result.Trim();
         }
         [HttpGet("lay-toa-do/{id}")]
         public async Task<IActionResult> GetCoordinates(int id)

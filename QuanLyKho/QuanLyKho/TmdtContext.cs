@@ -191,9 +191,22 @@ public partial class TmdtContext : DbContext
             entity.Property(e => e.BienSo)
                 .HasMaxLength(50)
                 .HasColumnName("bien_so");
+            entity.Property(e => e.Ca1)
+                .HasDefaultValue(false)
+                .HasColumnName("ca_1");
+            entity.Property(e => e.Ca2)
+                .HasDefaultValue(false)
+                .HasColumnName("ca_2");
+            entity.Property(e => e.Ca3)
+                .HasDefaultValue(false)
+                .HasColumnName("ca_3");
             entity.Property(e => e.MaKho).HasColumnName("ma_kho");
+            entity.Property(e => e.MaKhoHienTai).HasColumnName("ma_kho_hien_tai");
             entity.Property(e => e.MaLoaiXe).HasColumnName("ma_loai_xe");
             entity.Property(e => e.MucTieuHaoNhienLieu).HasColumnName("muc_tieu_hao_nhien_lieu");
+            entity.Property(e => e.NgayCapNhatGan)
+                .HasColumnType("datetime")
+                .HasColumnName("ngay_cap_nhat_gan");
             entity.Property(e => e.SoKmHienTai)
                 .HasDefaultValue(0.0)
                 .HasColumnName("so_km_hien_tai");

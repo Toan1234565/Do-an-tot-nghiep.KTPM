@@ -1244,22 +1244,39 @@ namespace QuanLyKho.ControllersAPI
                 await transaction.RollbackAsync();
                 return BadRequest(ex.Message);
             }
-        }     
+        }
 
         [HttpGet("danh-sach-xe-theo-kho/{maKho}")]
-        public async Task<IActionResult> GetDanhSachXeTheoKho(int maKho, [FromQuery] bool? trangThaiGan = null)
+        public async Task<IActionResult> GetDanhSachXeTheoKho(int maKho, [FromQuery] int? locTheoCa = null)
         {
             try
             {
-                // Khởi tạo query cơ bản theo kho
                 var query = _context.PhuongTiens
                     .AsNoTracking()
                     .Where(x => x.MaKho == maKho);
 
-                // Lọc theo trạng thái gán nếu người dùng có truyền tham số (true/false)
-                if (trangThaiGan.HasValue)
+                // Logic lọc theo trạng thái từng ca
+                if (locTheoCa.HasValue)
                 {
-                    query = query.Where(x => x.Trangthaigantaixe == trangThaiGan.Value);
+                    switch (locTheoCa.Value)
+                    {
+                        case 1:
+                            // Xe trống Ca 1 VÀ không bận đường dài (Ca 8)
+                            query = query.Where(x => (x.Ca1 == false || x.Ca1 == null) && (x.Trangthaigantaixe == false || x.Trangthaigantaixe == null));
+                            break;
+                        case 2:
+                            // Xe trống Ca 2 VÀ không bận đường dài (Ca 8)
+                            query = query.Where(x => (x.Ca2 == false || x.Ca2 == null) && (x.Trangthaigantaixe == false || x.Trangthaigantaixe == null));
+                            break;
+                        case 3:
+                            // Xe trống Ca 3 VÀ không bận đường dài (Ca 8)
+                            query = query.Where(x => (x.Ca3 == false || x.Ca3 == null) && (x.Trangthaigantaixe == false || x.Trangthaigantaixe == null));
+                            break;
+                        case 8:
+                            // Ca đường dài: Chỉ cần kiểm tra Trangthaigantaixe
+                            query = query.Where(x => x.Trangthaigantaixe == false || x.Trangthaigantaixe == null);
+                            break;
+                    }
                 }
 
                 var danhSachXe = await query
@@ -1267,11 +1284,18 @@ namespace QuanLyKho.ControllersAPI
                     {
                         x.MaPhuongTien,
                         x.BienSo,
-                        
-                        TrangThaiGan = x.Trangthaigantaixe ?? false, // Trạng thái đã gán TX chưa
+                        x.Trangthaigantaixe,
+                        x.Ca1,
+                        x.Ca2,
+                        x.Ca3,
+                        x.NgayCapNhatGan,
                         TenLoaiXe = x.MaLoaiXeNavigation != null ? x.MaLoaiXeNavigation.TenLoai : "N/A",
                         x.TaiTrongToiDaKg,
-                        x.TheTichToiDaM3
+                        x.TheTichToiDaM3,
+                        // Mô tả trạng thái chi tiết hơn cho UI
+                        MoTaChiTiet = x.Trangthaigantaixe == true ? "Đang chạy đường dài (Ca 8)" :
+                                     (x.Ca1 == true && x.Ca2 == true && x.Ca3 == true) ? "Bận toàn bộ ca nội thành" :
+                                     $"Bận: {(x.Ca1 == true ? "[Ca 1]" : "")} {(x.Ca2 == true ? "[Ca 2]" : "")} {(x.Ca3 == true ? "[Ca 3]" : "")}".Trim()
                     })
                     .ToListAsync();
 
@@ -1280,10 +1304,45 @@ namespace QuanLyKho.ControllersAPI
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Lỗi khi lấy danh sách xe theo kho {MaKho}", maKho);
-                return StatusCode(500, "Lỗi hệ thống khi lấy danh sách xe");
+                return StatusCode(500, "Lỗi hệ thống");
             }
         }
 
+        [HttpPut("cap-nhat-sau-khi-gan/{id}")]
+        public async Task<IActionResult> UpdateSauKhiGan(int id, [FromQuery] int maCa, [FromQuery] bool trangThai = true)
+        {
+            var xe = await _context.PhuongTiens.FindAsync(id);
+            if (xe == null) return NotFound("Không tìm thấy phương tiện");
+
+            // Cập nhật bit tương ứng theo MaCa
+            if (maCa == 8) // Ca đường dài
+            {
+                xe.Trangthaigantaixe = trangThai;
+                
+            }
+            else if (maCa == 1) xe.Ca1 = trangThai;
+            else if (maCa == 2) xe.Ca2 = trangThai;
+            else if (maCa == 3) xe.Ca3 = trangThai;
+
+            // Cập nhật trạng thái tổng quát
+            // Nếu bất kỳ ca nào bận thì Trangthaigantaixe = true           
+            xe.NgayCapNhatGan = DateTime.Now;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return Ok(new
+                {
+                    message = "Cập nhật thành công",
+                    trangThaiHienTai = new { xe.Ca1, xe.Ca2, xe.Ca3, xe.Trangthaigantaixe }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Lỗi khi lưu dữ liệu");
+            }
+        }
+        // hien o phan thuc hien gan phuong tine voi tai xe 
         [HttpGet("chitietthongtinPT/{maPhuongTien}")]
         public async Task<IActionResult> GetChiTietPhuongTien(int maPhuongTien)
         {
@@ -1305,7 +1364,8 @@ namespace QuanLyKho.ControllersAPI
                     {
                         MaPhuongTien = xeFromDb.MaPhuongTien,
                         BienSo = xeFromDb.BienSo,
-                        
+                        TenLoaiXe = xeFromDb.MaLoaiXeNavigation != null ? xeFromDb.MaLoaiXeNavigation.TenLoai : "N/A",
+
                     };
 
                     // 4. Lưu vào Cache (ví dụ 10 phút)
@@ -1320,17 +1380,7 @@ namespace QuanLyKho.ControllersAPI
                 return StatusCode(500, "Lỗi hệ thống");
             }
         }
-
-        [HttpPut("cap-nhat-trang-thai-gan/{id}")]
-        public async Task<IActionResult> UpdateTrangThai(int id, bool trangThai)
-        {
-            var xe = await _context.PhuongTiens.FindAsync(id);
-            if (xe == null) return NotFound();
-            xe.Trangthaigantaixe = trangThai;
-            await _context.SaveChangesAsync();
-            return Ok();
-        }
-
+      
         [HttpGet("xe-san-sang-dieu-phoi")]
         public async Task<IActionResult> GetXeSanSang([FromQuery] double khoiLuongHang, [FromQuery] int maKho)
         {
@@ -1347,7 +1397,7 @@ namespace QuanLyKho.ControllersAPI
                     // Ta chỉ lọc những xe đang RẢNH tại kho đó.
                     var query = _context.PhuongTiens
                         .AsNoTracking()
-                        .Where(x => x.TrangThai == "Không hoạt động" && x.MaKho == maKho);
+                        .Where(x => x.TrangThai == "Không hoạt động" && x.MaKho == maKho && (x.Trangthaigantaixe == true || x.Ca1 == true || x.Ca2 == true || x.Ca3 == true));
 
                     var xeSanSang = await query
                         .Select(x => new PhuongTienDTO
@@ -1381,27 +1431,6 @@ namespace QuanLyKho.ControllersAPI
                 _logger.LogError(ex, "Lỗi khi lấy danh sách xe điều phối tại kho {MaKho}", maKho);
                 return StatusCode(500, "Lỗi hệ thống khi điều phối lộ trình");
             }
-        }
-
-        [HttpGet("get-xe-phu-hop")]
-        public async Task<List<PhuongTienDTO>> GetXePhuHopTaiTrong(int maKho, double khoiLuongHang)
-        {
-            // Logic: Lấy các xe có tải trọng từ lớn đến bé để ưu tiên xe to chở được nhiều cụm
-            return await _context.PhuongTiens
-                .AsNoTracking()
-                .Where(x => x.MaKho == maKho
-                         && x.TrangThai == "Không hoạt động")
-                .OrderByDescending(x => x.TaiTrongToiDaKg) // Ưu tiên xe tải trọng lớn trước cho BPP
-                .Select(x => new PhuongTienDTO
-                {
-                    MaPhuongTien = x.MaPhuongTien,
-                    BienSo = x.BienSo,
-                    TaiTrongToiDaKg = x.TaiTrongToiDaKg,
-                    TheTichToiDaM3 = x.TheTichToiDaM3,
-                    TenLoaiXe = x.MaLoaiXeNavigation != null ? x.MaLoaiXeNavigation.TenLoai : "N/A",
-                    TenKho = x.MaKhoNavigation != null ? x.MaKhoNavigation.TenKhoBai : "N/A"
-                })
-                .ToListAsync();
         }
 
         // cập nhật trạng thái của xe khi thực hiện xong 1 chuyến đi hoặc hoàn thành bảo trì để xe sẵn sàng cho lần điều phối tiếp theo
@@ -1472,6 +1501,95 @@ namespace QuanLyKho.ControllersAPI
             }
 
             return BadRequest(new { MaPhuongTien = id, Message = $"Xe đang ở trạng thái: {xe.TrangThai}", SanSang = false });
+        }
+
+        [HttpGet("loc-xe-dieu-phoi")]
+        public async Task<IActionResult> GetDanhSachXeTheoKhoKhoiLuong(
+             [FromQuery] int? maKho,
+             [FromQuery] double? khoiLuongCan,
+             [FromQuery] int page = 1)
+        {
+            if (page <= 0) page = 1;
+            int pageSize = 20;
+
+            // Thiết lập cacheKey dựa trên bộ lọc
+            string cacheKey = $"danhSachXe_Kho_{maKho ?? 0}_KL_{khoiLuongCan ?? 0}_P_{page}";
+
+            try
+            {
+                if (!_cacheKey.TryGetValue(cacheKey, out var cachedData))
+                {
+                    var query = _context.PhuongTiens.AsNoTracking();
+
+                    // -----------------------------------------------------------------
+                    // 1. CHỈ LẤY XE SẴN SÀNG: Lọc nghiêm ngặt trạng thái điều phối
+                    // -----------------------------------------------------------------
+                    // Thay vì loại trừ "Không hoạt động", ta chỉ đích danh các xe "Sẵn sàng" 
+                    // để tránh lấy nhầm xe "Đang chạy", "Bảo dưỡng", "Sửa chữa"...
+                    query = query.Where(x => x.TrangThai == "Không hoạt động");
+
+                    // 2. Lọc theo mã kho (Nơi xe đang đỗ)
+                    if (maKho.HasValue)
+                    {
+                        query = query.Where(x => x.MaKho == maKho.Value);
+                    }
+
+                    // 3. Lọc theo khối lượng (Tải trọng xe phải đáp ứng được đơn hàng)
+                    if (khoiLuongCan.HasValue)
+                    {
+                        query = query.Where(x => x.TaiTrongToiDaKg >= khoiLuongCan.Value);
+                    }
+
+                    // Lấy tổng số dòng để phân trang
+                    int totalItems = await query.CountAsync();
+
+                    // Thực hiện phân trang và Select trực tiếp để tối ưu SQL (Không lấy thừa cột)
+                    var danhsach = await query
+                        .Include(loai => loai.MaLoaiXeNavigation)
+                        .Include(kho => kho.MaKhoNavigation) // Đảm bảo bảng Kho nằm cùng DB phương tiện
+                        .Skip((page - 1) * pageSize)
+                        .Take(pageSize)
+                        .Select(x => new PhuongTienListModel
+                        {
+                            MaPhuongTien = x.MaPhuongTien,
+                            BienSo = x.BienSo,
+                            MaLoaiXe = x.MaLoaiXe,
+                            TenLoaiXe = x.MaLoaiXeNavigation != null ? x.MaLoaiXeNavigation.TenLoai : "N/A",
+                            TaiTrongToiDaKg = x.TaiTrongToiDaKg,
+                            TheTichToiDaM3 = x.TheTichToiDaM3,
+                            MucTieuHaoNhienLieu = x.MucTieuHaoNhienLieu,
+                            TrangThai = x.TrangThai,
+                            MaKho =(int)x.MaKho,
+                            TenKho = x.MaKhoNavigation != null ? x.MaKhoNavigation.TenKhoBai : "Chưa xác định"
+                        })
+                        .ToListAsync();
+
+                    cachedData = new
+                    {
+                        TotalItems = totalItems,
+                        TotalPages = (int)Math.Ceiling((double)totalItems / pageSize),
+                        CurrentPage = page,
+                        PageSize = pageSize,
+                        Data = danhsach
+                    };
+
+                    // -----------------------------------------------------------------
+                    // TỐI ƯU CACHE: Hạ xuống 10 giây để tránh xung đột dữ liệu (Race Condition)
+                    // -----------------------------------------------------------------
+                    var cacheOptions = new MemoryCacheEntryOptions()
+                        .SetAbsoluteExpiration(TimeSpan.FromSeconds(10))
+                        .SetSlidingExpiration(TimeSpan.FromSeconds(3));
+
+                    _cacheKey.Set(cacheKey, cachedData, cacheOptions);
+                }
+
+                return Ok(cachedData);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lọc danh sách xe tại Server Phương Tiện. Bộ lọc: Kho={MaKho}, KL={KL}", maKho, khoiLuongCan);
+                return StatusCode(500, new { message = "Đã xảy ra lỗi nội bộ hệ thống tại Server Phương Tiện." });
+            }
         }
     }
 }

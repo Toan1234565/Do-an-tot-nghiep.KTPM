@@ -12,5 +12,6 @@
         public double? SoKm { get; set; } // Dùng nếu chọn dịch vụ vận tải (LoaiTinhGia = 2)
         public int? MaLoaiHang { get; set; }
         public int? MaBangGiaVung { get; set; }
+        public int LoaiTinhGia { get; internal set; }
     }
 }

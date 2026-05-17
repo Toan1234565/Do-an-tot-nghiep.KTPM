@@ -13,9 +13,13 @@ using QuanLyLoTrinhTheoDoi.Models12.LienServer;
 using QuanLyLoTrinhTheoDoi.Models12.LienServer.cs;
 using QuanLyLoTrinhTheoDoi.Models12.QuanLyLoTrinh.cs;
 using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer;
+using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer.DonHang;
+using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer.KhoBai;
+using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer.PhuongTien;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography.Xml;
+using ClusterResult = QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh.ClusterResult;
 
 
 namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
@@ -295,761 +299,508 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
             }
         }
 
-
-        // thực hiện gắn phương tiện vói tài xế , ca và tuyến
-        [HttpPost("GanPhuongTienTaiXe")]
-        public async Task<IActionResult> GanPhuongTien([FromBody] GanPhuongTienRequest request)
+        [HttpGet("danhsachganxe/{maPhuongTien}")]
+        public async Task<IActionResult> GetDanhSachGanXe(
+             int maPhuongTien,
+             [FromQuery] int? maCa,
+             [FromQuery] bool isActive = true,
+             [FromServices] INhanVienService nhanVienService = null,
+             [FromServices] IPhuongTienServiceClient phuongTienService = null)
         {
-            if (request == null) return BadRequest("Dữ liệu không hợp lệ.");
+            try
+            {
+                // 1. Lấy danh sách các bản ghi gán từ Database nội bộ (Server Điều phối)
+                var query = _context.PhuongTienTaiXes
+                    .AsNoTracking()
+                    .Where(x => x.MaPhuongTien == maPhuongTien && x.IsActive == isActive);
+
+                if (maCa.HasValue)
+                {
+                    query = query.Where(x => x.MaCa == maCa.Value);
+                }
+
+                var danhSachCoBan = await query
+                    .OrderByDescending(x => x.MaPtTx)
+                    .ToListAsync();
+
+                if (danhSachCoBan.Count == 0)
+                {
+                    return Ok(new { success = true, maCaFilter = maCa, data = new List<object>() });
+                }
+
+                // 2. Sử dụng Interface để lấy thông tin bổ trợ từ các Server khác
+                // Chúng ta dùng Task.WhenAll để gọi đồng thời, tối ưu hiệu năng
+                var tasks = danhSachCoBan.Select(async item =>
+                {
+                    // 1. Gọi Server Phương tiện
+                    // Sửa: Sử dụng đúng kiểu PhuongTienDetailModel? và Task.FromResult với kiểu tương ứng
+                    var xeTask = phuongTienService != null
+                                 ? phuongTienService.GetChiTietPhuongTienAsync(item.MaPhuongTien)
+                                 : Task.FromResult<PhuongTienDetailModel?>(null);
+
+                    // 2. Gọi Server Nhân viên cho tài xế chính
+                    var txChinhTask = nhanVienService != null
+                                      ? nhanVienService.GetTenNhanVienAsync(item.MaNguoiDung)
+                                      : Task.FromResult<TenNhanVienModel?>(null);
+
+                    // 3. Gọi Server Nhân viên cho tài xế phụ
+                    var txPhuTask = (item.MaNguoiDungPhu.HasValue && nhanVienService != null)
+                                    ? nhanVienService.GetTenNhanVienAsync(item.MaNguoiDungPhu.Value)
+                                    : Task.FromResult<TenNhanVienModel?>(null);
+
+                    // Chờ tất cả các Task hoàn thành
+                    await Task.WhenAll(xeTask, txChinhTask, txPhuTask);
+
+                    // Lấy kết quả sau khi await
+                    var xeInfo = await xeTask;
+                    var txChinhInfo = await txChinhTask;
+                    var txPhuInfo = await txPhuTask;
+
+                    return new
+                    {
+                        maPtTx = item.MaPtTx,
+                        maPhuongTien = item.MaPhuongTien,
+                        bienSo = xeInfo?.BienSo ?? "N/A",
+                        
+                        maCa = item.MaCa,
+                        loaiTuyen = item.LoaiTuyen,
+                        maTaiXeChinh = item.MaNguoiDung,
+                        tenTaiXeChinh = txChinhInfo?.TenNguoiDung ?? "Không xác định", // Sử dụng đúng thuộc tính TenNguoiDung
+                        maTaiXePhu = item.MaNguoiDungPhu,
+                        tenTaiXePhu = txPhuInfo?.TenNguoiDung ?? (item.MaNguoiDungPhu.HasValue ? "Không xác định" : null),
+                        isActive = item.IsActive
+                    };
+                });
+
+                var ketQuaFull = await Task.WhenAll(tasks);
+
+                return Ok(new
+                {
+                    success = true,
+                    maCaFilter = maCa,
+                    tongSo = ketQuaFull.Length,
+                    data = ketQuaFull
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi lấy thông tin gán xe đầy đủ cho phương tiện {MaPhuongTien}", maPhuongTien);
+                return StatusCode(500, new { success = false, message = "Lỗi khi tổng hợp dữ liệu từ các dịch vụ." });
+            }
+        }
+
+        // xem thông tin phuong tiện, tài xế chính, tài xế phụ trong 1 lần gọi thông qua mã phương tiện tài xế
+        [HttpGet("GetChiTietGanXeFull/{maPtTx}")]
+        public async Task<IActionResult> GetChiTietGanXeFull(
+            int maPtTx,
+            [FromServices] INhanVienService nhanVienService,
+            [FromServices] IPhuongTienServiceClient phuongTienService)
+        {
+            try
+            {
+                // 1. Lấy dữ liệu cơ bản từ database nội bộ (Server Điều phối)
+                var assignment = await _context.PhuongTienTaiXes
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.MaPtTx == maPtTx);
+
+                if (assignment == null)
+                    return NotFound(new { success = false, message = "Không tìm thấy bản ghi gán xe này." });
+
+                // 2. Sử dụng Interface để gọi sang Server Phương Tiện lấy thông tin xe (Biển số, loại xe)
+                var xeTask = phuongTienService.GetChiTietPhuongTienAsync(assignment.MaPhuongTien);
+
+                // 3. Sử dụng Interface để gọi sang Server Nhân Viên lấy tên tài xế chính
+                var txChinhTask = nhanVienService.GetTenNhanVienAsync(assignment.MaNguoiDung);
+
+                // 4. Nếu có tài xế phụ, gọi lấy tên tài xế phụ
+                Task<TenNhanVienModel?> txPhuTask = assignment.MaNguoiDungPhu.HasValue
+                    ? nhanVienService.GetTenNhanVienAsync(assignment.MaNguoiDungPhu.Value)
+                    : Task.FromResult<TenNhanVienModel?>(null);
+
+                // Chạy song song các Task để tối ưu tốc độ
+                await Task.WhenAll(xeTask, txChinhTask, txPhuTask);
+
+                var xeInfo = await xeTask;
+                var txChinhInfo = await txChinhTask;
+                var txPhuInfo = await txPhuTask;
+
+                // 5. Tổng hợp dữ liệu vào DTO
+                // 5. Tổng hợp dữ liệu vào DTO (Đảm bảo tên property khớp với JS)
+                var result = new
+                {
+                    maPtTx = assignment.MaPtTx,
+                    maPhuongTien = assignment.MaPhuongTien,
+                    bienSo = xeInfo?.BienSo ?? "N/A",
+                    maCa = assignment.MaCa ?? 0,
+                    loaiTuyen = assignment.LoaiTuyen,
+                    maTaiXeChinh = assignment.MaNguoiDung,
+                    tenTaiXeChinh = txChinhInfo?.TenNguoiDung ?? "Không xác định",
+                    maTaiXePhu = assignment.MaNguoiDungPhu,
+                    tenTaiXePhu = txPhuInfo?.TenNguoiDung ?? (assignment.MaNguoiDungPhu.HasValue ? "Không xác định" : null),
+                    isActive = assignment.IsActive
+                };
+
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy chi tiết gán xe đầy đủ cho ID: {Id}", maPtTx);
+                return StatusCode(500, new { success = false, message = "Lỗi hệ thống khi gọi dữ liệu liên server." });
+            }
+        }
+
+        [HttpPost("GanPhuongTienTaiXe")]
+        public async Task<IActionResult> GanPhuongTien(
+            [FromBody] GanPhuongTienRequest request,
+            [FromServices] INhanVienService nhanVienService,
+            [FromServices] IPhuongTienServiceClient phuongTienService)
+        {
+            // Đảm bảo luôn trả về JSON để Frontend không bị lỗi Parse
+            if (request == null)
+                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ." });
 
             try
             {
-                // 1. Kiểm tra logic nghiệp vụ: Phương tiện này đã có ai lái và đang hoạt động (IsActive) không?
-                var phuongTienDangBan = await _context.PhuongTienTaiXes
-                    .AnyAsync(x => x.MaPhuongTien == request.MaPhuongTien && x.IsActive == true);
+                // 1. Lấy tất cả các ca đang hoạt động của PHƯƠNG TIỆN này
+                var lichTrinhXe = await _context.PhuongTienTaiXes
+                    .Where(x => x.MaPhuongTien == request.MaPhuongTien && x.IsActive == true)
+                    .ToListAsync();
 
-                if (phuongTienDangBan)
+                // 2. Kiểm tra xung đột logic ca làm việc dựa trên cấu trúc mới
+                if (request.MaCa == 8) // Ca đường dài
                 {
-                    return BadRequest("Phương tiện này hiện đang được sử dụng bởi một tài xế khác.");
+                    if (lichTrinhXe.Any())
+                        return BadRequest(new { success = false, message = "Xe này hiện đang bận ở một ca làm việc khác. Ca đường dài yêu cầu xe phải trống hoàn toàn cả 3 ca." });
+                }
+                else // Ca 1, 2 hoặc 3
+                {
+                    if (lichTrinhXe.Any(x => x.MaCa == 8))
+                        return BadRequest(new { success = false, message = "Xe này đang thực hiện lộ trình đường dài (Ca 8), không thể gán thêm ca ngắn." });
+
+                    if (lichTrinhXe.Any(x => x.MaCa == request.MaCa))
+                        return BadRequest(new { success = false, message = $"Xe này đã có tài xế trực ca {request.MaCa} rồi." });
                 }
 
-                // 2. Kiểm tra logic nghiệp vụ: Tài xế này đã có xe nào đang hoạt động không? (Tùy chọn)
-                var taiXeDangBan = await _context.PhuongTienTaiXes
+                // 3. Kiểm tra tài xế chính có đang bận lái xe nào khác không (IsActive == true)
+                bool taiXeDangBan = await _context.PhuongTienTaiXes
                     .AnyAsync(x => x.MaNguoiDung == request.MaNguoiDung && x.IsActive == true);
 
                 if (taiXeDangBan)
-                {
-                    return BadRequest("Tài xế này hiện đã được gán cho một phương tiện khác.");
-                }
+                    return BadRequest(new { success = false, message = "Tài xế chính hiện đang trong một ca làm việc khác (đã được gán xe)." });
 
-                // 3. Khởi tạo đối tượng Entity từ Request
+                // 4. Tạo bản ghi gán mới vào bảng trung gian
                 var assignment = new PhuongTienTaiXe
                 {
                     MaPhuongTien = request.MaPhuongTien,
                     MaNguoiDung = request.MaNguoiDung,
-                    MaNguoiDungPhu = request.MaNguoiDungPhu,
+                    // Chỉ ca đường dài mới bắt buộc/cho phép có tài xế phụ
+                    MaNguoiDungPhu = (request.MaCa == 8) ? request.MaNguoiDungPhu : null,
                     MaCa = request.MaCa,
-                    LoaiTuyen = request.LoaiTuyen,
-                    IsActive = true // Luôn để true khi mới gán
+                    LoaiTuyen = request.MaCa == 8 ? "Đường dài" : (request.LoaiTuyen ?? "Nội thành"),
+                    IsActive = true,
+                    
                 };
 
-                // 4. Lưu vào Database
                 _context.PhuongTienTaiXes.Add(assignment);
                 await _context.SaveChangesAsync();
+
+                // 5. ĐỒNG BỘ LIÊN SERVER (Gọi sang Server Phương Tiện và Server Nhân Viên)
+                // Sử dụng phương thức đã sửa: truyền MaCa và trangThai = true
+                var syncTasks = new List<Task>
+                {
+                    // Cập nhật trạng thái bận cho Tài xế chính
+                    nhanVienService.CapNhatTrangThaiTaiXeAsync(request.MaNguoiDung, true),
+            
+                    // Cập nhật bit ca tương ứng trên server Phương Tiện (Ca1, Ca2, hoặc Ca3)
+                    phuongTienService.CapNhatTrangThaiGanXeAsync(request.MaPhuongTien, (int)request.MaCa, true)
+                };
+
+                // Nếu có tài xế phụ (thường là ca 8), cập nhật trạng thái bận cho họ luôn
+                if (assignment.MaNguoiDungPhu.HasValue)
+                {
+                    syncTasks.Add(nhanVienService.CapNhatTrangThaiTaiXeAsync(assignment.MaNguoiDungPhu.Value, true));
+                }
+
+                // Đợi tất cả các tác vụ đồng bộ hoàn tất
+                await Task.WhenAll(syncTasks);
 
                 return Ok(new
                 {
                     success = true,
-                    message = "Gán phương tiện cho tài xế thành công.",
-                    data = new
-                    {
-                        Id = assignment.MaPtTx,
-                        assignment.MaPhuongTien,
-                        assignment.MaNguoiDung,
-                        assignment.MaCa
-                    }
+                    message = "Gán phương tiện và tài xế thành công.",
+                    maPhuongTien = request.MaPhuongTien,
+                    caDaGan = request.MaCa
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi lưu dữ liệu gán phương tiện");
-                return StatusCode(500, new { success = false, message = "Lỗi hệ thống nội bộ." });
+                _logger.LogError(ex, "Lỗi nghiêm trọng trong GanPhuongTien cho Xe: {Xe}, Ca: {Ca}", request.MaPhuongTien, request.MaCa);
+                return StatusCode(500, new { success = false, message = "Lỗi hệ thống khi xử lý gán phương tiện." });
             }
         }
 
-        [HttpGet("danhsachganxe/{maPhuongTien}")]
-        public async Task<IActionResult> GetDanhSachGanXe(int maPhuongTien)
+        [HttpDelete("XoaGan/{maPhuongTien}/{maCa}")]
+        public async Task<IActionResult> XoaGan(
+            int maPhuongTien,
+            int maCa,
+            [FromServices] INhanVienService nhanVienService,
+            [FromServices] IPhuongTienServiceClient phuongTienService)
         {
-            try
-            {
-                var ganXe = await _context.PhuongTienTaiXes
-                    .Where(x => x.MaPhuongTien == maPhuongTien)
-                    .Select(x => new Models12.ThongTinLienServer.PhuongTienTaiXeModels
-                    {
-                        MaPhuongTien = x.MaPhuongTien,
-                        LoaiTuyen = x.LoaiTuyen,
-                        MaNguoiDung = x.MaNguoiDung,
-                        MaNguoiDungPhu = x.MaNguoiDungPhu,
-                        MaCa = x.MaCa,
-                        IsActive = x.IsActive
-                    })
-                    .FirstOrDefaultAsync();
-                if (ganXe == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy thông tin gán xe." });
-                }
-                return Ok(new { success = true, data = ganXe });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi khi lấy danh sách gán xe cho MaPtTx {MaPtTx}");
-                return StatusCode(500, new { success = false, message = "Lỗi hệ thống nội bộ." });
-            }
-        }
+            // Sử dụng Transaction để đảm bảo tính toàn vẹn khi đóng cũ - tạo mới
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
-        [HttpDelete("XoaGan/{maPhuongTien}")]
-        public async Task<IActionResult> XoaGan(int maPhuongTien)
-        {
             try
             {
-                // Tìm bản ghi gán xe đang hoạt động của phương tiện này
+                // 1. Tìm bản ghi gán đang hoạt động
                 var assignment = await _context.PhuongTienTaiXes
-                    .FirstOrDefaultAsync(x => x.MaPhuongTien == maPhuongTien && x.IsActive == true);
+                    .FirstOrDefaultAsync(x => x.MaPhuongTien == maPhuongTien && x.MaCa == maCa && x.IsActive == true);
 
                 if (assignment == null)
+                    return NotFound(new { success = false, message = "Không tìm thấy dữ liệu gán cho xe này tại ca yêu cầu." });
+
+                int oldMainDriver = assignment.MaNguoiDung;
+                var syncTasks = new List<Task>();
+                string responseMessage = "";
+
+                // TẤT CẢ CÁC THẾ TRẬN ĐỀU SẼ ĐÓNG BẢN GHI CŨ ĐỂ LƯU LỊCH SỬ
+                assignment.IsActive = false;
+                _context.PhuongTienTaiXes.Update(assignment);
+
+                // 2. KIỂM TRA TÀI XẾ PHỤ ĐỂ XỬ LÝ LOGIC "ĐÔN NGƯỜI"
+                if (assignment.MaNguoiDungPhu.HasValue)
                 {
-                    return NotFound(new { success = false, message = "Không tìm thấy dữ liệu gán để xóa." });
+                    // THẾ TRẬN 1: Có tài xế phụ -> Tạo bản ghi mới đôn phụ lên thay chính
+                    int newMainDriver = assignment.MaNguoiDungPhu.Value;
+
+                    var newAssignment = new PhuongTienTaiXe
+                    {
+                        MaPhuongTien = assignment.MaPhuongTien,
+                        MaCa = assignment.MaCa,
+                        MaNguoiDung = newMainDriver,  // Tài xế phụ cũ trở thành tài xế chính mới
+                        MaNguoiDungPhu = null,        // Vị trí tài xế phụ trống
+                        LoaiTuyen = assignment.LoaiTuyen,
+                        IsActive = true               // Bản ghi mới kích hoạt hoạt động
+                                                      // Thêm trường track thời gian nếu cần: CreatedAt = DateTime.UtcNow
+                    };
+
+                    await _context.PhuongTienTaiXes.AddAsync(newAssignment);
+
+                    // Đồng bộ: Giải phóng tài xế chính cũ (về trạng thái rảnh)
+                    syncTasks.Add(nhanVienService.CapNhatTrangThaiTaiXeAsync(oldMainDriver, false));
+
+                    // Lưu ý: Không giải phóng xe trên server Phương tiện vì xe vẫn hoạt động với tài xế mới
+                    responseMessage = $"Đã hủy tài xế chính cũ. Tạo bản ghi lịch sử mới: Tài xế phụ ({assignment.MaNguoiDungPhu}) được đôn lên làm tài xế chính cho xe {maPhuongTien}.";
+                }
+                else
+                {
+                    // THẾ TRẬN 2: Không có tài xế phụ -> Giải phóng toàn bộ (Chỉ đóng bản ghi cũ, không tạo mới)
+
+                    // Đồng bộ: Giải phóng tài xế chính cũ
+                    syncTasks.Add(nhanVienService.CapNhatTrangThaiTaiXeAsync(oldMainDriver, false));
+
+                    // Đồng bộ: Giải phóng xe trên server Phương tiện (bit trạng thái ca về 0)
+                    syncTasks.Add(phuongTienService.CapNhatTrangThaiGanXeAsync(maPhuongTien, maCa, false));
+
+                    responseMessage = $"Đã giải phóng thành công xe {maPhuongTien} và tài xế tại ca {maCa} (Dữ liệu cũ đã lưu vào lịch sử).";
                 }
 
-                // Toán có 2 cách: Xóa hẳn (Hard Delete) hoặc Đổi IsActive = false (Soft Delete)
-                // Ở đây mình ví dụ Xóa hẳn để bảng dữ liệu gọn nhẹ
-                _context.PhuongTienTaiXes.Remove(assignment);
+                // Thực thi lưu xuống Database địa phương
                 await _context.SaveChangesAsync();
 
-                return Ok(new { success = true, message = "Đã xóa thông tin gán phương tiện." });
+                // Commit Transaction local trước khi gọi API đồng bộ bên ngoài
+                await transaction.CommitAsync();
+
+                // 3. Thực thi đồng bộ gọi các server liên quan qua HTTP
+                if (syncTasks.Any())
+                {
+                    await Task.WhenAll(syncTasks);
+                }
+
+                return Ok(new { success = true, message = responseMessage });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi xóa gán cho xe {MaPhuongTien}", maPhuongTien);
-                return StatusCode(500, new { success = false, message = "Lỗi hệ thống khi xóa." });
+                // Rollback lại Db local nếu xảy ra lỗi trong khối try
+                _logger.LogError(ex, "Lỗi xử lý XoaGan (Lưu lịch sử) cho Xe {MaPhuongTien}, Ca {MaCa}", maPhuongTien, maCa);
+                return StatusCode(500, new { success = false, message = "Lỗi hệ thống khi xử lý yêu cầu hủy gán lịch sử." });
             }
         }
 
         [HttpPut("CapNhatGanPhuongTien")]
-        public async Task<IActionResult> CapNhatGanPhuongTien([FromBody] CapNhatGanPhuongTienRequest request)
+        public async Task<IActionResult> CapNhatGanPhuongTien(
+             [FromBody] CapNhatGanPhuongTienRequest request,
+             [FromServices] INhanVienService nhanVienService,
+             [FromServices] IPhuongTienServiceClient phuongTienService)
         {
-            if (request == null) return BadRequest("Dữ liệu không hợp lệ.");
+            if (request == null)
+                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ." });
+
+            // Sử dụng Transaction để bảo đảm cả 2 hành động đóng bản ghi cũ và tạo bản ghi mới phải cùng thành công hoặc cùng thất bại
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
-                // 1. Tìm bản ghi gán xe đang hoạt động của phương tiện này
+                // 1. Tìm bản ghi gán xe đang hoạt động theo Xe và Ca
                 var assignment = await _context.PhuongTienTaiXes
-                    .FirstOrDefaultAsync(x => x.MaPhuongTien == request.MaPhuongTien && x.IsActive == true);
+                    .FirstOrDefaultAsync(x => x.MaPhuongTien == request.MaPhuongTien
+                                          && x.MaCa == request.MaCa
+                                          && x.IsActive == true);
 
                 if (assignment == null)
+                    return NotFound(new { success = false, message = "Không tìm thấy thông tin gán đang hoạt động cho xe này ở ca đã chọn." });
+
+                // 2. Lưu lại ID tài xế cũ để giải phóng sau khi cập nhật
+                int oldMainDriver = assignment.MaNguoiDung;
+                int? oldSubDriver = assignment.MaNguoiDungPhu;
+
+                // 3. Kiểm tra nếu đổi tài xế chính, thì người mới phải đang rảnh
+                if (request.MaNguoiDung != oldMainDriver)
                 {
-                    return NotFound(new { success = false, message = "Không tìm thấy thông tin gán xe đang hoạt động để cập nhật." });
+                    var taiXeMoiDangBan = await _context.PhuongTienTaiXes
+                        .AnyAsync(x => x.MaNguoiDung == request.MaNguoiDung && x.IsActive == true);
+
+                    if (taiXeMoiDangBan)
+                        return BadRequest(new { success = false, message = "Tài xế chính mới hiện đang bận ở một xe hoặc ca làm việc khác." });
                 }
 
-                // 2. Kiểm tra logic: Tài xế mới (MaNguoiDung) có đang lái xe nào khác không?
-                // Loại trừ chính bản ghi hiện tại ra (để nếu không đổi tài xế mà chỉ đổi ca/tuyến thì không bị lỗi)
-                var taiXeDangBan = await _context.PhuongTienTaiXes
-                    .AnyAsync(x => x.MaNguoiDung == request.MaNguoiDung
-                                   && x.IsActive == true
-                                   && x.MaPhuongTien != request.MaPhuongTien);
+                // =========================================================================
+                // 4. THỰC HIỆN CƠ CHẾ LƯU LỊCH SỬ TRÊN DATABASE ĐIỀU PHỐI
+                // =========================================================================
 
-                if (taiXeDangBan)
-                {
-                    return BadRequest("Tài xế mới hiện đã được gán cho một phương tiện khác.");
-                }
-
-                // 3. Cập nhật thông tin
-                assignment.MaNguoiDung = request.MaNguoiDung;
-                assignment.MaNguoiDungPhu = request.MaNguoiDungPhu;
-                assignment.MaCa = request.MaCa;
-                assignment.LoaiTuyen = request.LoaiTuyen;
-                // assignment.IsActive giữ nguyên là true
-
-                // 4. Lưu thay đổi
+                // 4.1. Đóng bản ghi cũ (Vô hiệu hóa trạng thái hoạt động)
+                assignment.IsActive = false;
                 _context.PhuongTienTaiXes.Update(assignment);
+
+                // 4.2. Khởi tạo một bản ghi mới hoàn toàn để lưu thông tin cập nhật mới
+                var newAssignment = new PhuongTienTaiXe
+                {
+                    MaPhuongTien = request.MaPhuongTien,
+                    MaCa = request.MaCa,
+                    MaNguoiDung = request.MaNguoiDung,
+                    MaNguoiDungPhu = request.MaNguoiDungPhu,
+                    LoaiTuyen = request.LoaiTuyen ?? assignment.LoaiTuyen, // Dự phòng lấy lại tuyến cũ nếu request truyền null
+                    IsActive = true
+                    // Nếu bảng của bạn có các trường Audit, hãy bổ sung tại đây. Ví dụ:
+                    // CreatedAt = DateTime.UtcNow,
+                    // CreatedBy = ...
+                };
+                await _context.PhuongTienTaiXes.AddAsync(newAssignment);
+
+                // Lưu toàn bộ thay đổi database xuống SQL Server
                 await _context.SaveChangesAsync();
+
+                // Xác nhận Transaction thành công cho DB nội bộ trước khi gọi các service HTTP bên ngoài
+                await transaction.CommitAsync();
+
+                // =========================================================================
+                // 5. ĐỒNG BỘ LIÊN SERVER (Chỉ chạy khi DB local đã lưu an toàn)
+                // =========================================================================
+                var syncTasks = new List<Task>();
+
+                // Cập nhật trạng thái bit trên Server Phương tiện
+                syncTasks.Add(phuongTienService.CapNhatTrangThaiGanXeAsync(request.MaPhuongTien, (int)request.MaCa, true));
+
+                // Xử lý logic giải phóng/khóa Tài xế chính
+                if (request.MaNguoiDung != oldMainDriver)
+                {
+                    syncTasks.Add(nhanVienService.CapNhatTrangThaiTaiXeAsync(oldMainDriver, false)); // Giải phóng người cũ
+                    syncTasks.Add(nhanVienService.CapNhatTrangThaiTaiXeAsync(request.MaNguoiDung, true)); // Khóa người mới
+                }
+
+                // Xử lý logic giải phóng/khóa Tài xế phụ
+                if (request.MaNguoiDungPhu != oldSubDriver)
+                {
+                    if (oldSubDriver.HasValue)
+                        syncTasks.Add(nhanVienService.CapNhatTrangThaiTaiXeAsync(oldSubDriver.Value, false));
+
+                    if (request.MaNguoiDungPhu.HasValue)
+                        syncTasks.Add(nhanVienService.CapNhatTrangThaiTaiXeAsync(request.MaNguoiDungPhu.Value, true));
+                }
+
+                // Chờ tất cả các tiến trình đồng bộ API hoàn tất
+                await Task.WhenAll(syncTasks);
 
                 return Ok(new
                 {
                     success = true,
-                    message = "Cập nhật thông tin gán phương tiện thành công.",
-                    data = new
-                    {
-                        assignment.MaPtTx,
-                        assignment.MaPhuongTien,
-                        assignment.MaNguoiDung,
-                        assignment.MaCa
-                    }
+                    message = "Cập nhật thông tin gán xe thành công. Bản ghi cũ đã được lưu vào lịch sử hệ thống.",
+                    maPhuongTien = request.MaPhuongTien,
+                    maCa = request.MaCa
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi cập nhật gán phương tiện cho xe {MaPhuongTien}", request.MaPhuongTien);
-                return StatusCode(500, new { success = false, message = "Lỗi hệ thống nội bộ." });
+                // Khi xảy ra bất kỳ lỗi gì trong khối try, Transaction tự động hủy bỏ (Rollback) các thay đổi chưa được Commit
+                _logger.LogError(ex, "Lỗi khi cập nhật gán cho xe {MaPhuongTien}, Ca {MaCa}", request.MaPhuongTien, request.MaCa);
+                return StatusCode(500, new { success = false, message = "Lỗi hệ thống khi cập nhật dữ liệu dữ liệu lịch sử." });
             }
         }
 
-
-        // thực hiện điều phối đơn hàng cho lộ trình tuyến và ca đã chọn
-        [HttpPost("tu-dong-gom-nhom")]
-        public async Task<IActionResult> TuDongGomNhomDonHang([FromBody] DieuPhoiRequest request)
-        {
-            using var scope = _serviceProvider.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<TmdtContext>();
-            var ptTxService = scope.ServiceProvider.GetRequiredService<IPhuongTienTaiXeService>();
-
-            var clientDH = _httpClientFactory.CreateClient("DonHangApi");
-            var clientKho = _httpClientFactory.CreateClient("KhoApi");
-            var clientPT = _httpClientFactory.CreateClient("PhuongTienApi");
-            var clientNS = _httpClientFactory.CreateClient("NhanSuApi");
-
-            using var transaction = await context.Database.BeginTransactionAsync();
-
-            try
-            {
-                // 1. Lấy danh sách cụm đơn hàng
-                var resDonHang = await clientDH.PostAsJsonAsync("api/quanlydonhang/cho-dieu-phoi", new { });
-                var responseData = await resDonHang.Content.ReadFromJsonAsync<DonHangResponse>();
-                if (responseData?.Clusters == null || !responseData.Clusters.Any()) return NotFound("Không có đơn hàng chờ điều phối.");
-
-                // --- DÒNG SỬA CHÍNH: Lọc theo số lượng đơn hàng yêu cầu ---
-                if (request?.Limit > 0)
-                {
-                    int currentTotal = 0;
-                    responseData.Clusters = responseData.Clusters
-                        .TakeWhile(c => {
-                            bool keep = currentTotal < request.Limit;
-                            currentTotal += c.SoLuongDonHang;
-                            return keep;
-                        }).ToList();
-                }
-
-                // --- TỐI ƯU BƯỚC 2 & 4: GOM TẤT CẢ ID ĐỊA CHỈ ĐỂ GỌI BATCH API ---
-                var allAddressIds = responseData.Clusters
-                    .Select(c => c.MaDiaChiLayHang > 0 ? c.MaDiaChiLayHang : c.MaDiaChiCum)
-                    .Where(id => id > 0).Distinct().ToList();
-
-                // CHỈ GỌI API KHO 1 LẦN DUY NHẤT (Batch Call)
-                var resBatchKho = await clientKho.PostAsJsonAsync("api/quanlykhobai/tim-kho-theo-lo", new { MaDiaChis = allAddressIds });
-                if (!resBatchKho.IsSuccessStatusCode) return BadRequest("Lỗi kết nối Service Kho.");
-
-                var warehouseMap = await resBatchKho.Content.ReadFromJsonAsync<Dictionary<string, KhoGanNhatResponse>>();
-                // Lưu ý: JSON Key thường là string khi deserialize Dictionary
-
-                var clustersByWarehouse = new Dictionary<int, List<ClusterResult>>();
-                var warehouseInfoMap = new Dictionary<int, KhoGanNhatResponse>();
-
-                // 2. Phân loại cụm đơn hàng vào từng kho dựa trên kết quả Batch
-                foreach (var c in responseData.Clusters)
-                {
-                    int idDiaChi = c.MaDiaChiLayHang > 0 ? c.MaDiaChiLayHang : c.MaDiaChiCum;
-
-                    if (warehouseMap != null && warehouseMap.TryGetValue(idDiaChi.ToString(), out var kho))
-                    {
-                        if (!clustersByWarehouse.ContainsKey(kho.MaKho))
-                        {
-                            clustersByWarehouse[kho.MaKho] = new List<ClusterResult>();
-                            warehouseInfoMap[kho.MaKho] = kho;
-                        }
-                        c.MaDiaChiLayHang = idDiaChi; // Cập nhật lại ID thực tế
-                                                      // Thay vì add trực tiếp, ta khởi tạo đối tượng ClusterResult mới từ dữ liệu Api
-                        clustersByWarehouse[kho.MaKho].Add(new ClusterResult
-                        {
-                            MaVungH3 = c.MaVungH3,
-                            SoLuongDonHang = c.SoLuongDonHang,
-                            TongKhoiLuong = c.TongKhoiLuong,
-                            TongTheTich = c.TongTheTich,
-                            DanhSachMaDonHang = c.DanhSachMaDonHang,
-                            MaDiaChiLayHang = idDiaChi // Sử dụng biến idDiaChi đã xác định
-                        });
-                    }
-                }
-
-                var finalProcessedData = new List<object>();
-                var skippedClusters = new List<object>();
-                int maCaHienTai = xacDinhMaCaTheoGio(DateTime.Now);
-
-                // 3. XỬ LÝ ĐIỀU PHỐI CHI TIẾT CHO TỪNG KHO
-                // 3. XỬ LÝ ĐIỀU PHỐI CHI TIẾT CHO TỪNG KHO
-                foreach (var entry in clustersByWarehouse)
-                {
-                    int maKhoId = entry.Key;
-                    var danhSachCumCuaKho = entry.Value;
-                    var khoInfo = warehouseInfoMap[maKhoId];
-
-                    // --- BƯỚC MỚI: PHÂN NHÓM CỤM THEO ĐÍCH ĐẾN TIẾP THEO (NEXT HOP) ---
-                    // Logic: Nếu đang ở kho bé -> Đích là Kho Chính Vùng.
-                    // Nếu đang ở Kho Chính -> Đích là Kho Phụ (nếu cùng vùng) hoặc Kho Chính Vùng Khác.
-                    var groupsByNextDestination = danhSachCumCuaKho.GroupBy(c => IdentifyNextHop(khoInfo, c.MaVungH3));
-
-                    foreach (var group in groupsByNextDestination)
-                    {
-                        int maKhoDich = group.Key;
-                        var danhSachCumTheoHuong = group.ToList();
-
-                        // Lấy tài nguyên xe và tài xế của kho hiện tại
-                        var xeCuaKho = await clientPT.GetFromJsonAsync<List<VehicleFreeDto>>($"api/quanlyxe/xe-san-sang-dieu-phoi?maKho={maKhoId}") ?? new();
-                        var txCuaKho = await clientNS.GetFromJsonAsync<List<DriverAvailableDto>>($"api/quanlytaixe/lich-trinh-tai-xe?maKho={maKhoId}") ?? new();
-
-                        // 4. Thuật toán Bin Packing cho nhóm hướng đi này
-                        var assignments = ApplyFirstFitDecreasingBPP(danhSachCumTheoHuong, xeCuaKho);
-
-                        var assignedClusters = assignments.SelectMany(a => a.Value).ToList();
-                        var unassignedClusters = danhSachCumTheoHuong.Except(assignedClusters).ToList();
-
-                        // PHASE 4.1: TẠO LỘ TRÌNH CHO CÁC CỤM ĐÃ CÓ XE
-                        foreach (var assign in assignments)
-                        {
-                            var xeSelected = assign.Key;
-                            var clustersInXe = assign.Value;
-                            DriverAvailableDto? txChon = null;
-
-                            var mapping = await ptTxService.GetMappingByVehicleAsync(xeSelected.MaPhuongTien, maCaHienTai);
-                            if (mapping != null)
-                                txChon = txCuaKho.FirstOrDefault(t => t.MaNguoiDung == mapping.MaNguoiDung);
-
-                            if (txChon == null)
-                                txChon = txCuaKho.OrderByDescending(t => t.DiemUyTin).FirstOrDefault();
-
-                            bool isFullResource = txChon != null;
-                            int? mappingPhuongTienTaiXeId = isFullResource ? (mapping?.MaPtTx) : null;
-
-                            if (isFullResource) txCuaKho.Remove(txChon);
-                            else skippedClusters.Add(new { Kho = khoInfo.TenKho, LyDo = $"Xe {xeSelected.BienSo} thiếu tài xế đi hướng Kho {maKhoDich}" });
-
-                            var loTrinhMoi = new LoTrinh
-                            {
-                                MaPtTx = mappingPhuongTienTaiXeId,
-                                TrangThai = isFullResource ? "Chờ khởi hành" : "Chờ điều phối thủ công",
-                                ThoiGianBatDauKeHoach = DateTime.Now,
-                                GhiChu = $"Tự động: {khoInfo.TenKho} -> Kho {maKhoDich}",
-                                LoTrinhTuyen = true,
-                                MaKhoQuanLy = maKhoId
-                            };
-
-                            context.LoTrinhs.Add(loTrinhMoi);
-                            await context.SaveChangesAsync();
-
-                            // CẬP NHẬT: Truyền thêm maKhoDich vào hàm tạo điểm dừng
-                            await TaoDiemDungVaChiPhi(context, loTrinhMoi, khoInfo, maKhoDich, clustersInXe, xeSelected);
-
-                            if (isFullResource)
-                            {
-                                await Task.WhenAll(
-                                    clientPT.PostAsJsonAsync($"api/quanlyxe/cap-nhat-trang-thai-xe/{xeSelected.MaPhuongTien}", new { TrangThai = "Chờ khởi hành" }),
-                                    clientNS.PostAsJsonAsync("api/quanlytaixe/cap-nhat-trang-thai", new { MaNguoiDung = txChon.MaNguoiDung, TrangThaiMoi = "Đang hoạt động" })
-                                );
-                            }
-
-                            await clientDH.PutAsJsonAsync("api/quanlydonhang/cap-nhat-trang-thai-nhieu", new
-                            {
-                                DanhSachMaDonHang = clustersInXe.SelectMany(x => x.DanhSachMaDonHang).ToList(),
-                                TrangThaiMoi = "Đã lên lộ trình"
-                            });
-                        }
-
-                        // PHASE 4.2: LỘ TRÌNH KHUYẾT (Thiếu xe)
-                        foreach (var cluster in unassignedClusters)
-                        {
-                            var loTrinhKhuyet = new LoTrinh
-                            {
-                                TrangThai = "Chờ điều phối thủ công",
-                                ThoiGianBatDauKeHoach = DateTime.Now,
-                                GhiChu = $"Thiếu xe đi hướng Kho {maKhoDich}",
-                                LoTrinhTuyen = true,
-                                MaKhoQuanLy = maKhoId
-                            };
-                            context.LoTrinhs.Add(loTrinhKhuyet);
-                            await context.SaveChangesAsync();
-
-                            await TaoDiemDungVaChiPhi(context, loTrinhKhuyet, khoInfo, maKhoDich, new List<ClusterResult> { cluster }, null);
-                        }
-                    }
-                }
-
-                await transaction.CommitAsync();
-                return Ok(new
-                {
-                    status = skippedClusters.Any() ? "Warning" : "Success",
-                    message = skippedClusters.Any() ? "Điều phối hoàn tất một phần, một số đơn hàng chưa có xe/tài xế." : "Đã điều phối toàn bộ đơn hàng.",
-                    data = finalProcessedData,
-                    unassignedReport = skippedClusters // Thông tin chi tiết về việc thiếu hụt
-                });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return StatusCode(500, ex.Message);
-            }
-        }
-
-        [NonAction]
-        public int xacDinhMaCaTheoGio(DateTime checkTime)
-        {
-            var currentTime = TimeOnly.FromDateTime(checkTime);
-
-            // Khởi tạo danh sách dựa trên dữ liệu mới bạn vừa INSERT
-            var danhSachCa = new List<CaTrucConfig>
-            {
-                // Nhóm 1: Ca tiêu chuẩn (Ưu tiên cao nhất - Priority 1)
-                new() { MaCa = 1, TenCa = "Ca Sáng tiêu chuẩn", GioBatDau = new TimeOnly(6, 0), GioKetThuc = new TimeOnly(14, 0), Priority = 1 },
-                new() { MaCa = 2, TenCa = "Ca Chiều tiêu chuẩn", GioBatDau = new TimeOnly(14, 0), GioKetThuc = new TimeOnly(22, 0), Priority = 1 },
-                new() { MaCa = 3, TenCa = "Ca Đêm tiêu chuẩn", GioBatDau = new TimeOnly(22, 0), GioKetThuc = new TimeOnly(6, 0), Priority = 1 },
-
-                // Nhóm 2: Ca Full ngày (Priority 2)
-                new() { MaCa = 4, TenCa = "Ca Full ngày (Hành chính)", GioBatDau = new TimeOnly(8, 0), GioKetThuc = new TimeOnly(17, 0), Priority = 2 },
-                new() { MaCa = 5, TenCa = "Ca Full ngày (Vận tải nội thành)", GioBatDau = new TimeOnly(7, 0), GioKetThuc = new TimeOnly(19, 0), Priority = 2 },
-
-                // Nhóm 3: Ca Chuyến dài (Priority 3)
-                new() { MaCa = 6, TenCa = "Ca Chuyến dài (Liên tỉnh 1)", GioBatDau = new TimeOnly(5, 0), GioKetThuc = new TimeOnly(21, 0), Priority = 3 },
-                new() { MaCa = 7, TenCa = "Ca Chuyến dài (Xuyên đêm)", GioBatDau = new TimeOnly(18, 0), GioKetThuc = new TimeOnly(10, 0), Priority = 3 },
-                new() { MaCa = 8, TenCa = "Ca Chuyến dài (Linh hoạt 24h)", GioBatDau = new TimeOnly(0, 0), GioKetThuc = new TimeOnly(23, 59, 59), Priority = 4 }
-            };
-
-            var matches = danhSachCa.Where(ca =>
-            {
-                if (ca.GioBatDau < ca.GioKetThuc)
-                {
-                    // Ca bình thường (không xuyên ngày)
-                    return currentTime >= ca.GioBatDau && currentTime <= ca.GioKetThuc;
-                }
-                else
-                {
-                    // Ca xuyên đêm (Ví dụ: Ca 3 hoặc Ca Chuyến dài xuyên đêm)
-                    return currentTime >= ca.GioBatDau || currentTime <= ca.GioKetThuc;
-                }
-            })
-            .OrderBy(ca => ca.Priority) // Chọn ca tiêu chuẩn trước, ca linh hoạt sau
-            .ThenBy(ca =>
-            {
-                // Tính độ dài ca để ưu tiên ca ngắn hơn (chi tiết hơn)
-                var duration = ca.GioKetThuc.ToTimeSpan() - ca.GioBatDau.ToTimeSpan();
-                return duration.Ticks < 0 ? duration.Add(TimeSpan.FromDays(1)) : duration;
-            })
-            .ToList();
-
-            // Mặc định trả về MaCa 8 (Linh hoạt 24h) nếu không khớp ca nào đặc thù
-            return matches.FirstOrDefault()?.MaCa ?? 8;
-        }
-
-        [NonAction] // Nếu nằm trong Controller
-        private int IdentifyNextHop(KhoGanNhatResponse currentKho, string destinationH3)
-        {
-            // 1. Lấy mã vùng của đích đến từ mã H3 (Ví dụ: Miền Bắc là 'North', Miền Trung là 'Central'...)
-            string destRegion = GetRegionFromH3(destinationH3);
-
-            // 2. LOGIC ĐIỀU PHỐI (HUB-AND-SPOKE)
-
-            // TRƯỜNG HỢP A: Đang ở Kho bé (Spoke) 
-            // -> Luôn đẩy về Kho cha (Hub vùng) để tập kết hàng
-            if (currentKho.LoaiKho == "KHO_BE")
-            {
-                return currentKho.MaKhoCha ?? currentKho.MaKho;
-            }
-
-            // TRƯỜNG HỢP B: Đang ở Kho chính (Regional Hub)
-            if (currentKho.MaVung == destRegion)
-            {
-                // Nếu đã tới đúng vùng miền của khách -> Chuyển về Kho phụ (Delivery Hub) gần khách nhất
-                return TimMaKhoPhuPhuHop(destinationH3);
-            }
-            else
-            {
-                // Nếu khác vùng miền (Vd: Hàng từ Bắc vào Nam) -> Chuyển tới Kho chính của vùng đích
-                return TimMaKhoChinhCuaVung(destRegion);
-            }
-        }
-
-        private async Task TaoDiemDungVaChiPhi(
-            TmdtContext context,
-            LoTrinh loTrinh,
-            KhoGanNhatResponse khoInfo, // Kho nguồn
-            int maKhoDich,               // ID Kho trung tâm đích
-            List<ClusterResult> clusters,
-            VehicleFreeDto? xe)
+        [HttpGet("GetChiTietGanXeByPhuongTienCa/{maPhuongTien}/{maCa}")]
+        public async Task<IActionResult> GetChiTietGanXeByPhuongTienCa(
+            int maPhuongTien,
+            int maCa,
+            [FromServices] INhanVienService nhanVienService,
+            [FromServices] IPhuongTienServiceClient phuongTienService)
         {
             try
             {
-                var clientKH = _httpClientFactory.CreateClient("KhachHangApi");
-                var clientKho = _httpClientFactory.CreateClient("KhoApi");
+                // 1. Tìm bản ghi gán xe ĐANG HOẠT ĐỘNG (IsActive == true) trong DB nội bộ dựa theo mã xe và mã ca
+                var assignment = await _context.PhuongTienTaiXes
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.MaPhuongTien == maPhuongTien && x.MaCa == maCa && x.IsActive == true);
 
-                // 1. LẤY THÔNG TIN KHO ĐÍCH (KHO TRUNG TÂM)
-                // Sửa dòng này trong hàm TaoDiemDungVaChiPhi
-                
-                var resKhoDich = await clientKho.GetFromJsonAsync<KhoGanNhatResponse>($"api/quanlykhobai/chitietkhobai/{maKhoDich}");
-                if (resKhoDich == null) throw new Exception("Kho đích không tồn tại.");
-
-                // 2. LẤY TỌA ĐỘ TẬP TRUNG
-                var listIds = new List<int> { khoInfo.MaDiaChi }; // Start: Index 0
-                listIds.AddRange(clusters.Select(c => c.MaDiaChiLayHang)); // Mid points
-                listIds.Add(resKhoDich.MaDiaChi); // End: Index N-1
-
-                var uniqueIds = listIds.Distinct().ToList();
-                // Sửa dòng này trong hàm TaoDiemDungVaChiPhi
-                var response = await clientKH.PostAsJsonAsync("/api/quanlydiachi/lay-toa-do-danh-sach", uniqueIds);
-                var toaDoData = await response.Content.ReadFromJsonAsync<List<ToaDoResponseDto>>();
-
-                if (toaDoData == null) throw new Exception("Lỗi lấy tọa độ.");
-
-                // Map lại danh sách tọa độ theo đúng thứ tự listIds để xác định Start/End
-                var orderedToaDo = listIds.Select(id => toaDoData.First(t => t.MaDiaChi == id)).ToList();
-
-                // 3. TÍNH MA TRẬN KHOẢNG CÁCH
-                int n = orderedToaDo.Count;
-                long[,] distanceMatrix = new long[n, n];
-                for (int i = 0; i < n; i++)
+                // Nếu không tìm thấy, trả về thông báo lỗi dạng JSON cho JS xử lý công việc trực quan hơn
+                if (assignment == null)
                 {
-                    for (int j = 0; j < n; j++)
+                    return NotFound(new
                     {
-                        if (i == j) distanceMatrix[i, j] = 0;
-                        else
-                        {
-                            double d = TinhKhoangCach(
-                                orderedToaDo[i].ViDo ?? 0, orderedToaDo[i].KinhDo ?? 0,
-                                orderedToaDo[j].ViDo ?? 0, orderedToaDo[j].KinhDo ?? 0);
-                            distanceMatrix[i, j] = (long)(d * 1.3 * 1000); // Quy ra mét + bù sai số
-                        }
-                    }
-                }
-
-                // 4. GIẢI TSP: ĐIỂM ĐẦU (0), ĐIỂM CUỐI (n-1)
-                var path = SolveTSPWithOrTools(distanceMatrix, 0, n - 1);
-
-                // 5. LƯU ĐIỂM DỪNG & TỔNG KM
-                double tongKm = 0;
-                for (int i = 0; i < path.Count; i++)
-                {
-                    int idx = path[i];
-                    if (i > 0) tongKm += (distanceMatrix[path[i - 1], idx] / 1.3) / 1000.0;
-
-                    await context.DiemDungs.AddAsync(new DiemDung
-                    {
-                        MaLoTrinh = loTrinh.MaLoTrinh,
-                        MaDiaChi = orderedToaDo[idx].MaDiaChi,
-                        ThuTuDung = i + 1,
-                        LoaiDung = (idx == 0) ? "Kho xuất phát" :
-                               (idx == n - 1) ? "Kho trung tâm" : "Điểm lấy hàng",
-                        EtaKeHoach = DateTime.Now.AddMinutes(30 + (i * 40))
+                        success = false,
+                        message = $"Không tìm thấy thông tin gán đang hoạt động cho xe mã {maPhuongTien} ở ca {maCa}."
                     });
                 }
-                var tatCaMaDonHang = clusters.SelectMany(c => c.DanhSachMaDonHang).ToList();
 
-                foreach (var maDH in tatCaMaDonHang)
+                // 2. Sử dụng Interface để gọi sang Server Phương Tiện lấy thông tin xe (Biển số, loại xe)
+                var xeTask = phuongTienService.GetChiTietPhuongTienAsync(assignment.MaPhuongTien);
+
+                // 3. Sử dụng Interface để gọi sang Server Nhân Viên lấy tên tài xế chính
+                var txChinhTask = nhanVienService.GetTenNhanVienAsync(assignment.MaNguoiDung);
+
+                // 4. Nếu có tài xế phụ, gọi lấy tên tài xế phụ sang Server Nhân Viên
+                Task<TenNhanVienModel?> txPhuTask = assignment.MaNguoiDungPhu.HasValue
+                    ? nhanVienService.GetTenNhanVienAsync(assignment.MaNguoiDungPhu.Value)
+                    : Task.FromResult<TenNhanVienModel?>(null);
+
+                // Kích hoạt chạy song song 3 API liên kết cùng 1 lúc để rút ngắn thời gian chờ xử lý dữ liệu
+                await Task.WhenAll(xeTask, txChinhTask, txPhuTask);
+
+                var xeInfo = await xeTask;
+                var txChinhInfo = await txChinhTask;
+                var txPhuInfo = await txPhuTask;
+
+                // 5. Tổng hợp dữ liệu kết quả thành một Object DTO đồng bộ cấu trúc CamelCase để JavaScript dễ đọc
+                var result = new
                 {
-                    // Tên bảng có thể là ChiTietLoTrinh hoặc KienHang tùy DB của bạn
-                    await context.ChiTietLoTrinhKienHangs.AddAsync(new ChiTietLoTrinhKienHang
-                    {
-                        MaLoTrinh = loTrinh.MaLoTrinh,
-                        MaDonHang = maDH,
-                        TrangThaiTrenXe = "Chờ lấy hàng"
-                    });
-                }
-                // 6. CHI PHÍ NHIÊN LIỆU (Lấy giá thực tế từ hàm bạn đã viết)
-                decimal giaXang = await GetCurrentFuelPriceAsync("DO");
-                decimal dinhMuc = (xe?.TaiTrongToiDaKg > 5000) ? 0.22m : 0.15m;
+                    maPtTx = assignment.MaPtTx,
+                    maPhuongTien = assignment.MaPhuongTien,
+                    bienSo = xeInfo?.BienSo ?? "N/A",
+                    maCa = assignment.MaCa ?? 0,
+                    loaiTuyen = assignment.LoaiTuyen,
+                    maTaiXeChinh = assignment.MaNguoiDung,
+                    tenTaiXeChinh = txChinhInfo?.TenNguoiDung ?? "Không xác định",
+                    maTaiXePhu = assignment.MaNguoiDungPhu,
+                    tenTaiXePhu = txPhuInfo?.TenNguoiDung ?? (assignment.MaNguoiDungPhu.HasValue ? "Không xác định" : null),
+                    isActive = assignment.IsActive
+                };
 
-                await context.ChiPhiLoTrinhs.AddAsync(new ChiPhiLoTrinh
-                {
-                    MaLoTrinh = loTrinh.MaLoTrinh,
-                    SoTien = Math.Round((decimal)tongKm * dinhMuc * giaXang, 0),
-                    LoaiChiPhi = "XANG_DAU",
-                    GhiChu = $"Lộ trình về kho trung tâm. Tổng: {Math.Round(tongKm, 1)}km"
-                });
-
-                await context.SaveChangesAsync();
+                return Ok(new { success = true, data = result });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex.Message);
-                throw;
+                _logger.LogError(ex, "Lỗi khi lấy chi tiết gán xe cho Xe: {Xe}, Ca: {Ca}", maPhuongTien, maCa);
+                return StatusCode(500, new { success = false, message = "Lỗi hệ thống khi truy vấn dữ liệu gán xe liên server." });
             }
-        }
-
-
-
-        // 1. Sửa hàm tính khoảng cách cho đồng nhất tên gọi
-        private double TinhKhoangCach(double lat1, double lon1, double lat2, double lon2)
-            => TinhKhoangCachHaversine(lat1, lon1, lat2, lon2);
-
-        // 2. Cập nhật hàm SolveTSP để nhận 3 tham số
-        private List<int> SolveTSPWithOrTools(long[,] distanceMatrix, int startIndex, int endIndex)
-        {
-            int numLocations = distanceMatrix.GetLength(0);
-            if (numLocations <= 1) return new List<int> { 0 };
-
-            // Khởi tạo Manager với điểm bắt đầu và điểm kết thúc cụ thể
-            // Tham số: số điểm, số xe (1), mảng điểm bắt đầu, mảng điểm kết thúc
-            RoutingIndexManager manager = new RoutingIndexManager(
-                numLocations,
-                1,
-                new int[] { startIndex },
-                new int[] { endIndex }
-            );
-
-            RoutingModel routing = new RoutingModel(manager);
-
-            int transitCallbackIndex = routing.RegisterTransitCallback((long fromIndex, long toIndex) => {
-                var fromNode = manager.IndexToNode(fromIndex);
-                var toNode = manager.IndexToNode(toIndex);
-                return distanceMatrix[fromNode, toNode];
-            });
-
-            routing.SetArcCostEvaluatorOfAllVehicles(transitCallbackIndex);
-
-            RoutingSearchParameters searchParameters = operations_research_constraint_solver.DefaultRoutingSearchParameters();
-            searchParameters.FirstSolutionStrategy = FirstSolutionStrategy.Types.Value.PathCheapestArc;
-
-            Assignment solution = routing.SolveWithParameters(searchParameters);
-
-            List<int> result = new List<int>();
-            if (solution != null)
-            {
-                var index = routing.Start(0);
-                while (routing.IsEnd(index) == false)
-                {
-                    result.Add(manager.IndexToNode((int)index));
-                    index = solution.Value(routing.NextVar(index));
-                }
-                result.Add(manager.IndexToNode((int)index)); // Thêm điểm kết thúc (Kho đích)
-            }
-            return result;
-        }
-
-        private double TinhKhoangCachHaversine(double lat1, double lon1, double lat2, double lon2)
-        {
-            double R = 6371; // Bán kính Trái Đất (km)
-            double dLat = ToRadians(lat2 - lat1);
-            double dLon = ToRadians(lon2 - lon1);
-
-            double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                       Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
-                       Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-
-            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-            return R * c;
-        }
-
-        private double ToRadians(double angle) => (Math.PI / 180) * angle;
-
-        // 2. Thêm hàm GetCurrentFuelPriceAsync (để hết lỗi 'does not exist')
-        private async Task<decimal> GetCurrentFuelPriceAsync(string fuelType)
-        {
-            // Mock dữ liệu: thực tế có thể gọi API Petrolimex hoặc lưu trong DB cấu hình
-            if (fuelType == "DO") return 21500m;
-            return 23000m;
-        }
-
-        private Dictionary<VehicleFreeDto, List<ClusterResult>> ApplyFirstFitDecreasingBPP(List<ClusterResult> clusters, List<VehicleFreeDto> vehicles)
-        {
-            var assignments = new Dictionary<VehicleFreeDto, List<ClusterResult>>();
-            var sortedClusters = clusters.OrderByDescending(c => c.TongKhoiLuong).ToList();
-
-            foreach (var cluster in sortedClusters)
-            {
-                foreach (var xe in vehicles)
-                {
-                    if (!assignments.ContainsKey(xe)) assignments[xe] = new List<ClusterResult>();
-
-                    var load = assignments[xe].Sum(c => c.TongKhoiLuong);
-                    if (load + cluster.TongKhoiLuong <= xe.TaiTrongToiDaKg)
-                    {
-                        assignments[xe].Add(cluster);
-                        break;
-                    }
-                }
-            }
-            return assignments.Where(a => a.Value.Any()).ToDictionary(a => a.Key, a => a.Value);
-        }
-
-        [HttpGet("phuong-tien-tai-xe-san-sang")]
-        public async Task<IActionResult> GetPhuongTienTaiXeSanSang()
-        {
-            using var scope = _serviceProvider.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<TmdtContext>();
-
-            // 1. Xác định mã ca hiện tại dựa trên giờ hệ thống
-            int maCaHienTai = xacDinhMaCaTheoGio(DateTime.Now);
-
-            // 2. Lấy danh sách gán ghép (Mapping) đang hoạt động trong ca này
-            var mappingSanSang = await context.PhuongTienTaiXes
-                .Where(pttx => pttx.IsActive == true && pttx.MaCa == maCaHienTai)
-                .ToListAsync();
-
-            if (!mappingSanSang.Any())
-            {
-                return NotFound(new
-                {
-                    Message = $"Không có tài xế và xe nào được gán cho ca hiện tại (Mã ca: {maCaHienTai})."
-                });
-            }
-
-            // 3. (Tùy chọn) Gọi API từ các service khác để check trạng thái thực tế
-            // Ví dụ: Check xem xe có đang "Bảo trì" hay Tài xế có đang "Nghỉ phép" không
-            var clientPT = _httpClientFactory.CreateClient("PhuongTienApi");
-            var clientNS = _httpClientFactory.CreateClient("NhanSuApi");
-
-            var results = new List<object>();
-
-            foreach (var item in mappingSanSang)
-            {
-                // Kiểm tra trạng thái xe thực tế
-                var resXe = await clientPT.GetAsync($"https://localhost:7286/api/quanlyxe/check-status/{item.MaPhuongTien}");
-                // Kiểm tra trạng thái tài xế thực tế
-                var resTX = await clientNS.GetAsync($"https://localhost:7022/api/quanlytaixe/check-status/{item.MaNguoiDung}");
-
-                if (resXe.IsSuccessStatusCode && resTX.IsSuccessStatusCode)
-                {
-                    results.Add(new
-                    {
-                        MaPtTx = item.MaPtTx,
-                        MaPhuongTien = item.MaPhuongTien,
-                        MaNguoiDung = item.MaNguoiDung,
-                        MaCa = item.MaCa,
-                        LoaiTuyen = item.LoaiTuyen,
-                        ThongTin = "Sẵn sàng hoạt động"
-                    });
-                }
-            }
-
-            return Ok(new
-            {
-                ThoiGianKiemTra = DateTime.Now,
-                MaCaHienTai = maCaHienTai,
-                TongSoLuong = results.Count,
-                DanhSachSanSang = results
-            });
-        }
-
-        // 2.1. Phân loại vùng miền dựa trên H3 Index
-        private string GetRegionFromH3(string h3Index)
-        {
-            if (string.IsNullOrEmpty(h3Index)) return "Unknown";
-
-            // 1. Kiểm tra Miền Nam (Dựa trên dữ liệu thực tế đầu 886)
-            if (h3Index.StartsWith("886"))
-            {
-                return "South";
-            }
-
-            // 2. Kiểm tra Miền Bắc (Dựa trên dữ liệu thực tế đầu 87 hoặc 882)
-            // Các mã như 8714, 8715, 872e, 882d... đều thuộc khu vực phía Bắc trong DB của bạn
-            if (h3Index.StartsWith("87") || h3Index.StartsWith("882"))
-            {
-                return "North";
-            }
-
-            // 3. Mặc định hoặc bổ sung Miền Trung (Nếu sau này có dữ liệu đầu 887 chẳng hạn)
-            if (h3Index.StartsWith("887"))
-            {
-                return "Central";
-            }
-
-            return "North"; // Mặc định trả về North nếu không khớp (hoặc tùy logic hệ thống)
-        }
-
-        // 2.2. Tìm kho phụ gần địa chỉ khách nhất để giao hàng (Last-mile)
-        private int TimMaKhoPhuPhuHop(string destinationH3)
-        {
-            // Query DB tìm Kho có LoaiKho = 'KHO_PHU' và có khoảng cách tới destinationH3 ngắn nhất
-            // Ở đây tạm trả về một ID mặc định hoặc logic tìm kiếm
-            return 10; // ID của Kho phụ cụ thể
-        }
-
-        private int TimMaKhoChinhCuaVung(string region)
-        {
-            // Chuyển về viết hoa để so sánh chính xác hơn
-            return region?.ToUpper() switch
-            {
-                "NORTH" => 11, // Warehouse Bắc (Hà Nội/Bắc Giang)
-                "CENTRAL" => 15, // Warehouse Trung (Đà Nẵng)
-                "SOUTH" => 17, // Warehouse Nam (TP.HCM)
-                _ => 11  // Mặc định trả về Kho chính Miền Bắc nếu không xác định được
-            };
         }
     }
+
 }

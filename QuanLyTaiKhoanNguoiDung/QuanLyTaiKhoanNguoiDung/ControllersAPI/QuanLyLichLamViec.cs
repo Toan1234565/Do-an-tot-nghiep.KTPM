@@ -516,6 +516,104 @@ namespace QuanLyTaiKhoanNguoiDung.ControllersAPI
                 return StatusCode(500, new { success = false, message = "Lỗi hệ thống nội bộ." });
             }
         }
+
+        [HttpGet("tai-xe-ca-hien-tai")]
+        public async Task<IActionResult> GetDanhSachTaiXeCaHienTai([FromQuery] int? maKho = null)
+        {
+            try
+            {
+                // 1. Khởi tạo danh sách cấu hình ca làm việc mẫu từ yêu cầu của bạn
+                var danhSachCa = new[]
+                {
+                    new { MaCa = 1, TenCa = "Ca Sáng tiêu chuẩn", GioBatDau = new TimeOnly(6, 0), GioKetThuc = new TimeOnly(14, 0), Priority = 1 },
+                    new { MaCa = 2, TenCa = "Ca Chiều tiêu chuẩn", GioBatDau = new TimeOnly(14, 0), GioKetThuc = new TimeOnly(22, 0), Priority = 1 },
+                    new { MaCa = 3, TenCa = "Ca Đêm tiêu chuẩn", GioBatDau = new TimeOnly(22, 0), GioKetThuc = new TimeOnly(6, 0), Priority = 1 },
+                    new { MaCa = 8, TenCa = "Ca Chuyến dài (Linh hoạt 24h)", GioBatDau = new TimeOnly(0, 0), GioKetThuc = new TimeOnly(23, 59, 59), Priority = 4 }
+                };
+
+                // 2. Lấy thời gian thực tại của hệ thống
+                var now = DateTime.Now;
+                var currentTime = TimeOnly.FromDateTime(now);
+                var currentDate = DateOnly.FromDateTime(now);
+
+                // 3. Xác định ca hiện tại dựa trên logic thời gian thực
+                // Lọc các ca phù hợp với khung giờ hiện tại
+                var cacCaPhuHop = danhSachCa.Where(ca =>
+                {
+                    if (ca.GioBatDau < ca.GioKetThuc)
+                    {
+                        // Ca thông thường trong ngày (Ca Sáng, Chiều, Chuyến Dài)
+                        return currentTime >= ca.GioBatDau && currentTime < ca.GioKetThuc;
+                    }
+                    else
+                    {
+                        // Ca qua đêm (Ví dụ: Ca Đêm từ 22:00 -> 06:00 hôm sau)
+                        return currentTime >= ca.GioBatDau || currentTime < ca.GioKetThuc;
+                    }
+                }).ToList();
+
+                if (!cacCaPhuHop.Any())
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy ca làm việc phù hợp với thời gian hiện tại." });
+                }
+
+                // Chọn ca có Priority cao nhất (Ví dụ ca chuyến dài 24h luôn song song nhưng ưu tiên hiển thị trước nếu cần)
+                var caHienTai = cacCaPhuHop.OrderByDescending(c => c.Priority).First();
+
+                // Đặc biệt cho Ca Đêm: Nếu hiện tại là từ 00:00 đến 06:00 sáng, thì "Ngày Trực" đăng ký trên hệ thống thực chất là ngày hôm trước.
+                var ngayTrucThucTe = currentDate;
+                if (caHienTai.MaCa == 3 && currentTime < caHienTai.GioKetThuc)
+                {
+                    ngayTrucThucTe = currentDate.AddDays(-1);
+                }
+
+                // 4. Lấy danh sách tài xế đã được phê duyệt trực trong ca này
+                var query = _context.NguoiDungs
+                    .AsNoTracking()
+                    .Where(nd => nd.DangKyCaTrucs.Any(dk =>
+                        dk.NgayTruc == ngayTrucThucTe &&
+                        dk.MaCa == caHienTai.MaCa &&
+                        dk.TrangThai == "Đã duyệt"))
+                    .AsQueryable();
+
+                // Lọc thêm theo mã kho nếu có tham số truyền vào
+                if (maKho.HasValue)
+                {
+                    query = query.Where(nd => nd.MaKho == maKho);
+                }
+
+                var danhSachTaiXe = await query
+                    .Select(nd => new
+                    {
+                        maNguoiDung = nd.MaNguoiDung,
+                        hoTenNhanVien = nd.HoTenNhanVien,
+                        maKho = nd.MaKho,                      
+                    })
+                    .ToListAsync();
+
+                // 5. Trả về kết quả
+                return Ok(new
+                {
+                    success = true,
+                    caHienTai = new
+                    {
+                        maCa = caHienTai.MaCa,
+                        tenCa = caHienTai.TenCa,
+                        gioBatDau = caHienTai.GioBatDau.ToString("HH:mm"),
+                        gioKetThuc = caHienTai.GioKetThuc.ToString("HH:mm")
+                    },
+                    ngayTruc = ngayTrucThucTe,
+                    tongSoTaiXe = danhSachTaiXe.Count,
+                    data = danhSachTaiXe
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy danh sách tài xế ca hiện tại.");
+                return StatusCode(500, new { success = false, message = "Lỗi hệ thống nội bộ." });
+            }
+        }
+
         public class ApproveAIRequest
         {
             public DateOnly NgayCanDuyet { get; set; }
