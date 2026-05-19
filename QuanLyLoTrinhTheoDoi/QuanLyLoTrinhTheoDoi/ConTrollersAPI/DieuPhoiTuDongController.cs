@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Tmdt.Shared.Services;
 
 namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
 {
@@ -27,14 +28,17 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
         private readonly ILogger<DieuPhoiTuDongController> _logger;
         private readonly IServiceProvider _serviceProvider;
         private static CancellationTokenSource _resetCacheSignal = new CancellationTokenSource();
+        private readonly ISystemService _sys;
+
 
         public DieuPhoiTuDongController(IServiceProvider serviceProvide, TmdtContext context, IMemoryCache cache, IHttpClientFactory httpClientFactory, IServiceProvider serviceProvider,
-            ILogger<DieuPhoiTuDongController> logger)
+            ILogger<DieuPhoiTuDongController> logger, ISystemService sys)
         {
             _serviceProvider = serviceProvider;
             _context = context;
             _cache = cache;
             _httpClientFactory = httpClientFactory;
+            _sys = sys;
             _logger = logger;
         }
 
@@ -51,22 +55,22 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
 
             string trangThaiGom = string.IsNullOrEmpty(request?.TrangThaiDonHang) ? "Chờ lấy hàng" : request.TrangThaiDonHang;
 
-            // Giới hạn khung giờ vàng cho chặng First-Mile và Last-Mile nội đô
-            if (trangThaiGom == "Chờ lấy hàng" || trangThaiGom == "Chờ giao hàng")
-            {
-                var gioHienTai = TimeOnly.FromDateTime(DateTime.Now);
-                var gioBatDau = new TimeOnly(8, 0);
-                var gioKetThuc = new TimeOnly(18, 0);
+            //// Giới hạn khung giờ vàng cho chặng First-Mile và Last-Mile nội đô
+            //if (trangThaiGom == "Chờ lấy hàng" || trangThaiGom == "Chờ giao hàng")
+            //{
+            //    var gioHienTai = TimeOnly.FromDateTime(DateTime.Now);
+            //    var gioBatDau = new TimeOnly(8, 0);
+            //    var gioKetThuc = new TimeOnly(18, 0);
 
-                if (gioHienTai < gioBatDau || gioHienTai > gioKetThuc)
-                {
-                    return Ok(new
-                    {
-                        status = "Pending",
-                        message = "Ngoài khung giờ hoạt động (08:00 - 18:00). Hệ thống tạm hoãn sang ca sáng."
-                    });
-                }
-            }
+            //    if (gioHienTai < gioBatDau || gioHienTai > gioKetThuc)
+            //    {
+            //        return Ok(new
+            //        {
+            //            status = "Pending",
+            //            message = "Ngoài khung giờ hoạt động (08:00 - 18:00). Hệ thống tạm hoãn sang ca sáng."
+            //        });
+            //    }
+            //}
 
             using var transaction = await context.Database.BeginTransactionAsync();
             try
@@ -246,7 +250,10 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                         var assignments = ApplyFirstFitDecreasingBPP(clustersBppCompatible, xeCuaKho);
                         var assignedClusterIds = assignments.SelectMany(a => a.Value).Select(c => c.MaDiaChiCum).ToList();
                         var unassignedClusters = clustersTrongNhom.Where(c => !assignedClusterIds.Contains(c.MaDiaChiCum)).ToList();
-                        
+
+                        // =========================================================================
+                        // NHÁNH 1: XỬ LÝ CÁC CỤM ĐÃ ĐƯỢC THUẬT TOÁN PHÂN XE
+                        // =========================================================================
                         foreach (var assign in assignments)
                         {
                             var xeSelected = assign.Key;
@@ -275,6 +282,7 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                                 trangThaiBanDau = "Chờ điều phối thủ công";
                                 skippedClusters.Add(new { Kho = khoInfo.TenKho, LyDo = $"Xe {xeSelected.BienSo} chưa được cấu hình tài xế cho ca làm việc hiện tại." });
                             }
+
                             double tongKhroiLuongXe = clustersInXe.Sum(c => c.TongKhoiLuong);
                             var loTrinhMoi = new LoTrinh
                             {
@@ -282,7 +290,7 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                                 TrangThai = trangThaiBanDau,
                                 ThoiGianBatDauKeHoach = DateTime.Now,
                                 GhiChu = $"Hệ thống tự động gom chặng [{trangThaiHanhTrinhThucTe}] xuất phát tại {khoInfo.TenKho}",
-                                LoTrinhTuyen = (trangThaiHanhTrinhThucTe == "Chờ trung chuyển"),
+                                LoTrinhTuyen = (trangThaiHanhTrinhThucTe == "Chờ khởi hành"),
                                 MaKhoQuanLy = maKhoId,
                                 TongKhoiLuongKg = tongKhroiLuongXe
                             };
@@ -291,7 +299,6 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                             await context.SaveChangesAsync();
 
                             await TaoDiemDungVaChiPhiMoi(scope.ServiceProvider, context, loTrinhMoi, khoInfo, clustersInXe, xeSelected, trangThaiHanhTrinhThucTe);
-
                             await phuongTienService.UpdateTrangThaiXeAsync(xeSelected.MaPhuongTien, new Models12.ThongTinLienServer.PhuongTien.UpdateTrangThaiXeDto { TrangThai = "Chờ khởi hành" });
 
                             string trangThaiDonHangMoi = trangThaiHanhTrinhThucTe == "Chờ lấy hàng" ? "Đã lên lộ trình" :
@@ -306,68 +313,86 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                             finalProcessedData.Add(new { MaLoTrinh = loTrinhMoi.MaLoTrinh, KhoXuatPhat = khoInfo.TenKho, BienSoXe = xeSelected.BienSo, TrangThai = trangThaiBanDau });
                         }
 
+                        // =========================================================================
+                        // NHÁNH 2: XỬ LÝ CÁC CỤM TỒN ĐỌNG (UNASSIGNED) - UPDATE LOGIC CHUẨN ĐOÁN TRẠNG THÁI
+                        // =========================================================================
                         foreach (var cluster in unassignedClusters)
                         {
-                            // 1. Tìm một phương tiện trong kho có tải trọng đủ cân được tổng khối lượng của cụm này
-                            // Ưu tiên xe đang ở trạng thái trống (Sẵn sàng) hoặc chưa được bốc vào lộ trình nào trước đó
                             var xePhuHopTaiTrong = xeCuaKho
                                 .Where(x => x.TaiTrongToiDaKg >= cluster.TongKhoiLuong)
-                                .OrderBy(x => x.TaiTrongToiDaKg) // Ưu tiên xe nhỏ nhất vừa đủ tải để tiết kiệm chi phí
+                                .OrderBy(x => x.TaiTrongToiDaKg)
                                 .FirstOrDefault();
 
                             int? mappingPhuongTienTaiXeId = null;
                             string bienSoXeHienThi = "CHƯA_CÓ_XE";
+                            string trangThaiLoTrinhVet = "Chờ điều phối thủ công"; // Mặc định nếu thiếu xe
                             string ghiChuLoTrinh = $"Hệ thống tự động gom chặng [{trangThaiHanhTrinhThucTe}] tại {khoInfo.TenKho} (Tồn đọng do thiếu xe tải khả dụng)";
 
                             if (xePhuHopTaiTrong != null)
                             {
                                 bienSoXeHienThi = xePhuHopTaiTrong.BienSo;
-                                ghiChuLoTrinh = $"Hệ thống tự động gom chặng [{trangThaiHanhTrinhThucTe}] tại {khoInfo.TenKho} - Đã gán xe {bienSoXeHienThi} (Chờ điều phối thủ công bổ sung tài xế)";
-
-                                // Thử tìm cấu hình PtTx của xe này trong ca hiện tại
                                 var mapping = await ptTxService.GetMappingByVehicleAsync(xePhuHopTaiTrong.MaPhuongTien, maCaHienTai);
+
                                 if (mapping != null)
                                 {
-                                    // Nếu tìm thấy PtTx nhưng lý do lọt vào danh sách khuyết trước đó là do tài xế chưa check-in làm việc
                                     mappingPhuongTienTaiXeId = mapping.MaPtTx;
+                                    var driverStatus = await nhanVienService.CheckDriverStatusAsync(mapping.MaNguoiDung);
+
+                                    if (driverStatus != null && driverStatus.IsWorking)
+                                    {
+                                        // Hợp lệ hoàn toàn -> Có thể chạy tự động luôn!
+                                        trangThaiLoTrinhVet = "Chờ khởi hành";
+                                        ghiChuLoTrinh = $"Hệ thống tự động điều phối vét chặng [{trangThaiHanhTrinhThucTe}] tại {khoInfo.TenKho} - Xe {bienSoXeHienThi}";
+                                        await nhanVienService.CapNhatTrangThaiTaiXeAsync(mapping.MaNguoiDung, true);
+                                    }
+                                    else
+                                    {
+                                        // Có xe, có cấu hình ca trực nhưng tài xế lười chưa check-in
+                                        trangThaiLoTrinhVet = "Chờ điều phối thủ công";
+                                        ghiChuLoTrinh = $"Hệ thống tự động gom chặng [{trangThaiHanhTrinhThucTe}] tại {khoInfo.TenKho} - Đã gán xe {bienSoXeHienThi} (Tài xế chưa check-in)";
+                                        skippedClusters.Add(new { Kho = khoInfo.TenKho, LyDo = $"Xe vét đơn {bienSoXeHienThi} chuyển duyệt tay do tài xế chưa check-in ca trực." });
+                                    }
                                 }
                                 else
                                 {
-                                    // Nếu xe trống hoàn toàn chưa gán cặp với tài xế nào trong bảng phân ca
-                                    // Ta chấp nhận tạo bản ghi tạm hoặc chỉ truyền thông tin Xe vào hàm tính chi phí định mức xăng dầu
-                                    mappingPhuongTienTaiXeId = null;
+                                    // Có xe trống nhưng chưa gán cặp tài xế nào trong ca này
+                                    trangThaiLoTrinhVet = "Chờ điều phối thủ công";
+                                    ghiChuLoTrinh = $"Hệ thống tự động gom chặng [{trangThaiHanhTrinhThucTe}] tại {khoInfo.TenKho} - Đã gán xe {bienSoXeHienThi} (Chờ điều phối thủ công bổ sung tài xế)";
+                                    skippedClusters.Add(new { Kho = khoInfo.TenKho, LyDo = $"Xe vét đơn {bienSoXeHienThi} chưa được cấu hình tài xế cho ca làm việc hiện tại." });
                                 }
 
-                                // Xóa xe này khỏi danh sách khả dụng để các cụm khuyết phía sau không lấy trùng
                                 xeCuaKho.Remove(xePhuHopTaiTrong);
+                            }
+                            else
+                            {
+                                // Hoàn toàn không tìm được xe nào chịu nổi tải trọng cụm
+                                skippedClusters.Add(new { Kho = khoInfo.TenKho, LyDo = $"Cụm đơn hàng khối lượng {cluster.TongKhoiLuong}kg không tìm thấy xe nào trong kho đáp ứng đủ tải trọng." });
                             }
 
                             var loTrinhKhuyet = new LoTrinh
                             {
-                                TrangThai = "Chờ điều phối thủ công",
+                                TrangThai = trangThaiLoTrinhVet, // Sử dụng trạng thái động thay vì gán cứng
                                 ThoiGianBatDauKeHoach = DateTime.Now,
                                 GhiChu = ghiChuLoTrinh,
                                 LoTrinhTuyen = (trangThaiHanhTrinhThucTe == "Chờ trung chuyển"),
                                 MaKhoQuanLy = maKhoId,
                                 TongKhoiLuongKg = cluster.TongKhoiLuong,
-                                MaPtTx = mappingPhuongTienTaiXeId // Có thể có Id cặp PtTx (nhưng tài xế chưa duyệt) hoặc null hoàn toàn
+                                MaPtTx = mappingPhuongTienTaiXeId
                             };
 
                             context.LoTrinhs.Add(loTrinhKhuyet);
                             await context.SaveChangesAsync();
 
-                            // 2. Truyền thông tin xe tìm được (nếu có) vào hàm tính toán điểm dừng và định mức chi phí xăng dầu
                             await TaoDiemDungVaChiPhiMoi(
                                 scope.ServiceProvider,
                                 context,
                                 loTrinhKhuyet,
                                 khoInfo,
                                 new List<QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer.DonHang.ClusterResult> { cluster },
-                                xePhuHopTaiTrong, // Đã truyền vật lý xe vào thay vì để null giúp hàm TaoDiemDung tính toán được định mức (0.15m hoặc 0.22m)
+                                xePhuHopTaiTrong,
                                 trangThaiHanhTrinhThucTe
                             );
 
-                            // 3. Nếu gán xe thành công, khóa trạng thái xe trên hệ thống tránh thất thoát điều phối
                             if (xePhuHopTaiTrong != null)
                             {
                                 await phuongTienService.UpdateTrangThaiXeAsync(xePhuHopTaiTrong.MaPhuongTien, new Models12.ThongTinLienServer.PhuongTien.UpdateTrangThaiXeDto { TrangThai = "Chờ khởi hành" });
@@ -387,7 +412,7 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                                 MaLoTrinh = loTrinhKhuyet.MaLoTrinh,
                                 KhoXuatPhat = khoInfo.TenKho,
                                 BienSoXe = bienSoXeHienThi,
-                                TrangThai = "Chờ điều phối thủ công"
+                                TrangThai = trangThaiLoTrinhVet // Trả về đúng trạng thái thực tế phục vụ hiển thị UI
                             });
                         }
                     }
@@ -749,10 +774,10 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
         private string GetRegionFromH3(string h3Index)
         {
             if (string.IsNullOrEmpty(h3Index)) return "Unknown";
-            if (h3Index.StartsWith("886")) return "South";
-            if (h3Index.StartsWith("87") || h3Index.StartsWith("882")) return "North";
-            if (h3Index.StartsWith("887")) return "Central";
-            return "North";
+            if (h3Index.StartsWith("871") || h3Index.StartsWith("872ea3")) return "South";
+            if (h3Index.StartsWith("872") ) return "North";
+            else return "Central";
+            
         }
 
         private int TimMaKhoPhuPhuHop(string destinationH3) => 10;
@@ -921,7 +946,7 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                         item.TuyenDuongHienThi = $"{tenKhoGoc} → {rawItem.TenDiemDen}";
                     }
                 }
-
+               
                 return Ok(new { TotalItems = totalItems, TotalPages = totalPages, CurrentPage = page, Data = data });
             }
             catch (Exception ex)
@@ -971,7 +996,15 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
 
                     if (loTrinh == null)
                         return NotFound(new { success = false, message = $"Không tìm thấy lộ trình mã {dto.MaLoTrinh}" });
-
+                    // Lấy ID của người thực hiện thao tác từ hệ thống
+                    var nguoiThucHienId = _sys.GetCurrentUserId();
+                    // Lưu lại trạng thái cũ của lộ trình trước khi cập nhật để ghi log
+                    var trangThaiCuLog = new Dictionary<string, object>
+                    {
+                        { "MaLoTrinh", loTrinh.MaLoTrinh },
+                        { "TrangThai", loTrinh.TrangThai },
+                        { "MaPtTx", loTrinh.MaPtTx }
+                    };
                     // 2. Tạo hoặc Cập nhật bảng trung gian PhuongTienTaiXe (MaPtTxNavigation)
                     // Kiểm tra xem cặp Xe-Tài xế này đã tồn tại cấu hình Active chưa
                     var phuongTienTaiXe = await _context.PhuongTienTaiXes
@@ -1014,6 +1047,23 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                     _resetCacheSignal.Cancel();
                     _resetCacheSignal = new CancellationTokenSource();
 
+                    // --- HOÀN THIỆN PHẦN GHI NHẬT KÝ VÀ TỰ ĐỘNG RESET CACHE QUA SYSTEM SERVICE ---
+                    await _sys.GhiLogVaResetCacheAsync(
+                        "Điều phối lộ trình", // Phân hệ chức năng chính
+                        $"Duyệt điều phối thủ công cho lộ trình {dto.MaLoTrinh}. Gán xe {dto.MaPhuongTien}, tài xế chính {dto.MaTaiXeChinh}{(dto.MaTaiXePhu.HasValue ? $", tài xế phụ {dto.MaTaiXePhu}" : "")}.", // Nội dung chi tiết thao tác
+                        "LoTrinh", // Tên bảng đích tác động thay đổi trạng thái
+                        loTrinh.MaLoTrinh.ToString(), // ID đối tượng đích
+                        trangThaiCuLog, // Payload trạng thái cũ trước khi gán
+                        new Dictionary<string, object> {
+                            { "MaLoTrinh", loTrinh.MaLoTrinh },
+                            { "TrangThai", loTrinh.TrangThai },
+                            { "MaPtTx", loTrinh.MaPtTx },
+                            { "MaPhuongTien", dto.MaPhuongTien },
+                            { "MaTaiXeChinh", dto.MaTaiXeChinh },
+                            { "MaTaiXePhu", dto.MaTaiXePhu }
+                           
+                         } // Payload dữ liệu mới được áp dụng
+                    );
                     return Ok(new { success = true, message = "Lưu lệnh điều phối phương tiện thành công!" });
                 }
                 catch (Exception ex)

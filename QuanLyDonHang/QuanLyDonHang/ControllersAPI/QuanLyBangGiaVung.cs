@@ -445,10 +445,10 @@ public class QuanLyBangGiaVung : ControllerBase
 
             // 3. GHI LOG VÀ RESET CACHE TOÀN HỆ THỐNG (Sử dụng SystemService đã hoàn thiện)
             var dataMoi = new Dictionary<string, object>
-        {
-            {"Thao tác", hanhDongLog},
-            {"Lý do", request.LyDoThayDoi}
-        };
+            {
+                {"Thao tác", hanhDongLog},
+                {"Lý do", request.LyDoThayDoi}
+            };
 
             await _sys.GhiLogVaResetCacheAsync(
                 "Quản lý bảng giá vùng",

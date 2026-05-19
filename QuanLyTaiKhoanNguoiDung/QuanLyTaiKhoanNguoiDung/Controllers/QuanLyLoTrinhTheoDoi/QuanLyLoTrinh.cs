@@ -198,7 +198,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi
 
                 // 4. Xử lý dữ liệu bổ trợ cho View (Tài xế, Thống kê nhanh)
                 // Lấy tên tài xế (Backend đã gán vào MaPtTxNavigation hoặc TenTaiXe tùy theo class Model của bạn)
-                ViewBag.TenTaiXe = ctLoTrinh.TenTaiXe ?? "Tài xế đang cập nhật";
+                ViewBag.TenTaiXe = ctLoTrinh.TenTaiXeThucHienChinh ?? "Tài xế đang cập nhật";
 
                 // Tính toán nhanh số điểm đã hoàn thành (nếu cần hiển thị Progress Bar)
                 ViewBag.DiemDaDen = ctLoTrinh.DiemDungs?.Count(d => d.ThoiGianDenThucTe != null) ?? 0;
@@ -220,6 +220,54 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyLoTrinhTheoDoi
                 return View(null);
             }
         }
+
+        [HttpGet("QuanLyLoTrinh/BanDoLoTrinh/{id}")]
+        public async Task<IActionResult> BanDoLoTrinh(int id)
+        {
+            if (id <= 0)
+            {
+                ViewBag.Error = "Mã lộ trình không hợp lệ.";
+                return View("Error");
+            }
+
+            var client = _httpClientFactory.CreateClient("BypassSSL");
+
+            try
+            {
+                // 1. Tái sử dụng chính xác API chi tiết lộ trình mà bạn đã cấu hình
+                string url = $"{ApiBaseUrl}/chi-tiet-lo-trinh/{id}";
+                var response = await client.GetAsync(url);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Không thể lấy dữ liệu bản đồ cho lộ trình {Id}. Mã lỗi: {Status}", id, response.StatusCode);
+                    ViewBag.Error = $"Không tìm thấy dữ liệu bản đồ cho lộ trình số {id}.";
+                    return View("Error");
+                }
+
+                // 2. Đọc nội dung JSON nhận được từ Server Lộ trình
+                var content = await response.Content.ReadAsStringAsync();
+
+                // 3. Giải mã (Deserialize) ra đối tượng Model tương ứng
+                var ctLoTrinh = JsonConvert.DeserializeObject<ChiTietLoTrinhModels>(content);
+
+                if (ctLoTrinh == null)
+                {
+                    ViewBag.Error = "Dữ liệu cấu hình tọa độ lộ trình trống.";
+                    return View("Error");
+                }
+
+                // 4. Đẩy sang trang View mới (BanDoLoTrinh.cshtml) để Javascript vẽ mốc tọa độ
+                return View(ctLoTrinh);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi hệ thống khi tải bản đồ toàn màn hình cho lộ trình {Id}", id);
+                ViewBag.Error = "Đã xảy ra sự cố trong quá trình đồng bộ tọa độ GPS lên bản đồ.";
+                return View("Error");
+            }
+        }
+
 
         // Hàm bổ trợ gọi API an toàn: Tự catch lỗi để không làm sập luồng chính
         private async Task<T?> GetApiDataAsync<T>(HttpClient client, string url, string apiName) where T : class

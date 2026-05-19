@@ -67,7 +67,13 @@
             gap: 15px;
         }
 
-       
+        .header-left h2 {
+            font-family: 'Lexend', sans-serif;
+            color: var(--primary);
+            font-size: clamp(1.2rem, 1.6vw, 1.8rem);
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
 
         /* Khối Logo HaUI thuần code sắc nét */
         .header-right-logo {
@@ -119,22 +125,23 @@
             flex-grow: 1;
             position: relative;
             align-content: start;
+            height: 68vh;
         }
 
-        /* TRẠNG THÁI MẶC ĐỊNH: Khung chứa sơ đồ quy trình */
+        /* Khung chứa sơ đồ quy trình bên trái */
         .process-image-wrapper {
-            width: 32%; 
-            height: 68vh;
+            width: 34%; 
+            height: 100%;
             background: var(--white);
-            border: 1px solid rgba(0, 51, 102, 0.15);
+            border: 1px solid rgba(0, 51, 102, 0.12);
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.04);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
             transition: var(--transition);
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 10px;
+            padding: 15px;
             z-index: 10;
         }
 
@@ -153,10 +160,10 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 70vh;
+            height: 100%;
             z-index: 100;
-            padding: 15px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+            padding: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
             border-color: var(--primary);
         }
 
@@ -164,100 +171,147 @@
             cursor: zoom-out;
         }
 
-        /* LƯỚI CHỨC NĂNG PHÍA BÊN PHẢI */
-        .functions-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+        /* LƯỚI / KHỐI CHỨC NĂNG PHÍA BÊN PHẢI */
+        .process-flow-wrapper {
             width: 66%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
             transition: var(--transition);
         }
 
-        /* Làm mờ lưới chức năng khi hình ảnh được zoom lớn */
-        .functions-grid.dimmed {
-            opacity: 0.1;
+        /* Làm mờ quy trình bên phải khi hình ảnh được zoom lớn */
+        .process-flow-wrapper.dimmed {
+            opacity: 0.05;
             transform: scale(0.98);
             pointer-events: none;
         }
 
-        /* Định dạng các thẻ Card chức năng */
-        .func-card {
-            background: var(--white);
-            padding: 2.5vh 1.8vw;
-            border-radius: 4px 16px 16px 4px;
-            border-left: 6px solid var(--primary);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.02);
-            transition: var(--transition);
-        }
-
-        .func-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
-        }
-
-        .func-card h4 {
+        .process-title {
             font-family: 'Lexend', sans-serif;
-            color: var(--accent);
-            font-size: clamp(1.1rem, 1.4vw, 1.4rem);
-            margin-bottom: 1.5vh;
-            font-weight: 700;
-        }
-
-        .func-card ul { 
-            list-style: none; 
-        }
-
-        .func-card li {
-            font-size: clamp(0.95rem, 1.2vw, 1.15rem);
-            margin-bottom: 1vh;
-            padding-left: 24px;
-            position: relative;
-            line-height: 1.5;
-            color: var(--text-dark);
-            font-weight: 500;
-        }
-
-        .func-card li:last-child {
-            margin-bottom: 0;
-        }
-
-        .func-card li::before {
-            content: "➔";
-            position: absolute;
-            left: 0;
+            font-size: clamp(1.15rem, 1.4vw, 1.5rem);
             color: var(--primary);
-            font-weight: bold;
+            font-weight: 700;
+            margin-bottom: 1.5vh;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        /* Card Tiêu chuẩn kỹ thuật đáy */
-        .iso-card {
-            grid-column: span 2; 
-            background: linear-gradient(to right, var(--primary-light), transparent); 
-            border-left-color: var(--accent); 
-            padding: 2vh 1.5vw;
+        .steps-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.8vh;
+            flex-grow: 1;
+        }
+
+        /* Định dạng các thẻ Bước xử lý (Step Card) */
+        .step-card {
+            display: flex;
+            gap: 1.2vw;
+            background: var(--white);
+            padding: 1.8vh 1.5vw;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 51, 102, 0.06);
+            border-left: 5px solid var(--primary);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.01);
+            transition: var(--transition);
+            align-items: flex-start;
+            font-size: 18px;
+        }
+
+        .step-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+            border-left-color: var(--accent);
+        }
+
+        .step-num {
+            min-width: 32px;
+            height: 32px;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-family: 'Lexend', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            margin-top: 2px;
+            transition: var(--transition);
         }
 
-        .iso-card p {
-            font-size: clamp(1rem, 1.25vw, 1.25rem); 
-            color: var(--primary); 
-            font-weight: 700; 
-            text-align: center;
-            letter-spacing: 0.3px;
+        .step-card:hover .step-num {
+            background: var(--accent);
+            color: var(--white);
+        }
+
+        .step-content {
+            flex-grow: 1;
+        }
+
+        .step-content h5 {
+            font-family: 'Lexend', sans-serif;
+            color: var(--primary);
+            font-size: clamp(1rem, 1.15vw, 1.3rem);
+            margin-bottom: 0.6vh;
+            font-weight: 700;
+        }
+
+        .step-content p {
+            font-size: clamp(0.85rem, 1.05vw, 1.1rem);
+            line-height: 1.5;
+            color: #4a5568;
+            font-weight: 400;
+        }
+
+        .step-content strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Khối Đầu ra cuối cùng (Đáy) */
+        .final-output-box {
+            background: linear-gradient(to right, var(--accent-light), transparent);
+            border-left: 5px solid var(--accent);
+            padding: 1.6vh 1.5vw;
+            border-radius: 4px 12px 12px 4px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 1.5vh;
+        }
+
+        .output-badge {
+            background: var(--accent);
+            color: var(--white);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .final-output-box p {
+            font-size: clamp(0.9rem, 1.1vw, 1.15rem);
+            color: var(--primary);
+            font-weight: 600;
         }
 
         /* Slide Footer */
         footer {
             margin-top: auto;
             border-top: 1px solid #edf2f7;
-            padding-top: 2vh;
+            padding-top: 1.5vh;
             display: flex;
             justify-content: space-between;
             color: var(--text-muted);
             font-weight: 600;
-            font-size: clamp(0.85rem, 1.1vw, 1rem);
+            font-size: clamp(0.8rem, 1vw, 0.95rem);
         }
 
         /* Nút Hamburger Menu */
@@ -314,7 +368,6 @@
             padding-left: 0;
             margin-bottom: 5px;
         }
-        .slide-list li::before { display: none; }
 
         .slide-list a {
             color: rgba(255,255,255,0.8);
@@ -346,6 +399,9 @@
         @keyframes slideUp {
             from { opacity: 0; transform: translateY(24px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+        p{
+            font-size: 18px;
         }
     </style>
 </head>
@@ -382,14 +438,12 @@
                 <div class="menu-btn" id="menuToggle">
                     <span></span><span></span><span></span>
                 </div>
-                <h2>1.2 GIỚI THIỆU HỆ THỐNG QUẢN TRỊ VẬN TẢI (SLTMS)</h2>
+                <h1>1.2 GIỚI THIỆU HỆ THỐNG QUẢN TRỊ VẬN TẢI (SLTMS)</h1>
             </div>
             
             <div class="header-right-logo">
                 <div>
-                    <!-- Biểu tượng SVG thay thế ảnh local giúp chạy ở mọi máy không lo mất link -->
-              
-                    <img width="40" height="40" src="file:///D:\Đồ án tốt nghiệp\ThuyetTrinh\HinhAnh\LogoTruong.jpg" class="school-logo-img" alt="Logo">
+                    <img width="40" height="40" src="file:///D:\Đồ án tốt nghiệp\ThuyetTrinh\HinhAnh\LogoTruong.jpg" class="school-logo-img" alt="Logo" onerror="this.style.display='none'">
                 </div> 
                 <div class="text-haui">HaUI</div>
                 <div class="red-divider"></div>
@@ -403,39 +457,43 @@
                 <img src="HinhAnh/SoDoQuyTrinhVanTai.png" alt="Sơ đồ quy trình vận tải" id="processImg">
             </div>
 
-            <!-- Khối chứa phân rã chức năng -->
-            <div class="functions-grid" id="functionsGrid">
-                <div class="func-card">
-                    <h4>(1) Quản trị viên hệ thống</h4>
-                    <ul>
-                        <li>Quản trị tài khoản, phân quyền tập trung.</li>
-                        <li>Kiểm soát và truy vết lịch sử nhật ký hệ thống.</li>                      
-                    </ul>
-                </div>
+            <!-- Khối chứa phân rã quy trình chức năng bên phải -->
+            <div class="process-flow-wrapper" id="functionsGrid">
+                <div class="process-title">🔄 Quy Trình Điều Phối Đa Điểm Tự Động (Khép Kín)</div>
+                
+               <div class="steps-container" style="font-size: 18px; color: #000000;">
+                    <!-- Bước 1 -->
+                    <div class="step-card">
+                        <div class="step-num">1</div>
+                        <div class="step-content">
+                            <h5 style="font-size: 18px; color: #000000; margin: 0 0 10px 0; font-weight: bold;">Kiểm soát & Sàng lọc Nguồn lực</h5>
+                            <p style="font-size: 18px; color: #000000; margin: 0;">Hệ thống tự động quét theo thời gian thực trạng thái xe, lịch trình tài xế, giới hạn tải trọng & thể tích để thiết lập danh sách <strong>'Nguồn lực khả dụng'</strong>.</p>
+                        </div>
+                    </div>
 
-                <div class="func-card">
-                    <h4>(2) Nhân viên kinh doanh</h4>
-                    <ul>
-                        <li>Quản lý linh hoạt bảng giá vùng và cấu hình dịch vụ.</li>
-                        <li>Tiếp nhận, xử lý và phân loại luồng đơn hàng đầu vào.</li>
-                    </ul>
-                </div>
+                    <!-- Bước 2 -->
+                    <div class="step-card">
+                        <div class="step-num">2</div>
+                        <div class="step-content">
+                            <h5 style="font-size: 18px; color: #000000; margin: 0 0 10px 0; font-weight: bold;">Điều phối thông minh (Gom & Giao)</h5>
+                            <p style="font-size: 18px; color: #000000; margin: 0;">Tối ưu qua Kho trung tâm: Chặng gom <strong>Đầu tiên</strong> (thuật toán Gom cụm địa lý) → <strong>Phân phối trực tiếp không qua kho lưu trữ</strong> chuyển tiếp → Chặng giao <strong>Cuối cùng</strong> (Tự động sắp xếp lộ trình & dự báo Thời gian đến dự kiến).</p>
+                        </div>
+                    </div>
 
-                <div class="func-card">
-                    <h4>(3) Quản lý nhân sự & xe</h4>
-                    <ul>
-                        <li>Điều động và tối ưu hóa hiệu suất nguồn lực nhân sự.</li>
-                        <li>Theo dõi chu kỳ bảo trì và thời hạn đăng kiểm phương tiện.</li>
-                    </ul>
+                    <!-- Bước 3 -->
+                    <div class="step-card">
+                        <div class="step-num">3</div>
+                        <div class="step-content">
+                            <h5 style="font-size: 18px; color: #000000; margin: 0 0 10px 0; font-weight: bold;">Tính toán Chi phí & Hiệu suất</h5>
+                            <p style="font-size: 18px; color: #000000; margin: 0;">Bộ công cụ <strong>Tính toán giá cả</strong> tự động áp bảng giá vùng theo thời gian thực, phụ phí bốc xếp, cầu đường; đồng thời xuất báo cáo Chỉ số hiệu suất cốt lõi trực quan về lợi nhuận và tỷ lệ lấp đầy xe.</p>
+                        </div>
+                    </div>
                 </div>
-
-                <div class="func-card">
-                    <h4>(4) Điều phối vận hành</h4>
-                    <ul>
-                        <li>Tính toán, lập lộ trình vận tải tự động bằng giải thuật.</li>
-                        <li>Giám sát trực quan trạng thái và hành trình thực tế của xe.</li>
-                    </ul>
-                </div>                          
+                <!-- Đầu ra cuối cùng -->
+                <div class="final-output-box">
+                    <span class="output-badge">Đầu ra cuối</span>
+                    <p>Một Lệnh điều động kèm Bản đồ dẫn đường tối ưu được đẩy thẳng xuống smartphone của tài xế.</p>
+                </div>
             </div>
         </div>
 
@@ -464,7 +522,6 @@
         });
 
         // Tương tác thu phóng ảnh sơ đồ thông minh bằng Click thay vì Hover trực tiếp 
-        // Tránh giật lag khung hình khi di chuyển chuột qua lại lúc bảo vệ đồ án
         if (processBox) {
             processBox.addEventListener('click', function(e) {
                 this.classList.toggle('zoomed');

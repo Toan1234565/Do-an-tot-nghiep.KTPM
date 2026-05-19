@@ -163,9 +163,9 @@
             position: relative;
             padding-left: 28px;
             margin-bottom: 16px;
-            font-size: 1.15rem;
+            font-size: 18px;          /* Sửa từ 1.15rem thành 18px */
             line-height: 1.6;
-            color: var(--text-muted);
+            color: #000000;           /* Sửa từ var(--text-muted) thành màu đen thuần */
             font-weight: 500;
         }
 
@@ -335,6 +335,7 @@
             from { opacity: 0; }
             to { opacity: 1; }
         }
+
     </style>
 </head>
 <body>
@@ -367,7 +368,7 @@
                 <div class="menu-btn" onclick="toggleMenu()">
                     <span></span><span></span><span></span>
                 </div>
-                <h1>2.5. THIẾT KẾ HỆ THỐNG</h1>
+                <h1>2.2. THIẾT KẾ HỆ THỐNG</h1>
             </div>
             
             <div class="header">
@@ -424,7 +425,9 @@
             {
                 title: "Server Danh tính & Ủy quyền",
                 img: "D:/Đồ án tốt nghiệp/ThuyetTrinh/HinhAnh/DanhTinh.png",
-                section: "2.3.1. Server Danh tính (Identity)",
+                section: "2.2.1. Server Danh tính ",
+                fontSize: "18px",
+                
                 purposes: [
                     "Quản lý tập trung: Đồng bộ thông tin nhân sự và tài khoản đăng nhập bảo mật.",
                     "Phân quyền nghiêm ngặt: Kiểm soát truy cập hệ thống theo vai trò (RBAC) và chức vụ.",
@@ -434,7 +437,8 @@
             {
                 title: "Server Khách hàng & Ưu đãi",
                 img: "D:/Đồ án tốt nghiệp/ThuyetTrinh/HinhAnh/KhachHang.png",
-                section: "2.3.2. Server Khách hàng (Customer & Promotion)",
+                section: "2.2.2. Server Khách hàng ",
+               
                 purposes: [
                     "Quản lý đối tác: Lưu trữ thông tin định danh khách hàng doanh nghiệp và địa chỉ giao dịch mặc định.",
                     "Ràng buộc pháp lý: Kiểm soát vòng đời hợp đồng vận chuyển, thời hạn và phân loại nhóm hàng hóa.",
@@ -444,7 +448,7 @@
            {
                 title: "Server Đơn hàng & Tài chính",
                 img: "D:/Đồ án tốt nghiệp/ThuyetTrinh/HinhAnh/DonHang.png",
-                section: "2.3.3. Server Đơn hàng (Order & Billing)",
+                section: "2.2.3. Server Đơn hàng ",
                 purposes: [
                     "Quản lý vòng đời đơn: Kiểm soát toàn diện từ khâu khởi tạo, phân tách thành các kiện hàng vật lý đến đồng bộ trạng thái.",
                     "Tính cước tự động: Định cấu hình bảng giá vùng, áp dụng phụ phí theo trọng lượng, thể tích và phân loại nhóm hàng.",
@@ -454,17 +458,17 @@
             {
                 title: "Server Lộ trình & Giám sát",
                 img: "D:/Đồ án tốt nghiệp/ThuyetTrinh/HinhAnh/LoTrinh.png",
-                section: "2.3.4. Server Lộ trình (Routing & Tracking)",
+                section: "2.2.4. Server Lộ trình ",
                 purposes: [
-                    "Điều phối thông minh: Quản lý chuỗi điểm dừng (Pickup/Drop-off) tối ưu và giám sát thời gian dự kiến đến (ETA).",
-                    "Quản lý sự cố khẩn cấp: Tiếp nhận cảnh báo từ tài xế, xử lý hiện trường (đổi xe, đổi lộ trình) và tự động tính toán lại ETA.",
-                    "Truy vết hành trình (Tracking): Lưu vết lịch sử tọa độ GPS thời gian thực, phục vụ vẽ lại bản đồ và đối soát hiệu suất (KPIs)."
+                    "Điều phối thông minh: Quản lý chuỗi điểm dừng (Pickup/Drop-off) tối ưu và giám sát thời gian dự kiến.",
+                    "Quản lý sự cố khẩn cấp: Tiếp nhận cảnh báo từ tài xế, xử lý hiện trường (đổi xe, đổi lộ trình) và tự động tính toán lại thời gian dự kiến.",
+                    "Truy vết hành trình : truy vết đường đi của từng lộ trình"
                 ]
             },
            {
                 title: "Server Tài sản & Kho bãi",
                 img: "D:/Đồ án tốt nghiệp/ThuyetTrinh/HinhAnh/KhoBai.png",
-                section: "2.3.5. Server Tài sản kho bãi (Hub & Asset)",
+                section: "2.2.5. Server Tài sản kho bãi",
                 purposes: [
                     "Quản lý mạng lưới hạ tầng: Định vị kho bãi theo phân vùng địa lý H3, kiểm soát sức chứa và phân bổ đội xe cố định theo từng Hub khu vực.",
                     "Giám sát kỹ thuật & Bảo dưỡng: Tự động hóa lịch trình bảo trì dựa trên định mức số Km vận hành thực tế của từng nhóm loại xe.",

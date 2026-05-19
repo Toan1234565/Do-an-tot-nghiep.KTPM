@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using QuanLyLoTrinhTheoDoi.Models12.LienServer.cs;
-using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer;
+using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer.KhoBai;
 using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer.TaiXe;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -18,53 +18,38 @@ namespace QuanLyLoTrinhTheoDoi.Models12.LienServer
             _httpClient = httpClient;
             _logger = logger;
         }
-
         public async Task<TenNhanVienModel?> GetTenNhanVienAsync(int maNguoiDung)
         {
             try
             {
+                // Gọi API dạng GET để lấy tên nhân viên qua Route công khai
                 var response = await _httpClient.GetAsync($"https://localhost:7022/api/quanlynguoidung/lay-ten-nhan-vien/{maNguoiDung}");
 
                 if (response.IsSuccessStatusCode)
                 {
-                    // Thử đọc dưới dạng chuỗi trước để kiểm tra nội dung
-                    string content = await response.Content.ReadAsStringAsync();
-
-                    // Nếu chuỗi rỗng
-                    if (string.IsNullOrWhiteSpace(content)) return null;
-
-                    // Nếu nội dung bắt đầu bằng '{', nó là một JSON Object
-                    if (content.Trim().StartsWith("{"))
-                    {
-                        return JsonSerializer.Deserialize<TenNhanVienModel>(content, new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
-                    }
-                    else
-                    {
-                        // Nếu nó là một chuỗi tên thuần túy (ví dụ: "Nguyễn Văn A")
-                        return new TenNhanVienModel
-                        {
-                            MaNguoiDung = maNguoiDung,
-                            TenNguoiDung = content.Replace("\"", "") // Loại bỏ dấu ngoặc kép nếu có
-                        };
-                    }
+                    // Đọc trực tiếp từ Stream và ép kiểu sang TenNhanVienModel để tối ưu hiệu năng
+                    return await response.Content.ReadFromJsonAsync<TenNhanVienModel>();
                 }
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
-                    _logger.LogWarning("Không tìm thấy nhân viên với mã: {MaNguoiDung}", maNguoiDung);
+                    _logger.LogWarning("Không tìm thấy thông tin nhân viên với mã người dùng: {maNguoiDung} từ API.", maNguoiDung);
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning("API Lấy chi tiết nhân viên trả về lỗi. Status: {Status}, Chi tiết: {Error}", response.StatusCode, errorContent);
                 }
 
                 return null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi gọi API nhân viên: {MaNguoiDung}", maNguoiDung);
+                _logger.LogError(ex, "Lỗi kết nối hệ thống khi lấy chi tiết thông tin nhân viên cho mã: {maNguoiDung}", maNguoiDung);
                 return null;
             }
         }
+
 
         // 2. KIỂM TRA TÀI XẾ TỒN TẠI
         public async Task<bool> KiemTraTaiXeTonTaiAsync(int maNguoiDung)

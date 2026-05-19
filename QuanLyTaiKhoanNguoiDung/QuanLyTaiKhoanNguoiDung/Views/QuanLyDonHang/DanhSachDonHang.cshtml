@@ -11,152 +11,266 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
             --primary: #2563eb;
+            --primary-hover: #1d4ed8;
             --bg-body: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
         }
 
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-body);
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
         }
 
         .main-card {
             background: white;
             border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
+            padding: 28px;
         }
+
+        /* Filter Section */
+        .filter-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .form-label-custom {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-control, .form-select, .input-group-text {
+            border-color: #cbd5e1;
+            border-radius: 8px;
+            padding: 0.45rem 0.75rem;
+            font-size: 0.9rem;
+        }
+
+            .form-control:focus, .form-select:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+            }
 
         /* Table Styling */
         .custom-table {
             width: 100%;
             border-collapse: separate;
-            border-spacing: 0 8px;
+            border-spacing: 0 10px;
         }
 
             .custom-table thead th {
                 background: #f1f5f9;
-                color: #64748b;
-                font-weight: 600;
+                color: var(--text-muted);
+                font-weight: 700;
                 text-transform: uppercase;
-                font-size: 0.7rem;
-                padding: 12px;
+                font-size: 0.75rem;
+                padding: 14px 16px;
                 border: none;
+                letter-spacing: 0.5px;
             }
+
+                .custom-table thead th:first-child {
+                    border-top-left-radius: 8px;
+                    border-bottom-left-radius: 8px;
+                }
+
+                .custom-table thead th:last-child {
+                    border-top-right-radius: 8px;
+                    border-bottom-right-radius: 8px;
+                }
 
             .custom-table tbody tr {
                 background: white;
-                transition: all 0.2s;
-                border-radius: 8px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                transition: all 0.25s ease;
             }
 
                 .custom-table tbody tr:hover {
                     transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                    background-color: #f8faff;
+                    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+                    background-color: #fdfefe;
                 }
 
             .custom-table td {
                 padding: 16px;
-                border-top: 1px solid #f1f5f9;
-                border-bottom: 1px solid #f1f5f9;
+                border-top: 1px solid #e2e8f0;
+                border-bottom: 1px solid #e2e8f0;
+                vertical-align: middle;
+                font-size: 0.92rem;
             }
 
-                .custom-table td:first-child {
-                    border-left: 1px solid #f1f5f9;
-                    border-top-left-radius: 12px;
-                    border-bottom-left-radius: 12px;
-                }
+            .custom-table tr:hover td {
+                border-color: #cbd5e1;
+            }
 
-                .custom-table td:last-child {
-                    border-right: 1px solid #f1f5f9;
-                    border-top-right-radius: 12px;
-                    border-bottom-right-radius: 12px;
-                }
+            .custom-table td:first-child {
+                border-left: 1px solid #e2e8f0;
+                border-top-left-radius: 12px;
+                border-bottom-left-radius: 12px;
+            }
 
-        /* Badges */
+            .custom-table td:last-child {
+                border-right: 1px solid #e2e8f0;
+                border-top-right-radius: 12px;
+                border-bottom-right-radius: 12px;
+            }
+
+        .bg-blue-light {
+            background-color: #eff6ff;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Badges cải tiến với đầy đủ trạng thái */
         .status-badge {
-            padding: 6px 12px;
-            border-radius: 20px;
+            padding: 6px 14px;
+            border-radius: 50px;
             font-size: 0.75rem;
             font-weight: 600;
             display: inline-block;
+            letter-spacing: 0.3px;
         }
 
         .bg-cho-lay {
             background: #fef3c7;
-            color: #92400e;
+            color: #d97706;
+        }
+
+        .bg-cho-tc {
+            background: #f3e8ff;
+            color: #9333ea;
+        }
+
+        .bg-dang-tc {
+            background: #e0e7ff;
+            color: #4f46e5;
         }
 
         .bg-dang-giao {
             background: #e0f2fe;
-            color: #0369a1;
+            color: #0284c7;
         }
 
         .bg-da-giao {
             background: #d1fae5;
-            color: #065f46;
+            color: #059669;
         }
 
-        .contract-link {
-            font-size: 0.75rem;
-            color: var(--primary);
-            text-decoration: none;
+        .bg-default {
+            background: #f1f5f9;
+            color: #475569;
         }
 
-            .contract-link:hover {
-                text-decoration: underline;
-            }
+        /* Phân trang đẹp hơn */
+        .pagination .page-link {
+            color: var(--text-main);
+            border-color: #e2e8f0;
+            padding: 8px 14px;
+            margin: 0 2px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .pagination .page-item.active .page-link {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .pagination .page-link:hover:not(.active) {
+            background-color: #e2e8f0;
+            color: var(--primary-hover);
+        }
     </style>
 </head>
 <body>
-    <main class="container-fluid py-4">
+    <main class="container-fluid py-4" style="max-width: 1400px;">
         <div class="main-card">
+            <!-- Header -->
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h4 fw-bold m-0"><i class="fa-solid fa-truck-fast me-2 text-primary"></i>Hệ Thống Đơn Hàng</h1>
-                <a href="@Url.Action("DanhSachDonHang")" class="btn btn-outline-secondary btn-sm rounded-pill">
-                    <i class="fa-solid fa-sync me-1"></i> Làm mới
-                </a>
+                <h1 class="h4 fw-bold m-0 text-dark">
+                    <i class="fa-solid fa-truck-fast me-2 text-primary"></i>Điều Hành Hệ Thống Đơn Hàng
+                </h1>
+                
+                <div class="position-relative">
+                    <button type="button"
+                            class="btn btn-light rounded-circle shadow-sm btn-nhat-ky d-flex align-items-center justify-content-center"
+                            style="width: 42px; height: 42px; border: 1px solid #dee2e6;"
+                            data-bs-toggle="modal"
+                            data-bs-target="#detailModal"
+                            data-service="Quản lý đơn hàng"
+                            title="Xem nhật ký hoạt động">
+                        <i class="fa-solid fa-bell text-primary fs-5"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                            <span class="visually-hidden">Hoạt động mới</span>
+                        </span>
+                    </button>
+                </div>
             </div>
 
-            <form id="filterForm" method="get" class="row g-3 mb-4 p-3 bg-light rounded-3 border">
+            <!-- Form Bộ lọc -->
+            <form id="filterForm" method="get" class="row g-3 mb-4 filter-box">
                 <div class="col-md-4">
-                    <label class="small fw-bold text-muted">Tìm kiếm</label>
-                    <input type="text" name="searchTerm" class="form-control form-control-sm auto-submit"
-                           placeholder="Mã đơn, tên hàng..." value="@ViewBag.CurrentSearch" />
+                    <label class="form-label-custom">Tìm kiếm thông tin</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input type="text" name="searchTerm" class="form-control form-control-sm auto-submit border-start-0 ps-0"
+                               placeholder="Mã đơn hàng, tên hàng hóa..." value="@ViewBag.CurrentSearch" />
+                    </div>
                 </div>
                 <div class="col-md-3">
-                    <label class="small fw-bold text-muted">Trạng thái</label>
+                    <label class="form-label-custom">Trạng thái xử lý</label>
                     <select name="trangthai" class="form-select form-select-sm auto-submit">
                         <option value="Tất cả">Tất cả trạng thái</option>
                         <option value="Chờ lấy hàng" selected='@(ViewBag.CurrentStatus == "Chờ lấy hàng")'>Chờ lấy hàng</option>
-                        <option value="Đang giao" selected='@(ViewBag.CurrentStatus == "Đang giao")'>Đang giao</option>
+                        <option value="Chờ trung chuyển" selected='@(ViewBag.CurrentStatus == "Chờ trung chuyển")'>Chờ trung chuyển</option>
+                        <option value="Đang trung chuyển" selected='@(ViewBag.CurrentStatus == "Đang trung chuyển")'>Đang trung chuyển</option>
+                        <option value="Chờ giao hàng" selected='@(ViewBag.CurrentStatus == "Chờ giao hàng")'>Đang giao</option>
                         <option value="Thành công" selected='@(ViewBag.CurrentStatus == "Thành công")'>Thành công</option>
+                        <option value="Đã hủy" selected='@(ViewBag.CurrentStatus == "Đã hủy")'>Đã hủy</option>
                     </select>
                 </div>
                 <div class="col-md-5">
-                    <label class="small fw-bold text-muted">Thời gian tạo</label>
+                    <label class="form-label-custom">Khoảng thời gian tạo đơn</label>
                     <div class="input-group input-group-sm">
                         <input type="date" name="batday" class="form-control auto-submit" value="@ViewBag.BatDay" />
-                        <span class="input-group-text">đến</span>
+                        <span class="input-group-text bg-white text-muted">đến</span>
                         <input type="date" name="ketthuc" class="form-control auto-submit" value="@ViewBag.KetThuc" />
                     </div>
                 </div>
             </form>
-
+            
+            <!-- Bảng dữ liệu -->
             <div class="table-responsive">
                 <table class="custom-table">
                     <thead>
                         <tr>
-                            <th class="text-center">STT</th>
-                            <th>Chi tiết đơn hàng</th>
-                            <th class="text-center">Ngày tạo</th>
-                            <th class="text-center">Trạng thái</th>
-                            <th class="text-end">Thao tác</th>
+                            <th class="text-center" style="width: 70px;">STT</th>
+                            <th>Thông tin chi tiết đơn hàng</th>
+                            <th class="text-center" style="width: 180px;">Ngày khởi tạo</th>
+                            <th class="text-center" style="width: 180px;">Trạng thái</th>
+                            <th class="text-end" style="width: 100px;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -169,34 +283,38 @@
                                     <td class="text-center fw-bold text-muted">@stt</td>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <div class="p-2 bg-blue-light rounded me-3">
-                                                <i class="fas fa-box text-primary"></i>
+                                            <div class="bg-blue-light rounded-3 me-3">
+                                                <i class="fas fa-box text-primary fs-5"></i>
                                             </div>
                                             <div>
-                                                <div class="fw-bold text-dark">@item.TenDonHang</div>
-                                                <div class="small text-muted">
-                                                    ID: <span class="text-dark fw-medium">#@item.MaDonHang</span>
-                                                    <span class="mx-1">|</span>
-                                                    <i class="fas fa-file-contract me-1"></i>HĐ-@item.MaDonHang
+                                                <div class="fw-bold text-dark mb-1">@item.TenDonHang</div>
+                                                <div class="small text-muted d-flex align-items-center gap-2">
+                                                    <span>Mã đơn: <strong class="text-dark">#@item.MaDonHang</strong></span>
+                                                    <span class="text-silver">|</span>
+                                                    <span><i class="fas fa-file-contract me-1 text-secondary"></i>HĐ-@item.MaDonHang</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center small">@item.ThoiGianTao.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td class="text-center text-secondary small font-monospace">@item.ThoiGianTao.ToString("dd/MM/yyyy HH:mm")</td>
                                     <td class="text-center">
                                         @{
                                             var statusClass = item.TrangThaiHienTai switch
                                             {
                                                 "Chờ lấy hàng" => "bg-cho-lay",
+                                                "Chờ trung chuyển" => "bg-cho-tc",
+                                                "Đang trung chuyển" => "bg-dang-tc",
                                                 "Đang giao" => "bg-dang-giao",
                                                 "Thành công" => "bg-da-giao",
-                                                _ => "bg-secondary text-white"
+                                                _ => "bg-default"
                                             };
                                         }
                                         <span class="status-badge @statusClass">@item.TrangThaiHienTai</span>
                                     </td>
-                                    <td class="text-end">
-                                        <button class="btn btn-sm btn-light border"><i class="fas fa-ellipsis-v"></i></button>
+                                    <td class="text-end" onclick="event.stopPropagation();">
+                                        <button class="btn btn-sm btn-light border-secondary-subtle px-2" title="Thao tác nhanh">
+                                            <i class="fas fa-ellipsis-v text-muted"></i>
+                                        </button>
                                     </td>
                                 </tr>
                                 stt++;
@@ -204,54 +322,54 @@
                         }
                         else
                         {
-                            <tr><td colspan="5" class="text-center py-5 text-muted">Không tìm thấy đơn hàng nào.</td></tr>
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="fa-regular fa-folder-open d-block fs-2 mb-2 text-silver"></i>
+                                    Không có đơn hàng nào trùng khớp với bộ lọc hiện tại.
+                                </td>
+                            </tr>
                         }
                     </tbody>
                 </table>
             </div>
 
+            <!-- Phân trang -->
             @if (ViewBag.TotalPages > 1)
             {
-                // Cấu hình số lượng trang hiển thị xung quanh trang hiện tại
                 int delta = 2;
                 int currentPage = ViewBag.CurrentPage;
                 int totalPages = ViewBag.TotalPages;
 
                 <nav class="mt-4">
                     <ul class="pagination pagination-sm justify-content-center flex-wrap">
-                        @* 1. Nút về trang đầu *@
                         @if (currentPage > 1)
                         {
                             <li class="page-item">
                                 <a class="page-link" href="@Url.Action("DanhSachDonHang", new { searchTerm = ViewBag.CurrentSearch, trangthai = ViewBag.CurrentStatus, batday = ViewBag.BatDay, ketthuc = ViewBag.KetThuc, page = 1 })" title="Trang đầu">
-                                    <i class="bi bi-chevron-double-left"></i>
+                                    <i class="fa-solid fa-angles-left"></i>
                                 </a>
                             </li>
                         }
 
-                        @* 2. Vòng lặp thông minh *@
                         @for (int i = 1; i <= totalPages; i++)
                         {
-                            // Hiển thị trang 1, trang cuối, và các trang trong khoảng (CurrentPage - delta) đến (CurrentPage + delta)
                             if (i == 1 || i == totalPages || (i >= currentPage - delta && i <= currentPage + delta))
                             {
                                 <li class="page-item @(i == currentPage ? "active" : "")">
                                     <a class="page-link" href="@Url.Action("DanhSachDonHang", new { searchTerm = ViewBag.CurrentSearch, trangthai = ViewBag.CurrentStatus, batday = ViewBag.BatDay, ketthuc = ViewBag.KetThuc, page = i })">@i</a>
                                 </li>
                             }
-                            // Hiển thị dấu "..." nếu có khoảng cách
                             else if (i == currentPage - delta - 1 || i == currentPage + delta + 1)
                             {
                                 <li class="page-item disabled"><span class="page-link">...</span></li>
                             }
                         }
 
-                        @* 3. Nút đến trang cuối *@
                         @if (currentPage < totalPages)
                         {
                             <li class="page-item">
                                 <a class="page-link" href="@Url.Action("DanhSachDonHang", new { searchTerm = ViewBag.CurrentSearch, trangthai = ViewBag.CurrentStatus, batday = ViewBag.BatDay, ketthuc = ViewBag.KetThuc, page = totalPages })" title="Trang cuối">
-                                    <i class="bi bi-chevron-double-right"></i>
+                                    <i class="fa-solid fa-angles-right"></i>
                                 </a>
                             </li>
                         }
@@ -260,9 +378,21 @@
             }
         </div>
     </main>
-
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nhật ký hệ thống</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modalBodyNhatKy">
+                    @await Html.PartialAsync("_NhatKyPartial")
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
-        // Auto submit logic
+        // Tự động Submit khi thay đổi dữ liệu đầu vào bộ lọc
         document.querySelectorAll('.auto-submit').forEach(item => {
             item.addEventListener('change', () => document.getElementById('filterForm').submit());
 

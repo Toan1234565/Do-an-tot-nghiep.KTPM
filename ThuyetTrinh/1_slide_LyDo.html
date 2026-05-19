@@ -13,8 +13,9 @@
             --primary-light: rgba(0, 51, 102, 0.04);
             --accent: #e67e22;
             --accent-light: rgba(230, 126, 34, 0.08);
-            --text-dark: #2c3e50;
-            --text-muted: #7f8c8d;
+            /* Đổi biến màu chữ mặc định thành màu đen */
+            --text-dark: #000000;
+            --text-muted: #000000;
             --logo-blue: #154294;
             --bg-gradient: radial-gradient(circle at top right, rgba(0, 51, 102, 0.05) 0%, transparent 50%),
                             radial-gradient(circle at bottom left, rgba(230, 126, 34, 0.05) 0%, transparent 50%);
@@ -63,10 +64,11 @@
             gap: 15px;
         }
 
-        .header-left h2 {
+        /* Tiêu đề chính: Cỡ chữ 18px và màu đen */
+        .header-left h1 {
             font-family: 'Lexend', sans-serif;
-            font-size: clamp(1.6rem, 2.2vw, 2.2rem);
-            color: var(--primary);
+            
+            color: #000000 !important;
             font-weight: 700;
         }
 
@@ -150,10 +152,11 @@
             background: linear-gradient(to right, var(--primary-light), transparent);
         }
 
+        /* Tiêu đề phụ trong Card: Cỡ chữ 18px và màu đen */
         h3.sub-title {
             font-family: 'Lexend', sans-serif;
-            color: var(--accent);
-            font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+            color: #000000 !important;
+            font-size: 18px !important;
             margin-bottom: 2.5vh;
             font-weight: 700;
             border-bottom: 1px dashed rgba(0,0,0,0.08);
@@ -161,7 +164,7 @@
         }
 
         .primary-theme h3.sub-title {
-            color: var(--primary);
+            color: #000000 !important;
         }
 
         /* Danh sách nội dung */
@@ -169,11 +172,12 @@
             list-style: none;
         }
 
+        /* Nội dung danh sách: Cỡ chữ 18px và màu đen */
         li {
-            font-size: clamp(0.95rem, 1.25vw, 1.15rem);
+            font-size: 18px !important;
             line-height: 1.6;
             margin-bottom: 2vh;
-            color: var(--text-dark);
+            color: #000000 !important;
             position: relative;
             padding-left: 24px;
             text-align: justify;
@@ -198,25 +202,26 @@
             background: var(--primary);
         }
 
+        /* Thẻ nhấn mạnh strong: Giữ nguyên màu đen */
         strong {
-            color: var(--primary);
+            color: #000000 !important;
             font-weight: 700;
         }
 
         .primary-theme strong {
-            color: var(--primary);
+            color: #000000 !important;
         }
 
-        /* Footer */
+        /* Footer: Cỡ chữ 18px và màu đen */
         footer {
             margin-top: auto;
             border-top: 1px solid #edf2f7;
             padding-top: 2vh;
             display: flex;
             justify-content: space-between;
-            color: var(--text-muted);
+            color: #000000 !important;
             font-weight: 600;
-            font-size: clamp(0.85rem, 1.1vw, 1rem);
+            font-size: 18px !important;
         }
 
         /* Menu Button */
@@ -228,7 +233,6 @@
             gap: 5px; 
             border-radius: 6px;
             transition: background 0.2s;
-            /* FIX: Xóa bỏ hoàn toàn viền xanh khi click */
             outline: none;
             -webkit-tap-highlight-color: transparent;
         }
@@ -275,6 +279,7 @@
         .slide-list li {
             padding-left: 0;
             margin-bottom: 5px;
+            font-size: 16px !important; /* Giữ kích thước menu hợp lý */
         }
         .slide-list li::before { display: none; }
 
@@ -346,7 +351,7 @@
                 <div class="menu-btn" id="menuToggle">
                     <span></span><span></span><span></span>
                 </div>
-                <h2>1.1 Lý do & Mục tiêu</h2>
+                <h1>1.1 Lý do & Mục tiêu</h1>
             </div>
             
             <div class="header-right-logo">
@@ -401,13 +406,7 @@
                     </ul>
                 </div>
             </div>
-        </div>      
-        
-        <!-- Thanh Footer chân trang -->
-        <footer>
-            <span>Đồ án tốt nghiệp - Ngành Kỹ thuật Phần mềm</span>
-            <span>Sinh viên: Nguyễn Đức Toán</span>
-        </footer>
+        </div>                      
     </div>
 
     <!-- Javascript xử lý sự kiện -->

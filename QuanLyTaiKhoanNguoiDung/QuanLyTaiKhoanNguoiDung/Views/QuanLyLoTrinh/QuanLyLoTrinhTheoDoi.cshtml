@@ -114,8 +114,10 @@
                     <select name="trangThai" class="form-select shadow-none auto-filter">
                         <!option value="Tất cả" @(ViewBag.CurrentTrangThai == "Tất cả" ? "selected" : "")>🌍 Tất cả trạng thái</!option>
                         <!option value="Chờ khởi hành" @(ViewBag.CurrentTrangThai == "Chờ khởi hành" ? "selected" : "")>🟡 Chờ khởi hành</!option>
-                        <!option value="Đang hoạt động" @(ViewBag.CurrentTrangThai == "Đang hoạt động" ? "selected" : "")>🟢 Đang di chuyển</!option>
+                        <!option value="Đang hoạt động" @(ViewBag.CurrentTrangThai == "Đang trung chuyển" ? "selected" : "")>🟢 Đang di chuyển</!option>
+                         <!option value="Chờ điều phối thủ công" @(ViewBag.CurrentTrangThai == "Chờ điều phối thủ công" ? "selected" : "")>🔵  Chờ điều phối thủ công</!option>
                         <!option value="Hoàn thành" @(ViewBag.CurrentTrangThai == "Hoàn thành" ? "selected" : "")>🔵 Hoàn thành</!option>
+                       
                     </select>
                 </div>
                <div class="col-md-3">

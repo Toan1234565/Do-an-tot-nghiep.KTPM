@@ -1,4 +1,6 @@
-﻿namespace QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyLoTrinh.QuanLyLoTrinhTheoDoi
+﻿using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyDiaChi;
+
+namespace QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyLoTrinh.QuanLyLoTrinhTheoDoi
 {
     public class DiemDungModels
     {
@@ -14,6 +16,6 @@
 
         public string? MaVungH3 { get; set; }
 
-      
+        public DiaChiModel? DiaChi { get; set; }
     }
 }

@@ -17,16 +17,25 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; padding: 20px 4vw; }
+        
+        /* CẬP NHẬT: font-size 18px và màu đen #000 chủ đạo */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: var(--bg); 
+            min-height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 20px 4vw; 
+            color: #000;
+        }
 
-      
         .main-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 25px; flex: 1; }
         .box { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; display: flex; flex-direction: column; }
         
-        /* Bảng kết quả */
-        .result-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
-        .result-table th { background: #f8f9fa; color: var(--primary); text-align: left; padding: 10px; border: 1px solid #dee2e6; }
-        .result-table td { padding: 10px; border: 1px solid #dee2e6; vertical-align: top; line-height: 1.4; }
+        /* Bảng kết quả - CẬP NHẬT: xóa font-size cũ, đồng bộ màu đen #000 */
+        .result-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .result-table th { background: #f8f9fa; color: #000; text-align: left; padding: 10px; border: 1px solid #dee2e6; font-weight: bold; }
+        .result-table td { padding: 10px; border: 1px solid #dee2e6; vertical-align: top; line-height: 1.4; color: #000; }
 
         /* Biểu đồ */
         .charts-preview-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px; }
@@ -45,7 +54,7 @@
         }
         .chart-card.fullscreen h4 { font-size: 1.8rem; margin-bottom: 30px; color: var(--primary); }
 
-        /* Trạng thái */
+        /* Trạng thái (Giữ nguyên kích thước badge để tránh vỡ khung) */
         .status-badge { padding: 3px 8px; border-radius: 4px; color: #fff; font-weight: bold; font-size: 0.75rem; white-space: nowrap; }
         .bg-success { background: var(--success); }
         .bg-warning { background: var(--warning); }
@@ -63,7 +72,6 @@
             gap: 6px; 
             margin-right: 25px; 
         }
-       
         
         .menu-btn:hover { transform: scale(1.05); background: #004a94; }
         .menu-btn span { display: block; width: 25px; height: 3px; background: white; border-radius: 2px; }
@@ -130,7 +138,6 @@
             z-index: 999;
         }
 
-        /* ĐÃ SỬA: Đưa logo về cấu trúc hiển thị Flexbox tự nhiên phối hợp cùng Slide Header */
         .header {
             margin-left: auto;
             display: flex; 
@@ -183,7 +190,7 @@
     </style>
 </head>
 <body>
-<div class="sidebar" id="sidebar">
+    <div class="sidebar" id="sidebar">
         <h4>Danh sách Slide</h4>
         <ul class="slide-list">
             <li><a href="PPThuyetTrinh.html">Tiêu đề</a></li>
@@ -203,14 +210,14 @@
             <li><a href="14_slide_Kiemthu_04.html">14. RabbitMQ khi server sập</a></li>
         </ul>
     </div>
+    
     <header>
         <div class="menu-btn" onclick="toggleMenu()">
             <span></span><span></span><span></span>
         </div>
         <h1>3.4. Kiểm thử chức năng Điều phối và lập lộ trình tự động</h1>
         
-       
-         <div class="header">
+        <div class="header">
             <div class="logo-crop-wrapper">
                 <img src="file:///D:\Đồ án tốt nghiệp\ThuyetTrinh\HinhAnh\LogoTruong.jpg" class="school-logo-img" alt="Logo">
             </div> 
@@ -226,14 +233,14 @@
             
             <div style="margin-bottom: 15px;">
                 <strong style="font-size: 1.1rem; color: var(--primary);">Mục tiêu thực nghiệm:</strong>
-                <p style="font-size: 1rem; margin-top: 5px; color: #444;">Kiểm tra giới hạn chịu tải của thuật toán <b>Bin Packing</b> và xác định điểm nghẽn hệ thống (Bottleneck) khi quy mô dữ liệu tăng dần.</p>
+                <p style="margin-top: 5px;">Kiểm tra giới hạn chịu tải của thuật toán <b>Bin Packing</b> và xác định điểm nghẽn hệ thống (Bottleneck) khi quy mô dữ liệu tăng dần.</p>
             </div>
 
             <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
                 <strong style="display: block; margin-bottom: 10px;">Thông số giả lập:</strong>
-                <ul style="list-style: none; line-height: 1.8; color: #555;">
-                    <li>• <span class="tag">Threads:</span> 1 (Xử lý tuần tự)</li>
-                    <li>• <span class="tag">Ramp-up:</span> 10 giây</li>
+                <ul style="list-style: none; line-height: 1.8;">
+                    <li>• <span class="tag">Số luồng (Threads):</span> 1 (Xử lý tuần tự)</li>
+                    <li>• <span class="tag">Thời gian tăng tải (Ramp-up):</span> 10 giây</li>
                     <li>• <span class="tag">Quy mô:</span> 100 → 5000 đơn hàng</li>
                     <li>• <span class="tag">Thuật toán:</span> Heuristic Bin Packing</li>
                 </ul>
@@ -241,7 +248,7 @@
 
             <div style="margin-top: 20px;">
                 <strong style="color: var(--primary);">Kỳ vọng:</strong>
-                <p style="font-style: italic; color: #666; margin-top: 5px;">Thời gian xử lý tăng tuyến tính, không xảy ra lỗi Timeout hoặc tràn bộ nhớ (Out of Memory).</p>
+                <p style="font-style: italic; margin-top: 5px;">Thời gian xử lý tăng tuyến tính, không xảy ra lỗi Timeout hoặc tràn bộ nhớ (Out of Memory).</p>
             </div>
         </div>
 
@@ -337,7 +344,7 @@
             }
         };
 
-        // Biểu đồ Thời gian phản hồi (Dữ liệu từ bảng và ảnh 1)
+        // Biểu đồ Thời gian phản hồi
         new Chart(document.getElementById('responseTimeChart'), {
             type: 'line',
             data: {
@@ -357,7 +364,7 @@
             options: commonOptions
         });
 
-        // Biểu đồ Thông lượng (Dữ liệu từ bảng và ảnh 2)
+        // Biểu đồ Thông lượng
         new Chart(document.getElementById('throughputChart'), {
             type: 'line',
             data: {
@@ -380,10 +387,6 @@
     </script>
 
     <script>
-        /**
-         * 1. XỬ LÝ MENU & SIDEBAR
-         * Đảm bảo menu hoạt động ngay cả khi HTML thiếu thẻ overlay
-         */
         function toggleMenu() {
             const sidebar = document.getElementById('sidebar');
             let overlay = document.getElementById('overlay');
@@ -391,11 +394,10 @@
             if (sidebar) {
                 sidebar.classList.toggle('active');
                 
-                // Nếu không tìm thấy overlay trong HTML, tự tạo mới để menu hoạt động
                 if (!overlay) {
                     overlay = document.createElement('div');
                     overlay.id = 'overlay';
-                    overlay.className = 'overlay'; // Đảm bảo trùng class CSS của bạn
+                    overlay.className = 'overlay';
                     overlay.onclick = toggleMenu;
                     document.body.appendChild(overlay);
                 }
@@ -407,12 +409,8 @@
             }
         }
 
-        /**
-         * 2. ĐIỀU CHỈNH FONT SIZE (RESPONSIVE)
-         */
         function adjustLayout() {
             const width = window.innerWidth;
-            // Kiểm tra cả .project-title và .main-title để tránh lỗi
             const title = document.querySelector('.project-title') || document.querySelector('.main-title');
             
             if (title) {
@@ -420,10 +418,6 @@
             }
         }
 
-        /**
-         * 3. ĐỒNG BỘ PHÍM BẤM VỚI TRANG CHỦ
-         * Giúp phím mũi tên vẫn hoạt động sau khi bạn click vào slide
-         */
         function syncKeys() {
             window.addEventListener('keydown', (e) => {
                 window.parent.postMessage({
@@ -434,18 +428,14 @@
             });
         }
 
-        /**
-         * 4. KHỞI CHẠY HỆ THỐNG
-         */
         document.addEventListener('DOMContentLoaded', () => {
             adjustLayout();
             syncKeys();
 
-            // Tự động gán sự kiện click cho các nút menu có sẵn
             const btn = document.querySelector('.menu-icon') || document.querySelector('.menu-btn');
             if (btn) {
                 btn.onclick = (e) => {
-                    e.stopPropagation(); // Ngăn sự kiện nổi bọt
+                    e.stopPropagation();
                     toggleMenu();
                 };
             }

@@ -1,4 +1,5 @@
 ﻿using Azure.Core;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Tmdt.Shared.Services;
 
 namespace QuanLyDonHang.ControllersAPI
 {
@@ -30,7 +32,7 @@ namespace QuanLyDonHang.ControllersAPI
         private readonly IKhachHangService _khachHangService;
         private readonly IDiaChiService _diaChiService;
         private readonly IKhoBaiService _khoBaiService;
-
+        private readonly ISystemService _sys;
 
         // Thông tin tài khoản test Momo (Bạn có thể đăng ký tại developers.momo.vn)
         string endpoint = "https://test-payment.momo.vn/v2/gateway/api/create";
@@ -39,7 +41,7 @@ namespace QuanLyDonHang.ControllersAPI
         string secretKey = "at67bcvdghas78nhj";   // Secret Key
 
         private static CancellationTokenSource _resetCacheSignal = new CancellationTokenSource();
-        public DonHang(TmdtContext context, ILogger<DonHang> logger, IMemoryCache cache, IHttpClientFactory httpClientFactory, HttpClient httpClient, IKhachHangService khachHangService, IDiaChiService diaChiService, IKhoBaiService khoBaiService )
+        public DonHang(TmdtContext context, ILogger<DonHang> logger, IMemoryCache cache, IHttpClientFactory httpClientFactory, HttpClient httpClient, IKhachHangService khachHangService, IDiaChiService diaChiService, IKhoBaiService khoBaiService, ISystemService sys     )
         {
             _context = context;
             _logger = logger;
@@ -49,7 +51,8 @@ namespace QuanLyDonHang.ControllersAPI
             _khachHangService = khachHangService;
             _diaChiService = diaChiService;
             _httpClient = httpClient;
-                _khoBaiService = khoBaiService;
+            _khoBaiService = khoBaiService;
+            _sys = sys;
         }
         [HttpGet("danhsachdonhang")]
         public async Task<IActionResult> GetDanhSach([FromQuery] string? searchTerm, [FromQuery] string? trangthai, [FromQuery] int page = 1, [FromQuery] int pageSize = 15, [FromQuery] DateTime? batday = null, [FromQuery] DateTime? ketthuc = null)
@@ -988,7 +991,7 @@ namespace QuanLyDonHang.ControllersAPI
             };
 
                         // Danh mục Miền Trung chuẩn (Bao gồm Bắc Trung Bộ, Nam Trung Bộ và Tây Nguyên - 19 tỉnh/thành)
-                        var mienTrung = new HashSet<string>
+            var mienTrung = new HashSet<string>
             {
                 // Bắc Trung Bộ (Đã dời Thanh - Nghệ - Tĩnh về đúng Miền Trung)
                 "thanh hóa", "nghệ an", "hà tĩnh", "quảng bình", "quảng trị", "thừa thiên huế", "huế",
@@ -1001,7 +1004,7 @@ namespace QuanLyDonHang.ControllersAPI
             };
 
                         // Danh mục Miền Nam chuẩn (Bao gồm Đông Nam Bộ và Tây Nam Bộ - 19 tỉnh/thành)
-                        var mienNam = new HashSet<string>
+            var mienNam = new HashSet<string>
             {
                 // Đông Nam Bộ (Bổ sung đầy đủ các thủ phủ công nghiệp)
                 "hồ chí minh", "tp hcm", "tphcm", "saigon", "sài gòn", // Đón đầu các biến thể người dùng gõ
@@ -1489,6 +1492,99 @@ namespace QuanLyDonHang.ControllersAPI
                 _logger.LogError(ex, "Lỗi hệ thống khi bóc tách thông tin vùng miền giao hàng cho đơn: {MaDonHang}", maDonHang);
                 return StatusCode(500, "Lỗi Server nội bộ khi bóc tách thông tin luân chuyển vùng: " + ex.Message);
             }
+        }
+
+        [Authorize] // Bắt buộc phải đăng nhập mới được hủy đơn hàng
+        [HttpPut("huy-don-hang/{madonhang}")]
+        public async Task<IActionResult> HuyDonHang(int? madonhang, [FromBody] HuyDonHangRequest request)
+        {
+            // 1. Kiểm tra đầu vào (Input Validation)
+            if (!madonhang.HasValue || madonhang <= 0)
+            {
+                return BadRequest(new { message = "Mã đơn hàng không hợp lệ." });
+            }
+
+            if (request == null || string.IsNullOrWhiteSpace(request.LyDoHuy))
+            {
+                return BadRequest(new { message = "Vui lòng cung cấp lý do hủy đơn hàng." });
+            }
+
+            // Lấy ID của người thực hiện thao tác từ hệ thống
+            var nguoiThucHienId = _sys.GetCurrentUserId();
+
+            // 2. Sử dụng Transaction để đảm bảo tính toàn vẹn (Giống hàm Vô hiệu hóa)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Truy vấn đơn hàng ra để xử lý
+                var donhang = await _context.DonHangs.FindAsync(madonhang);
+
+                if (donhang == null)
+                {
+                    return NotFound(new { message = $"Không tìm thấy đơn hàng với mã: {madonhang}" });
+                }
+
+                // 3. Logic bảo vệ nghiệp vụ (Business Rule Validation)
+                // Không cho phép hủy nếu đơn hàng đã hoàn thành hoặc đã bị hủy trước đó
+                if (donhang.TrangThaiHienTai == "Đã hủy")
+                {
+                    return BadRequest(new { message = "Đơn hàng này đã được hủy từ trước." });
+                }
+                if (donhang.TrangThaiHienTai == "Đã hoàn thành" || donhang.TrangThaiHienTai == "Đang giao hàng")
+                {
+                    return BadRequest(new { message = $"Không thể hủy đơn hàng khi trạng thái là: {donhang.TrangThaiHienTai}" });
+                }
+
+                // Lưu lại trạng thái cũ để phục vụ ghi Log nhật ký
+                string trangThaiCu = donhang.TrangThaiHienTai;
+
+                // 4. Cập nhật trạng thái và thông tin hủy
+                donhang.TrangThaiHienTai = "Đã hủy";
+              
+                donhang.GhiChuDacBiet = $"Lý do hủy: {request.LyDoHuy.Trim()}"; // Cập nhật ghi chú đặc biệt
+
+                await _context.SaveChangesAsync();
+
+                // 5. GHI LOG NHẬT KÝ HỆ THỐNG (Đồng bộ với _sys)
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Quản lý đơn hàng",
+                    $"Hủy đơn hàng mã: {donhang.MaDonHang}. Lý do: {request.LyDoHuy.Trim()}",
+                    "DonHang",
+                    madonhang.ToString(),
+                    new Dictionary<string, object> { { "Trạng thái", trangThaiCu } },
+                    new Dictionary<string, object> {
+                        { "Trạng thái", "Đã hủy" },
+                        { "Ghi chú", donhang.GhiChuDacBiet }
+                    }
+                );
+
+                // 6. XÓA CACHE ĐỂ ĐỒNG BỘ DỮ LIỆU MỚI
+                // Xóa cache chi tiết của chính đơn hàng này
+                string detailCacheKey = $"ChiTietDonHang_{madonhang}";
+                _cache.Remove(detailCacheKey);
+
+                // Phát tín hiệu xóa toàn bộ cache danh sách đơn hàng (sử dụng Token giống API danh sách)
+                _resetCacheSignal.Cancel();
+
+                // Commit transaction thành công
+                await transaction.CommitAsync();
+
+                return Ok(new { success = true, message = "Hủy đơn hàng thành công.", maDonHang = donhang.MaDonHang });
+            }
+            catch (Exception ex)
+            {
+                // Hoàn tác dữ liệu nếu có bất kỳ lỗi nào xảy ra
+                await transaction.RollbackAsync();
+
+                _logger.LogError(ex, "Lỗi khi hủy đơn hàng {MaDonHang} bởi UserID: {UserId}", madonhang, nguoiThucHienId);
+                return StatusCode(500, new { message = "Lỗi hệ thống khi thực hiện hủy đơn hàng." });
+            }
+        }
+
+        // Data Transfer Object (DTO) nhận dữ liệu từ Client gửi lên
+        public class HuyDonHangRequest
+        {
+            public string LyDoHuy { get; set; } = string.Empty;
         }
     }
 }

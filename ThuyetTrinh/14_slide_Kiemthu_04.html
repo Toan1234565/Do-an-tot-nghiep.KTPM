@@ -21,6 +21,7 @@
             font-family: 'Segoe UI', Tahoma, sans-serif; 
             background: var(--bg); 
             color: #333;
+            font-size: 18px; /* Nội dung mặc định toàn trang là 18px */
         }
 
         body { 
@@ -29,6 +30,11 @@
             padding: 15px 25px; 
         }
 
+        /* ĐÃ SỬA: Giữ nguyên h1/h3 chuẩn tiêu đề, không ép kích thước px cố định */
+        header h1 { 
+            font-size: 2rem; 
+            font-weight: bold;
+        }
        
         header p { font-size: 0.9rem; color: #666; }
 
@@ -57,12 +63,12 @@
             border-left: 4px solid var(--secondary); 
             padding-left: 8px; 
             margin-bottom: 10px; 
-            font-size: 1.1rem; 
+            font-size: 1.35rem; /* Tiêu đề vùng nội dung */
             flex-shrink: 0;
         }
 
-        /* Table Style - Thu nhỏ font */
-        .test-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; flex-grow: 1; }
+        /* Bảng hiển thị nội dung */
+        .test-table { width: 100%; border-collapse: collapse; font-size: 1rem; flex-grow: 1; }
         .test-table th { background: #f8f9fa; color: var(--primary); padding: 6px; border: 1px solid #dee2e6; }
         .test-table td { padding: 6px; border: 1px solid #dee2e6; vertical-align: middle; }
 
@@ -76,7 +82,7 @@
         }
         .stat-card { border: 1px solid #eee; padding: 8px; border-radius: 5px; background: #fafafa; display: flex; flex-direction: column; }
         .chart-container { flex-grow: 1; min-height: 0; position: relative; }
-        .stat-line { display: flex; justify-content: space-between; font-size: 0.75rem; font-family: monospace; margin-top: 5px; }
+        .stat-line { display: flex; justify-content: space-between; font-size: 0.85rem; font-family: monospace; margin-top: 5px; }
         .ready-color { color: #d9534f; font-weight: bold; }
 
         /* Message Preview */
@@ -86,17 +92,18 @@
             padding: 10px; 
             border-radius: 5px; 
             font-family: 'Courier New', monospace; 
-            font-size: 0.75rem; 
+            font-size: 0.85rem; 
             overflow: hidden;
+            line-height: 1.4;
         }
 
-        /* Đánh giá tổng kết - Layout ngang */
+        /* Đánh giá tổng kết */
         .evaluation { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
             gap: 10px; 
             list-style: none; 
-            font-size: 0.8rem;
+            font-size: 1rem;
         }
         .evaluation li { 
             background: #f0f4f8; 
@@ -108,11 +115,11 @@
         .footer-info { 
             margin-top: 10px; 
             text-align: right; 
-            font-size: 0.75rem; 
+            font-size: 0.8rem; 
             color: #999; 
             flex-shrink: 0;
         }
-        
+       
         .highlight { color: var(--secondary); font-weight: bold; }
 
         .menu-btn { 
@@ -124,7 +131,6 @@
             margin-right: 25px; 
         }
        
-        
         .menu-btn:hover { transform: scale(1.05); background: #004a94; }
         .menu-btn span { display: block; width: 25px; height: 3px; background: white; border-radius: 2px; }
 
@@ -149,7 +155,7 @@
         .sidebar h4 {
             color: #f1c40f;
             text-transform: uppercase;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             letter-spacing: 2px;
             margin-top: 30px;
             margin-bottom: 20px;
@@ -190,7 +196,7 @@
             z-index: 999;
         }
 
-        /* ĐÃ SỬA: Đưa logo về cấu trúc hiển thị Flexbox tự nhiên phối hợp cùng Slide Header */
+        /* Logo Trường Hào đối xứng Flexbox */
         .header {
             margin-left: auto;
             display: flex; 
@@ -243,7 +249,7 @@
     </style>
 </head>
 <body>
-<div class="sidebar" id="sidebar">
+    <div class="sidebar" id="sidebar">
         <h4>Danh sách Slide</h4>
         <ul class="slide-list">
             <li><a href="PPThuyetTrinh.html">Tiêu đề</a></li>
@@ -263,6 +269,7 @@
             <li><a href="14_slide_Kiemthu_04.html">14. RabbitMQ khi server sập</a></li>
         </ul>
     </div>
+    
     <header>
         <div class="menu-btn" onclick="toggleMenu()">
             <span></span><span></span><span></span>
@@ -285,7 +292,7 @@
             <table class="test-table">
                 <thead>
                     <tr>
-                        <th width="40">STT</th>
+                        <th width="50">STT</th>
                         <th>Bước thực hiện</th>
                         <th>Mong đợi</th>
                     </tr>
@@ -316,15 +323,15 @@
         <div class="content-box">
             <h3 class="section-title">3. Payload Detail (Hình 4.8)</h3>
             <div class="message-preview">
-            {
-            "Action": "Update_Vehicle",
-            "VehicleID": "29H-123.45",
-            "Timestamp": "2024-05-20T20:38:25Z",
-            "ChangedFields": {"Status": "In_Transit"},
-            "Source": "API_CapNhatXe"
-            }
+{
+  "Action": "Update_Vehicle",
+  "VehicleID": "29H-123.45",
+  "Timestamp": "2024-05-20T20:38:25Z",
+  "ChangedFields": {"Status": "In_Transit"},
+  "Source": "API_CapNhatXe"
+}
             </div>
-            <p style="font-size: 0.75rem; margin-top:5px; color:#666">Dữ liệu đóng gói Byte Stream, đảm bảo tính toàn vẹn tuyệt đối.</p>
+            <p style="font-size: 0.8rem; margin-top:5px; color:#666">Dữ liệu đóng gói Byte Stream, đảm bảo tính toàn vẹn tuyệt đối.</p>
         </div>
 
         <div class="content-box">
@@ -332,7 +339,7 @@
             <ul class="evaluation">
                 <li><b>Tách rời:</b> API không bị treo khi Consumer sập.</li>
                 <li><b>Tin cậy:</b> Tỷ lệ mất mát <span class="highlight">0.00%</span>.</li>
-                <li><b>Phục hồi:</b> Xử lý dứt điểm 500 tin trong < 30s.</li>
+                <li><b>Phục hồi:</b> Xử lý dứt điểm 500 tin trong &lt; 30s.</li>
             </ul>
         </div>
     </div>
@@ -380,10 +387,6 @@
         });
     </script>
     <script>
-        /**
-         * 1. XỬ LÝ MENU & SIDEBAR
-         * Đảm bảo menu hoạt động ngay cả khi HTML thiếu thẻ overlay
-         */
         function toggleMenu() {
             const sidebar = document.getElementById('sidebar');
             let overlay = document.getElementById('overlay');
@@ -391,11 +394,10 @@
             if (sidebar) {
                 sidebar.classList.toggle('active');
                 
-                // Nếu không tìm thấy overlay trong HTML, tự tạo mới để menu hoạt động
                 if (!overlay) {
                     overlay = document.createElement('div');
                     overlay.id = 'overlay';
-                    overlay.className = 'overlay'; // Đảm bảo trùng class CSS của bạn
+                    overlay.className = 'overlay'; 
                     overlay.onclick = toggleMenu;
                     document.body.appendChild(overlay);
                 }
@@ -403,16 +405,12 @@
                 const isActive = sidebar.classList.contains('active');
                 overlay.style.display = isActive ? 'block' : 'none';
             } else {
-                console.error("Lỗi: Không tìm thấy ID 'sidebar'. Hãy kiểm tra lại HTML của slide.");
+                console.error("Lỗi: Không tìm thấy ID 'sidebar'.");
             }
         }
 
-        /**
-         * 2. ĐIỀU CHỈNH FONT SIZE (RESPONSIVE)
-         */
         function adjustLayout() {
             const width = window.innerWidth;
-            // Kiểm tra cả .project-title và .main-title để tránh lỗi
             const title = document.querySelector('.project-title') || document.querySelector('.main-title');
             
             if (title) {
@@ -420,10 +418,6 @@
             }
         }
 
-        /**
-         * 3. ĐỒNG BỘ PHÍM BẤM VỚI TRANG CHỦ
-         * Giúp phím mũi tên vẫn hoạt động sau khi bạn click vào slide
-         */
         function syncKeys() {
             window.addEventListener('keydown', (e) => {
                 window.parent.postMessage({
@@ -434,18 +428,14 @@
             });
         }
 
-        /**
-         * 4. KHỞI CHẠY HỆ THỐNG
-         */
         document.addEventListener('DOMContentLoaded', () => {
             adjustLayout();
             syncKeys();
 
-            // Tự động gán sự kiện click cho các nút menu có sẵn
             const btn = document.querySelector('.menu-icon') || document.querySelector('.menu-btn');
             if (btn) {
                 btn.onclick = (e) => {
-                    e.stopPropagation(); // Ngăn sự kiện nổi bọt
+                    e.stopPropagation(); 
                     toggleMenu();
                 };
             }

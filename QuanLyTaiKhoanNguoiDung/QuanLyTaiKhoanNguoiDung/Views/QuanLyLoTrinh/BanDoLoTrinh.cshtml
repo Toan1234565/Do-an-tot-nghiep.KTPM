@@ -1,0 +1,178 @@
+﻿@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyNguoiDung.QuanLyNguoiDung.QuanLyNhanVien
+@using QuanLyTaiKhoanNguoiDung.Models12.SeverQuanLyKhachHang.QuanLyDiaChi
+@using QuanLyTaiKhoanNguoiDung.Models12.ServerQuanLyLoTrinh.QuanLyLoTrinhTheoDoi
+@model ChiTietLoTrinhModels
+
+@{
+    ViewData["Title"] = "Bản đồ số lộ trình di chuyển";
+}
+
+<!-- TẢI THƯ VIỆN BẢN ĐỒ GỐC LEAFLET -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- TẢI THÊM THƯ VIỆN ĐỊNH TUYẾN ĐƯỜNG ĐI -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+<style>
+    body, html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+    }
+    /* Bản đồ chiếm toàn bộ không gian màn hình bên dưới thanh điều hướng */
+    #fullScreenMap {
+        height: calc(100vh - 60px);
+        width: 100%;
+    }
+    .map-sidebar-card {
+        position: absolute;
+        top: 80px;
+        left: 20px;
+        z-index: 1000;
+        width: 320px;
+        background: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        border-radius: 8px;
+    }
+    /* Ẩn bảng hướng dẫn chữ mặc định */
+    .leaflet-routing-container {
+        display: none !important;
+    }
+
+    /* CSS ĐỊNH DẠNG VÒNG TRÒN SỐ THỨ TỰ TRÊN BẢN ĐỒ (GIỐNG GOOGLE MAPS) */
+    .custom-number-marker {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #007bff; /* Màu xanh nước biển đặc trưng */
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        border: 3px solid white; /* Viền trắng bo quanh nổi bật */
+        border-radius: 50%; /* Tạo hình tròn hoàn hảo */
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4); /* Đổ bóng công nghệ hiện đại */
+        transition: transform 0.2s ease-in-out;
+    }
+    .custom-number-marker:hover {
+        transform: scale(1.2);
+        background-color: #dc3545; /* Đổi sang màu đỏ khi rê chuột vào */
+        cursor: pointer;
+    }
+</style>
+
+<!-- Thanh công cụ phía trên Bản đồ -->
+<div class="bg-dark text-white p-3 d-flex justify-content-between align-items-center" style="height: 60px;">
+    <div class="d-flex align-items-center">
+        <a href="javascript:history.back()" class="btn btn-sm btn-outline-light me-3">
+            <i class="fas fa-arrow-left me-1"></i> Quay lại chi tiết
+        </a>
+        <h5 class="mb-0 fw-bold"><i class="fas fa-route text-warning me-2"></i>Bản đồ định tuyến lộ trình #@Model.MaLoTrinh</h5>
+    </div>
+    <div>
+        <span class="badge bg-primary px-3 py-2">Trạng thái: @Model.TrangThai</span>
+    </div>
+</div>
+
+<!-- Khung chứa bản đồ toàn màn hình -->
+<div class="position-relative">
+    <div id="fullScreenMap"></div>
+
+    <!-- Bảng thông tin nhỏ ghim nổi góc trái bản đồ -->
+    <div class="card map-sidebar-card p-3">
+        <div class="fw-bold text-dark border-bottom pb-2 mb-2">Thông tin hành trình</div>
+        <div class="small text-muted mb-1"><i class="fas fa-truck me-1"></i> Xe thực hiện: <strong>@Model.ThongTinPhuongTien?.BienSo</strong></div>
+        <div class="small text-muted mb-1"><i class="fas fa-user me-1"></i> Tài xế: <strong>@Model.TenTaiXeThucHienChinh</strong></div>
+        <div class="small text-muted mb-3"><i class="fas fa-weight-hanging me-1"></i> Tổng tải: <span class="badge bg-secondary">@Model.khoiLuong kg</span></div>
+        
+        <div class="small fw-bold text-secondary mb-1">Trình tự di chuyển:</div>
+        <div style="max-height: 200px; overflow-y: auto;">
+            @foreach (var dd in Model.DiemDungs?.OrderBy(x => x.ThuTuDung))
+            {
+                <div class="d-flex align-items-start mb-2 border-left ps-2" style="border-left: 2px solid #0d6efd;">
+                    <span class="badge bg-primary me-2" style="font-size: 0.65rem;">@dd.ThuTuDung</span>
+                    <div style="font-size: 0.75rem; line-height: 1.2;">
+                        <div class="fw-bold text-dark">@dd.LoaiDung</div>
+                        <div class="text-muted text-truncate" style="max-width: 220px;">@dd.DiaChi?.Duong, @dd.DiaChi?.ThanhPho</div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Script vẽ đường đi thông minh bám theo hệ thống đường quốc lộ -->
+<script>
+    const diemDungsData = @Json.Serialize(Model.DiemDungs?.OrderBy(x => x.ThuTuDung).Select(dd => new {
+        thuTu = dd.ThuTuDung,
+        loai = dd.LoaiDung,
+        duong = dd.DiaChi?.Duong,
+        thanhPho = dd.DiaChi?.ThanhPho,
+        viDo = dd.DiaChi?.ViDo,
+        kinhDo = dd.DiaChi?.KinhDo
+    }));
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const validPoints = diemDungsData.filter(p => p.viDo && p.kinhDo);
+
+        if (validPoints.length === 0) {
+            document.getElementById('fullScreenMap').innerHTML = "<div class='text-center p-5 h3 text-muted'>Không tìm thấy dữ liệu tọa độ định vị toàn cầu GPS.</div>";
+            return;
+        }
+
+        // 1. Khởi tạo bản đồ ngắm vào Việt Nam làm gốc
+        const map = L.map('fullScreenMap').setView([validPoints[0].viDo, validPoints[0].kinhDo], 6);
+        
+        // CẬP NHẬT: Dùng API tileLayer của CartoDB hiển thị rõ ràng địa danh Việt Nam bằng tiếng Việt
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // 2. Chuyển đổi danh sách điểm dừng
+        const waypointsList = validPoints.map(function (point) {
+            return L.latLng(point.viDo, point.kinhDo);
+        });
+
+        // 3. Kích hoạt định tuyến giao thông đường bộ Việt Nam
+        const routingControl = L.Routing.control({
+            waypoints: waypointsList,
+            routeWhileDragging: false,
+            addWaypoints: false,       
+            fitSelectedRoutes: true,   
+            
+            lineOptions: {
+                styles: [
+                    { color: '#1565c0', opacity: 0.85, weight: 6 } // Màu xanh đường kẻ mượt mà
+                ]
+            },
+            
+            // CẬP NHẬT: Hàm vẽ số thứ tự nằm gọn trong vòng tròn ghim trên bản đồ
+            createMarker: function(i, waypoint, n) {
+                const currentPointData = validPoints[i];
+                
+                // Tạo một thẻ HTML chứa số thứ tự thay thế cho icon giọt nước cũ
+                const numberIcon = L.divIcon({
+                    className: 'custom-number-marker',
+                    html: `<div>${currentPointData.thuTu}</div>`,
+                    iconSize: [32, 32],      // Kích thước vòng tròn (Rộng 32px, Cao 32px)
+                    iconAnchor: [16, 16]     // Căn tâm vòng tròn trùng khớp chính xác vị trí tọa độ GPS
+                });
+
+                const popupContent = `
+                    <div style="font-family: sans-serif; width: 190px;">
+                        <span class="badge bg-primary mb-1" style="color:white; padding: 2px 6px;">Mốc dừng số: ${currentPointData.thuTu}</span>
+                        <div style="font-weight:bold; color:#212529; font-size:0.85rem; margin-top:3px;">${currentPointData.loai}</div>
+                        <div style="font-size:0.75rem; color:#6c757d; margin-top:2px;">${currentPointData.duong || ''}, ${currentPointData.thanhPho || ''}</div>
+                    </div>
+                `;
+
+                return L.marker(waypoint.latLng, { icon: numberIcon })
+                        .bindPopup(popupContent);
+            }
+        }).addTo(map);
+    });
+</script>

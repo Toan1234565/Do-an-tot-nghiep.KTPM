@@ -111,9 +111,19 @@
                 </nav>
                 <h3 class="fw-bold m-0" style="color: #333;">@Model?.TenDonHang</h3>
             </div>
-            <a href="javascript:history.back()" class="btn btn-outline-secondary px-4 shadow-sm" style="border-radius: 10px; background: white;">
-                <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
-            </a>
+            <div class="d-flex gap-2">
+                <!-- THÊM: Nút mở Modal Hủy đơn hàng (Chỉ hiển thị khi đơn hàng hợp lệ để hủy) -->
+                @if (Model?.TrangThaiHienTai != "Đã hủy" && Model?.TrangThaiHienTai != "Thành công" && Model?.TrangThaiHienTai != "Đang giao hàng")
+                {
+                    <button type="button" class="btn btn-danger px-4 shadow-sm d-flex align-items-center gap-2" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modalHuyDonHang">
+                        <i class="bi bi-x-circle"></i> Hủy đơn hàng
+                    </button>
+                }
+                
+                <a href="javascript:history.back()" class="btn btn-outline-secondary px-4 shadow-sm" style="border-radius: 10px; background: white;">
+                    <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+                </a>
+            </div>
         </div>
         <div class="card shadow-sm mb-4 py-4">
             <div class="timeline-steps">
@@ -382,5 +392,119 @@
         </div>
     </div>
 </div>
+<!-- ======================================================= -->
+<!-- THÊM 2: BOOTSTRAP MODAL NHẬP LÝ DO HỦY ĐƠN HÀNG          -->
+<!-- ======================================================= -->
+<div class="modal fade" id="modalHuyDonHang" data-bs-backdrop="static" tabindex="-1" aria-labelledby="modalHuyDonHangLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 15px;">
+            <div class="modal-header bg-danger text-white" style="border-top-left-radius: 14px; border-top-right-radius: 14px;">
+                <h5 class="modal-title fw-bold" id="modalHuyDonHangLabel"><i class="bi bi-exclamation-octagon me-2"></i>Xác Nhận Hủy Đơn Hàng</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <div class="text-center mb-3">
+                    <i class="bi bi-x-circle text-danger" style="font-size: 3rem;"></i>
+                    <p class="mt-2 text-dark font-medium">Bạn có chắc chắn muốn hủy đơn hàng <strong>@Model?.TenDonHang</strong>? Thao tác này không thể hoàn tác.</p>
+                </div>
+                <div class="mb-3">
+                    <label for="txtLyDoHuy" class="form-label fw-bold text-muted small">LÝ DO HỦY ĐƠN (BẮT BUỘC)</label>
+                    <textarea class="form-control" id="txtLyDoHuy" rows="3" placeholder="Nhập lý do cụ thể tại đây... Ví dụ: Khách đổi ý, Sai thông tin địa chỉ..." style="border-radius: 10px;"></textarea>
+                    <div class="invalid-feedback" id="valLyDoHuy">Vui lòng cung cấp lý do hủy đơn hàng.</div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light" style="border-bottom-left-radius: 14px; border-bottom-right-radius: 14px;">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal" id="btnDongModal" style="border-radius: 8px;">Đóng</button>
+                <button type="button" class="btn btn-danger px-4 fw-bold" id="btnXacNhanHuy" onclick="thucHienHuyDonHang(@Model?.MaDonHang)" style="border-radius: 8px;">
+                    <span class="spinner-border spinner-border-sm d-none" id="loadingHuy" role="status" aria-hidden="true"></span>
+                    Xác nhận hủy
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+<!-- ======================================================= -->
+<!-- THÊM 3: JAVASCRIPT CALL API VÀ XỬ LÝ GIAO DIỆN           -->
+<!-- ======================================================= -->
+<script>
+    async function thucHienHuyDonHang(maDonHang) {
+        if (!maDonHang) {
+            alert("Không tìm thấy mã đơn hàng hợp lệ.");
+            return;
+        }
+
+        const txtLyDoHuy = document.getElementById("txtLyDoHuy");
+        const valLyDoHuy = document.getElementById("valLyDoHuy");
+        const btnXacNhanHuy = document.getElementById("btnXacNhanHuy");
+        const btnDongModal = document.getElementById("btnDongModal");
+        const loadingHuy = document.getElementById("loadingHuy");
+
+        const lyDoText = txtLyDoHuy.value.trim();
+
+        // Validate Client-side lý do trống
+        if (lyDoText === "") {
+            txtLyDoHuy.classList.add("is-invalid");
+            valLyDoHuy.style.display = "block";
+            txtLyDoHuy.focus();
+            return;
+        } else {
+            txtLyDoHuy.classList.remove("is-invalid");
+            valLyDoHuy.style.display = "none";
+        }
+
+        // Đổi giao diện nút bấm sang trạng thái Loading
+        btnXacNhanHuy.disabled = true;
+        btnDongModal.disabled = true;
+        loadingHuy.classList.remove("d-none");
+
+        try {
+            // Thực hiện gọi API
+            const response = await fetch(`https://localhost:7264/api/quanlydonhang/huy-don-hang/${maDonHang}`, {
+                method: 'PUT',
+                // QUAN TRỌNG: Gửi kèm Cookie xác thực (.TMDT.Session và TMDT_Shared_Auth) lên Server API
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ lyDoHuy: lyDoText })
+            });
+
+            // Kiểm tra các lỗi phân quyền hệ thống trước khi parse JSON
+            if (response.status === 401) {
+                alert("Phiên đăng nhập đã hết hạn hoặc bạn chưa đăng nhập hệ thống. Vui lòng F5 làm mới lại trang!");
+                resetButtonState();
+                return;
+            }
+            if (response.status === 403) {
+                alert("Tài khoản của bạn không được phân quyền để thực hiện thao tác hủy đơn này.");
+                resetButtonState();
+                return;
+            }
+
+            // Đọc dữ liệu JSON an toàn sau khi vượt qua bộ lọc HTTP Status
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                alert("Hủy đơn hàng thành công!");
+                window.location.reload();
+            } else {
+                alert(result.message || "Đã xảy ra lỗi khi thực hiện hủy đơn.");
+                resetButtonState();
+            }
+        } catch (error) {
+            console.error("Lỗi kết nối API:", error);
+            alert("Không thể kết nối đến hệ thống server. Vui lòng thử lại sau.");
+            resetButtonState();
+        }
+
+        // Trả trạng thái nút về ban đầu nếu lỗi
+        function resetButtonState() {
+            btnXacNhanHuy.disabled = false;
+            btnDongModal.disabled = false;
+            loadingHuy.classList.add("d-none");
+        }
+    }
+</script>

@@ -31,7 +31,7 @@ namespace QuanLyTaiKhoanNguoiDung.Controllers.QuanLyDonHang
         public async Task<IActionResult> DanhSachDonHang(
             string? searchTerm,
             int page = 1,
-            string trangthai = "Tất cả",
+            string trangthai = "Đang trung chuyển",
             DateTime? batday = null,
             DateTime? ketthuc = null)
         {

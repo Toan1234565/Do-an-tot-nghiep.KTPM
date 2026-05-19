@@ -169,10 +169,16 @@
                             <span class="info-label">Phương tiện vận tải</span>
                             <div class="h4 fw-bold text-dark mb-1">
                                 <i class="fas fa-truck-moving text-primary me-2"></i>
-                                @(Model.MaPhuongTien?.ToString() ?? "Chưa gán xe")
+                                <!-- SỬA: Hiển thị Biển số xe của Object con ThongTinPhuongTien lên làm Tiêu đề chính -->
+                                @(Model?.ThongTinPhuongTien?.BienSo ?? "Chưa gán xe")
                             </div>
-                            @if (Model.MaPhuongTien != null)
+
+                            <!-- Hiển thị ID nhỏ phía dưới làm dữ liệu hệ thống (nếu cần) -->
+                            @if (Model?.MaPhuongTien != null)
                             {
+                                <div class="small text-muted mb-2">Mã cấu hình: @Model.MaPhuongTien</div>
+
+                                <!-- SỬA: Thêm kiểm tra an toàn dấu chấm hỏi ?. cho Model -->
                                 <a href="@Url.Action("ChiTietPhuongTien", "QuanLyPhuongTien", new { maPhuongTien = Model.MaPhuongTien })" class="small text-decoration-none">
                                     Xem hồ sơ xe <i class="fas fa-arrow-right ms-1" style="font-size: 0.7rem;"></i>
                                 </a>
@@ -181,43 +187,66 @@
 
                         <!-- Nhân sự -->
                         <div class="row g-2">
+                            <!-- Tài xế chính -->
                             <div class="col-6">
-                                <div class="driver-card text-center border" onclick="location.href='@Url.Action("ChiTietNhanVien", "QuanLyNguoiDung", new { id = Model.MaTaiXeChinh })'">
+                                <div class="driver-card text-center border"
+                                     onclick="if(@(Model?.MaTaiXeThucHienChinh != null ? "true" : "false")) location.href='@Url.Action("ChiTietNhanVien", "QuanLyNguoiDung", new { id = Model?.MaTaiXeThucHienChinh })'">
                                     <span class="info-label">Tài xế chính</span>
                                     <div class="fw-bold text-primary text-truncate">
-                                        @(tentaixe?.TenTaiXeThucHien ?? "N/A")
+                                        @(Model?.TenTaiXeThucHienChinh ?? "Chưa phân công")
                                     </div>
-                                    <code class="small text-muted">ID: @Model.MaTaiXeChinh</code>
+                                    <code class="small text-muted">ID: @(Model?.MaTaiXeThucHienChinh?.ToString() ?? "---")</code>
                                 </div>
                             </div>
+
+                            <!-- Tài xế phụ -->
                             <div class="col-6 text-center">
-                                <div class="driver-card border @(Model.MaTaiXePhu == null ? "opacity-50" : "")" onclick="@(Model.MaTaiXePhu != null ? $"location.href='{Url.Action("ChiTietNhanVien", "QuanLyNguoiDung", new { id = Model.MaTaiXePhu })}'" : "")">
+                                <!-- Nếu không có tài xế phụ, thêm class opacity-50 để làm mờ card -->
+                                <div class="driver-card border @(Model?.MaTaiXeThucHienPhu == null ? "opacity-50" : "")"
+                                     style="@(Model?.MaTaiXeThucHienPhu == null ? "cursor: not-allowed;" : "cursor: pointer;")"
+                                     onclick="@(Model?.MaTaiXeThucHienPhu != null ? $"location.href='{Url.Action("ChiTietNhanVien", "QuanLyNguoiDung", new { id = Model.MaTaiXeThucHienPhu })}'" : "")">
                                     <span class="info-label">Tài xế phụ</span>
                                     <div class="fw-bold text-dark text-truncate">
-                                        @(tentaixephu?.TenTaiXeThucHien ?? "Trống")
+                                       
+                                        @(Model?.TenTaiXeThucHienPhu ?? "Không có")
                                     </div>
-                                    <code class="small text-muted">ID: @(Model.MaTaiXePhu?.ToString() ?? "--")</code>
+                                    <code class="small text-muted">ID: @(Model?.MaTaiXeThucHienPhu?.ToString() ?? "---")</code>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Card Thời gian -->
+                <!-- Card Thời gian & Thông số -->
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-body p-0">
                         <div class="p-3 border-bottom bg-light">
-                            <h6 class="m-0 font-weight-bold text-dark fs-6"><i class="fas fa-clock me-2 text-success"></i>Lịch trình thời gian</h6>
+                            <h6 class="m-0 font-weight-bold text-dark fs-6">
+                                <i class="fas fa-clock me-2 text-success"></i>Lịch trình & Thông số
+                            </h6>
                         </div>
                         <div class="p-3">
+                            <!-- Dòng 1: Kế hoạch xuất phát -->
                             <div class="d-flex justify-content-between mb-2">
                                 <span class="text-muted small">Kế hoạch xuất phát:</span>
-                                <span class="fw-bold small">@(Model.ThoiGianBatDauKeHoach?.ToString("dd/MM/yyyy HH:mm") ?? "--")</span>
+                                <span class="fw-bold small">@(Model?.ThoiGianBatDauKeHoach?.ToString("dd/MM/yyyy HH:mm") ?? "--")</span>
                             </div>
-                            <div class="d-flex justify-content-between">
+
+                            <!-- Dòng 2: Bắt đầu thực tế -->
+                            <div class="d-flex justify-content-between mb-2">
                                 <span class="text-muted small">Bắt đầu thực tế:</span>
-                                <span class="text-success fw-bold small">@(Model.ThoiGianBatDauThucTe?.ToString("dd/MM/yyyy HH:mm") ?? "Chờ khởi hành")</span>
+                                <span class="text-success fw-bold small">@(Model?.ThoiGianBatDauThucTe?.ToString("dd/MM/yyyy HH:mm") ?? "Chờ khởi hành")</span>
                             </div>
+
+                            <!-- SỬA TẠI ĐÂY: Chuẩn hóa từ thẻ <li> sang <div>, đồng bộ giao diện flexbox -->
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted small">
+                                    <i class="fas fa-weight-hanging text-secondary me-1" style="font-size: 0.85rem;"></i>Tổng khối lượng:
+                                </span>
+                                <!-- Hãy chắc chắn dùng đúng trường @Model.khoiLuong từ API -->
+                                <span class="badge bg-secondary">@(Model?.khoiLuong ?? 0) kg</span>
+                            </div>
+
                         </div>
                     </div>
                 </div>
@@ -238,6 +267,7 @@
                                     <i class="fas fa-boxes me-2"></i>Kiện hàng (@Model.TongSoDonHang)
                                 </a>
                             </li>
+                            
                             <li class="nav-item">
                                 <a class="nav-link text-danger" id="costs-tab" data-bs-toggle="tab" href="#costs" role="tab">
                                     <i class="fas fa-file-invoice-dollar me-2"></i>Chi phí vận hành
@@ -252,33 +282,47 @@
                             <div class="tab-pane fade show active" id="stops" role="tabpanel">
                                 <div class="d-flex justify-content-between align-items-center mb-4">
                                     <h5 class="mb-0 fw-bold">Trình tự di chuyển</h5>
-                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                        <i class="fas fa-map-marker-alt me-1"></i> Xem bản đồ
+                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                                            onclick="window.location.href='@Url.Action("BanDoLoTrinh", "QuanLyLoTrinh", new { id = Model.MaLoTrinh })'">
+                                        <i class="fas fa-map-marker-alt me-1"></i> Xem bản đồ toàn màn hình
                                     </button>
                                 </div>
-                                <div class="timeline">
-                                    @if (Model.DiemDungs != null && Model.DiemDungs.Any())
+                                <div class="timeline position-relative ps-3 border-left">
+                                    @if (Model?.DiemDungs != null && Model.DiemDungs.Any())
                                     {
+                                        // Controller đã OrderBy(dd => dd.ThuTuDung) từ trước, nhưng gọi lại ở đây cho chắc chắn
                                         foreach (var dd in Model.DiemDungs.OrderBy(x => x.ThuTuDung))
                                         {
-                                            <div class="timeline-item mb-4">
+                                            <div class="timeline-item mb-4 position-relative">
+                                                <!-- Số thứ tự điểm dừng (Marker) -->
                                                 <div class="timeline-marker position-absolute rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
-                                                     style="width: 24px; height: 24px; left: -4px; top: 0; z-index: 2; font-size: 0.7rem;">
+                                                     style="width: 24px; height: 24px; left: -12px; top: 0; z-index: 2; font-size: 0.7rem;">
                                                     @dd.ThuTuDung
                                                 </div>
+
+                                                <!-- Thẻ chứa nội dung điểm dừng -->
                                                 <div class="card border shadow-none rounded-3 p-3 bg-light bg-opacity-10">
                                                     <div class="d-flex justify-content-between align-items-start">
-                                                        @* <div>
+                                                        <div>
+                                                            <!-- SỬA: Loại bỏ bớt 1 dòng trùng lặp @dd.LoaiDung -->
                                                             <div class="fw-bold text-dark mb-1">@dd.LoaiDung</div>
-                                                            @{
-                                                                dictDiaChi.TryGetValue(dd.MaDiaChi, out var dc);
-                                                            }
+
+                                                            <!-- SỬA: Đọc trực tiếp từ thuộc tính dd.DiaChi thay vì qua Dictionary -->
                                                             <div class="small text-muted">
-                                                                <i class="fas fa-location-dot me-1"></i>
-                                                                @(dc != null ? $"{dc.Duong}, {dc.Phuong}, {dc.ThanhPho}" : "N/A")
+                                                                <i class="fas fa-location-dot me-1 text-danger"></i>
+                                                                @if (dd.DiaChi != null)
+                                                                {
+                                                                    @($"{dd.DiaChi.Duong}, {dd.DiaChi.Phuong}, {dd.DiaChi.ThanhPho}")
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span>Chưa cập nhật địa chỉ</span>
+                                                                }
                                                             </div>
-                                                        </div> *@
-                                                        <span class="badge @(dd.LoaiDung == "Giao hàng" ? "bg-info" : "bg-warning") text-dark">
+                                                        </div>
+
+                                                        <!-- Badge hiển thị loại hình điểm dừng linh hoạt -->
+                                                        <span class="badge @(dd.LoaiDung?.Contains("Kho") == true ? "bg-warning" : "bg-info") text-dark">
                                                             @dd.LoaiDung
                                                         </span>
                                                     </div>
@@ -286,7 +330,12 @@
                                             </div>
                                         }
                                     }
+                                    else
+                                    {
+                                        <div class="text-muted p-3 text-center">Không có dữ liệu điểm dừng cho lộ trình này.</div>
+                                    }
                                 </div>
+                               
                             </div>
 
                             <!-- TAB: KIỆN HÀNG -->
@@ -302,23 +351,33 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @if (Model.ChiTietLoTrinhKienHangs != null && Model.ChiTietLoTrinhKienHangs.Any())
+                                            @if (Model?.ChiTietLoTrinhKienHangs != null && Model.ChiTietLoTrinhKienHangs.Any())
                                             {
                                                 foreach (var ct in Model.ChiTietLoTrinhKienHangs)
                                                 {
                                                     <tr>
                                                         <td class="fw-bold text-primary">#@ct.MaDonHang</td>
                                                         <td>
-                                                            @if (dictDonHang != null && ct.MaDonHang.HasValue && dictDonHang.TryGetValue(ct.MaDonHang.Value, out var dh))
+                                                            <!--Kiểm tra trực tiếp object ThongTinDonHang đã được map sẵn từ API -->
+                                                            @if (ct.ThongTinDonHang != null)
                                                             {
-                                                                <div class="mb-1"><strong>Nhận:</strong> @dh.TenNguoiNhan <span class="text-muted ms-1">(@dh.SdtNguoiNhan)</span></div>
-                                                                <div class="customer-info small" data-ma-khach-hang="@dh.MakhachHang">
+                                                                <div class="mb-1">
+                                                                    <strong>Nhận:</strong> @ct.ThongTinDonHang.TenNguoiNhan
+                                                                    <span class="text-muted ms-1">(@ct.ThongTinDonHang.SdtNguoiNhan)</span>
+                                                                </div>
+
+                                                                <!-- Sửa thành MaKhachHang (viết hoa chữ K) cho đúng DTO -->
+                                                                <div class="customer-info small" data-ma-khach-hang="@ct.ThongTinDonHang.MaKhachHang">
                                                                     <span class="text-muted">Gửi:</span>
                                                                     <span class="loading-spinner-small"><i class="fas fa-spinner fa-spin ms-1"></i></span>
                                                                     <span class="content-khach-hang d-none fw-medium text-dark">
                                                                         <span class="ten-kh"></span>
                                                                     </span>
                                                                 </div>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="text-muted small"><i>Không có thông tin đơn hàng</i></span>
                                                             }
                                                         </td>
                                                         <td class="text-center">
@@ -331,6 +390,12 @@
                                                         </td>
                                                     </tr>
                                                 }
+                                            }
+                                            else
+                                            {
+                                                <tr>
+                                                    <td colspan="4" class="text-center text-muted p-3">Lộ trình này chưa có kiện hàng nào.</td>
+                                                </tr>
                                             }
                                         </tbody>
                                     </table>

@@ -16,9 +16,11 @@ using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer;
 using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer.DonHang;
 using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer.KhoBai;
 using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer.PhuongTien;
+using QuanLyLoTrinhTheoDoi.Models12.ThongTinLienServer.TaiXe;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography.Xml;
+using Tmdt.Shared.Services;
 using ClusterResult = QuanLyLoTrinhTheoDoi.Models12.DieuPhoiLoTrinh.ClusterResult;
 
 
@@ -40,9 +42,11 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
         private readonly INhanVienService _nhanVienService;
         private readonly IPhuongTienServiceClient _phuongTienTaiXeService;
         private readonly IKhachHangServiceClient _khachHangService;
+        private readonly ISystemService _sys;
 
         public QuanLyDieuPhoiLoTrinh(TmdtContext context, IMemoryCache cache, IHttpClientFactory httpClientFactory, IServiceProvider serviceProvider,
-            ILogger<QuanLyDieuPhoiLoTrinh> logger, HttpClient httpClient, IKhachHangServiceClient khachHangServiceClient, IDiaChiService diaChiService, IDonHangService donHangService, INhanVienService nhanVienService, IPhuongTienServiceClient phuongTienTaiXeService)
+            ILogger<QuanLyDieuPhoiLoTrinh> logger, HttpClient httpClient, IKhachHangServiceClient khachHangServiceClient, IDiaChiService diaChiService, 
+            IDonHangService donHangService, INhanVienService nhanVienService, IPhuongTienServiceClient phuongTienTaiXeService, ISystemService sys)
         { 
             _context = context;
             _cache = cache;
@@ -55,6 +59,18 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
             _donHangService = donHangService;
             _nhanVienService = nhanVienService;
             _phuongTienTaiXeService = phuongTienTaiXeService;
+            _sys = sys;
+        }
+        [HttpGet("check-auth-info")]
+        public IActionResult CheckAuthInfo()
+        {
+            return Ok(new
+            {
+                IsAuthenticated = User.Identity?.IsAuthenticated,
+                UserClaims = User.Claims.Select(c => new { c.Type, c.Value }),
+                SessionData = HttpContext.Session.Keys.ToDictionary(k => k, k => HttpContext.Session.GetString(k)),
+                CookiesReceived = Request.Cookies.Select(c => new { c.Key, c.Value })
+            });
         }
 
         [HttpGet("danhsachlotrinh")]
@@ -153,7 +169,7 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                 {
                     // Lưu ý: Nếu có API Bulk ở server Người dùng thì dùng, nếu không thì gọi lẻ trong try-catch
                     var response = await _httpClient.GetFromJsonAsync<TenNhanVienModel>($"https://localhost:7022/api/quanlynguoidung/lay-ten-nhan-vien/{id}");
-                    if (response != null) dict[id] = response.TenNguoiDung;
+                    if (response != null) dict[id] = response.TenTaiXeThucHien;
                 }
             }
             catch
@@ -195,17 +211,19 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                 if (_cache.TryGetValue(cacheKey, out ChiTietLoTrinhModels? cachedData))
                     return Ok(cachedData);
 
-                // 1. Truy vấn Database (Lấy thông tin lộ trình và bảng trung gian PhuongTienTaiXe)
+                // 1. Truy vấn Database (Sửa: Thêm AsSplitQuery để dập cảnh báo hiệu năng)
                 var loTrinh = await _context.LoTrinhs
                     .Include(lt => lt.ChiTietLoTrinhKienHangs)
                     .Include(lt => lt.DiemDungs)
                     .Include(lt => lt.ChiPhiLoTrinhs)
                     .Include(lt => lt.MaPtTxNavigation) // Đây là bảng PhuongTienTaiXe
+                    .AsSplitQuery() // <-- THÊM DÒNG NÀY ĐỂ TỐI ƯU SQL
                     .FirstOrDefaultAsync(lt => lt.MaLoTrinh == idLoTrinh);
 
                 if (loTrinh == null)
                     return NotFound($"Không tìm thấy lộ trình mã: {idLoTrinh}");
 
+                // Sửa: Thêm toán tử an toàn dấu hỏi chấm (?.) đề phòng dữ liệu Null
                 var result = new ChiTietLoTrinhModels
                 {
                     MaLoTrinh = loTrinh.MaLoTrinh,
@@ -215,6 +233,12 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                     TongSoDonHang = loTrinh.ChiTietLoTrinhKienHangs?.Count ?? 0,
                     TongSoDiemDung = loTrinh.DiemDungs?.Count ?? 0,
                     MaPhuongTien = loTrinh.MaPtTxNavigation?.MaPhuongTien,
+                    khoiLuong = loTrinh.TongKhoiLuongKg ?? 0.0, // Nếu null thì mặc định là 0
+
+                    // SỬA TẠI ĐÂY: Thêm ?. để tránh lỗi Object reference not set to an instance of an object
+                    MaTaiXeThucHienChinh = loTrinh.MaPtTxNavigation?.MaNguoiDung,
+                    MaTaiXeThucHienPhu = loTrinh.MaPtTxNavigation?.MaNguoiDungPhu,
+
                     ChiPhiLoTrinhs = loTrinh.ChiPhiLoTrinhs?.Select(cp => new ChiPhiLoTrinhModels
                     {
                         SoTien = cp.SoTien,
@@ -232,7 +256,7 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                     : Task.FromResult<TenNhanVienModel?>(null);
                 allTasks.Add(taskNhanVienChinh);
 
-                // B. Task Nhân viên Phụ (MaNguoiDungPhu) - MỚI BỔ SUNG
+                // B. Task Nhân viên Phụ (MaNguoiDungPhu)
                 var taskNhanVienPhu = (loTrinh.MaPtTxNavigation?.MaNguoiDungPhu != null && _nhanVienService != null)
                     ? _nhanVienService.GetTenNhanVienAsync(loTrinh.MaPtTxNavigation.MaNguoiDungPhu.Value)
                     : Task.FromResult<TenNhanVienModel?>(null);
@@ -244,50 +268,55 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                     : Task.FromResult<PhuongTienDetailModel?>(null);
                 allTasks.Add(taskPhuongTien);
 
-                // D. Tasks Đơn hàng & Địa chỉ (Giữ nguyên logic Dictionary của bạn)
+                // D. Tasks Đơn hàng & Địa chỉ (Thêm dấu ?. phòng hờ cho chắc chắn)
                 var dictDonHangTasks = new Dictionary<int, Task<ChiTietDonHangLoTrinhModel?>>();
-                foreach (var id in loTrinh.ChiTietLoTrinhKienHangs.Where(ct => ct.MaDonHang.HasValue).Select(ct => ct.MaDonHang!.Value).Distinct())
+                if (loTrinh.ChiTietLoTrinhKienHangs != null)
                 {
-                    if (_donHangService != null) { var t = _donHangService.GetChiTietDonHangAsync(id); dictDonHangTasks[id] = t; allTasks.Add(t); }
+                    foreach (var id in loTrinh.ChiTietLoTrinhKienHangs.Where(ct => ct.MaDonHang.HasValue).Select(ct => ct.MaDonHang!.Value).Distinct())
+                    {
+                        if (_donHangService != null) { var t = _donHangService.GetChiTietDonHangAsync(id); dictDonHangTasks[id] = t; allTasks.Add(t); }
+                    }
                 }
 
                 var dictDiaChiTasks = new Dictionary<int, Task<DiaChiModel?>>();
-                foreach (var id in loTrinh.DiemDungs.Select(dd => dd.MaDiaChi).Distinct())
+                if (loTrinh.DiemDungs != null)
                 {
-                    if (_diaChiService != null) { var t = _diaChiService.GetChiTietDiaChiAsync(id); dictDiaChiTasks[id] = t; allTasks.Add(t); }
+                    foreach (var id in loTrinh.DiemDungs.Select(dd => dd.MaDiaChi).Distinct())
+                    {
+                        if (_diaChiService != null) { var t = _diaChiService.GetChiTietDiaChiAsync(id); dictDiaChiTasks[id] = t; allTasks.Add(t); }
+                    }
                 }
 
                 // --- BƯỚC 3: THỰC THI VÀ MAPPING ---
                 try { await Task.WhenAll(allTasks); }
                 catch (Exception ex) { _logger.LogWarning("Lỗi gọi liên server: {Msg}", ex.Message); }
 
-                // Gán tên tài xế chính
+                // Gán tên tài xế chính (Lưu ý: thuộc tính TenNguoiDung phải khớp với DTO nhận được từ bài trước)
                 if (taskNhanVienChinh.IsCompletedSuccessfully)
-                    result.TenTaiXeThucHienChinh = taskNhanVienChinh.Result?.TenNguoiDung;
+                    result.TenTaiXeThucHienChinh = taskNhanVienChinh.Result?.TenTaiXeThucHien;
 
                 // Gán tên tài xế phụ
                 if (taskNhanVienPhu.IsCompletedSuccessfully)
-                    result.TenTaiXeThucHienPhu = taskNhanVienPhu.Result?.TenNguoiDung;
-
+                    result.TenTaiXeThucHienPhu = taskNhanVienPhu.Result?.TenTaiXeThucHien;
                 // Gán thông tin phương tiện
                 if (taskPhuongTien.IsCompletedSuccessfully)
                     result.ThongTinPhuongTien = taskPhuongTien.Result;
 
                 // Map Kiện hàng và Điểm dừng
-                result.ChiTietLoTrinhKienHangs = loTrinh.ChiTietLoTrinhKienHangs.Select(ct => new ChiTietLoTrinhKienHangModels
+                result.ChiTietLoTrinhKienHangs = loTrinh.ChiTietLoTrinhKienHangs?.Select(ct => new ChiTietLoTrinhKienHangModels
                 {
                     MaDonHang = ct.MaDonHang,
                     TrangThaiTrenXe = ct.TrangThaiTrenXe,
                     ThongTinDonHang = (ct.MaDonHang.HasValue && dictDonHangTasks.TryGetValue(ct.MaDonHang.Value, out var t) && t.IsCompletedSuccessfully) ? t.Result : null
-                }).ToList();
+                }).ToList() ?? new List<ChiTietLoTrinhKienHangModels>();
 
-                result.DiemDungs = loTrinh.DiemDungs.OrderBy(dd => dd.ThuTuDung).Select(dd => new DiemDungModels
+                result.DiemDungs = loTrinh.DiemDungs?.OrderBy(dd => dd.ThuTuDung).Select(dd => new DiemDungModels
                 {
                     MaDiaChi = dd.MaDiaChi,
                     ThuTuDung = dd.ThuTuDung,
                     LoaiDung = dd.LoaiDung,
                     DiaChi = (dictDiaChiTasks.TryGetValue(dd.MaDiaChi, out var t) && t.IsCompletedSuccessfully) ? t.Result : null
-                }).ToList();
+                }).ToList() ?? new List<DiemDungModels>();
 
                 _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
                 return Ok(result);
@@ -365,9 +394,9 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                         maCa = item.MaCa,
                         loaiTuyen = item.LoaiTuyen,
                         maTaiXeChinh = item.MaNguoiDung,
-                        tenTaiXeChinh = txChinhInfo?.TenNguoiDung ?? "Không xác định", // Sử dụng đúng thuộc tính TenNguoiDung
+                        tenTaiXeChinh = txChinhInfo?.TenTaiXeThucHien ?? "Không xác định", // Sử dụng đúng thuộc tính TenNguoiDung
                         maTaiXePhu = item.MaNguoiDungPhu,
-                        tenTaiXePhu = txPhuInfo?.TenNguoiDung ?? (item.MaNguoiDungPhu.HasValue ? "Không xác định" : null),
+                        tenTaiXePhu = txPhuInfo?.TenTaiXeThucHien ?? (item.MaNguoiDungPhu.HasValue ? "Không xác định" : null),
                         isActive = item.IsActive
                     };
                 });
@@ -434,9 +463,9 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                     maCa = assignment.MaCa ?? 0,
                     loaiTuyen = assignment.LoaiTuyen,
                     maTaiXeChinh = assignment.MaNguoiDung,
-                    tenTaiXeChinh = txChinhInfo?.TenNguoiDung ?? "Không xác định",
+                    tenTaiXeChinh = txChinhInfo?.TenTaiXeThucHien ?? "Không xác định",
                     maTaiXePhu = assignment.MaNguoiDungPhu,
-                    tenTaiXePhu = txPhuInfo?.TenNguoiDung ?? (assignment.MaNguoiDungPhu.HasValue ? "Không xác định" : null),
+                    tenTaiXePhu = txPhuInfo?.TenTaiXeThucHien ?? (assignment.MaNguoiDungPhu.HasValue ? "Không xác định" : null),
                     isActive = assignment.IsActive
                 };
 
@@ -465,7 +494,8 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                 var lichTrinhXe = await _context.PhuongTienTaiXes
                     .Where(x => x.MaPhuongTien == request.MaPhuongTien && x.IsActive == true)
                     .ToListAsync();
-
+                // Lấy ID của người thực hiện thao tác từ hệ thống
+                var nguoiThucHienId = _sys.GetCurrentUserId();
                 // 2. Kiểm tra xung đột logic ca làm việc dựa trên cấu trúc mới
                 if (request.MaCa == 8) // Ca đường dài
                 {
@@ -523,7 +553,23 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
 
                 // Đợi tất cả các tác vụ đồng bộ hoàn tất
                 await Task.WhenAll(syncTasks);
+                // --- HOÀN THIỆN PHẦN GHI NHẬT KÝ VÀ RESET CACHE ---
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Điều phối lộ trình", // Tên chức năng/phân hệ
+                    $"Gán phương tiện mã {request.MaPhuongTien} cho tài xế chính {request.MaNguoiDung} tại ca {request.MaCa}.", // Nội dung log hành động
+                    "PhuongTienTaiXe", // Tên bảng đích chịu sự tác động
+                    assignment.MaPtTx.ToString(), // ID của bản ghi vừa tạo (Đảm bảo thuộc tính khóa chính của bạn đúng tên này)
+                    new Dictionary<string, object> { { "Trạng thái", "Chưa gán" } }, // Trạng thái cũ
+                    new Dictionary<string, object> {
+                        { "MaPhuongTien", assignment.MaPhuongTien },
+                        { "MaNguoiDung", assignment.MaNguoiDung },
+                        { "MaNguoiDungPhu", assignment.MaNguoiDungPhu },
+                        { "MaCa", assignment.MaCa },
+                        { "LoaiTuyen", assignment.LoaiTuyen },
+                        { "IsActive", assignment.IsActive }
 
+                    } // Trạng thái mới (Dữ liệu vừa lưu)
+                );
                 return Ok(new
                 {
                     success = true,
@@ -557,10 +603,21 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
 
                 if (assignment == null)
                     return NotFound(new { success = false, message = "Không tìm thấy dữ liệu gán cho xe này tại ca yêu cầu." });
-
+                // Lấy ID của người thực hiện thao tác từ hệ thống
+                var nguoiThucHienId = _sys.GetCurrentUserId();
                 int oldMainDriver = assignment.MaNguoiDung;
                 var syncTasks = new List<Task>();
                 string responseMessage = "";
+
+                // Lưu lại dữ liệu cũ trước khi thay đổi để phục vụ ghi nhật ký
+                var trangThaiCuLog = new Dictionary<string, object>
+                {
+                    { "MaPhuongTien", assignment.MaPhuongTien },
+                    { "MaNguoiDung", assignment.MaNguoiDung },
+                    { "MaNguoiDungPhu", assignment.MaNguoiDungPhu },
+                    { "MaCa", assignment.MaCa },
+                    { "IsActive", true }
+                };
 
                 // TẤT CẢ CÁC THẾ TRẬN ĐỀU SẼ ĐÓNG BẢN GHI CŨ ĐỂ LƯU LỊCH SỬ
                 assignment.IsActive = false;
@@ -615,7 +672,15 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                 {
                     await Task.WhenAll(syncTasks);
                 }
-
+                // --- HOÀN THIỆN PHẦN GHI NHẬT KÝ CHO PHƯƠNG THỨC XÓA/HỦY GÁN ---
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Điều phối lộ trình",
+                    $"Hủy gán phương tiện xe {maPhuongTien}, ca {maCa}. Chi tiết: {responseMessage}",
+                    "PhuongTienTaiXe",
+                    assignment.MaPtTx.ToString(),
+                    trangThaiCuLog,
+                    new Dictionary<string, object> { { "ResponseMessage", responseMessage }, { "IsActive", false } }
+                );
                 return Ok(new { success = true, message = responseMessage });
             }
             catch (Exception ex)
@@ -635,6 +700,9 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
             if (request == null)
                 return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ." });
 
+            // Lấy ID của người thực hiện thao tác từ hệ thống
+            var nguoiThucHienId = _sys.GetCurrentUserId();
+
             // Sử dụng Transaction để bảo đảm cả 2 hành động đóng bản ghi cũ và tạo bản ghi mới phải cùng thành công hoặc cùng thất bại
             using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -652,7 +720,16 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                 // 2. Lưu lại ID tài xế cũ để giải phóng sau khi cập nhật
                 int oldMainDriver = assignment.MaNguoiDung;
                 int? oldSubDriver = assignment.MaNguoiDungPhu;
-
+                // Lưu lại trạng thái cũ chi tiết phục vụ ghi nhật ký hệ thống
+                var trangThaiCuLog = new Dictionary<string, object>
+                {
+                    { "MaPhuongTien", assignment.MaPhuongTien },
+                    { "MaNguoiDung", assignment.MaNguoiDung },
+                    { "MaNguoiDungPhu", assignment.MaNguoiDungPhu },
+                    { "MaCa", assignment.MaCa },
+                    { "LoaiTuyen", assignment.LoaiTuyen },
+                    { "IsActive", true }
+                };
                 // 3. Kiểm tra nếu đổi tài xế chính, thì người mới phải đang rảnh
                 if (request.MaNguoiDung != oldMainDriver)
                 {
@@ -680,9 +757,7 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                     MaNguoiDungPhu = request.MaNguoiDungPhu,
                     LoaiTuyen = request.LoaiTuyen ?? assignment.LoaiTuyen, // Dự phòng lấy lại tuyến cũ nếu request truyền null
                     IsActive = true
-                    // Nếu bảng của bạn có các trường Audit, hãy bổ sung tại đây. Ví dụ:
-                    // CreatedAt = DateTime.UtcNow,
-                    // CreatedBy = ...
+                    
                 };
                 await _context.PhuongTienTaiXes.AddAsync(newAssignment);
 
@@ -719,7 +794,22 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
 
                 // Chờ tất cả các tiến trình đồng bộ API hoàn tất
                 await Task.WhenAll(syncTasks);
-
+                // --- HOÀN THIỆN PHẦN GHI NHẬT KÝ CHO PHƯƠNG THỨC CẬP NHẬT ---
+                await _sys.GhiLogVaResetCacheAsync(
+                    "Điều phối lộ trình",
+                    $"Cập nhật thông tin gán xe {request.MaPhuongTien}, ca {request.MaCa}. Thay đổi tài xế điều khiển.",
+                    "PhuongTienTaiXe",
+                    newAssignment.MaPtTx.ToString(), // ID bản ghi mới vừa sinh ra
+                    trangThaiCuLog,
+                    new Dictionary<string, object> {
+                { "MaPhuongTien", newAssignment.MaPhuongTien },
+                { "MaNguoiDung", newAssignment.MaNguoiDung },
+                { "MaNguoiDungPhu", newAssignment.MaNguoiDungPhu },
+                { "MaCa", newAssignment.MaCa },
+                { "LoaiTuyen", newAssignment.LoaiTuyen },
+                { "IsActive", true }
+                    }
+                );
                 return Ok(new
                 {
                     success = true,
@@ -787,9 +877,9 @@ namespace QuanLyLoTrinhTheoDoi.ConTrollersAPI
                     maCa = assignment.MaCa ?? 0,
                     loaiTuyen = assignment.LoaiTuyen,
                     maTaiXeChinh = assignment.MaNguoiDung,
-                    tenTaiXeChinh = txChinhInfo?.TenNguoiDung ?? "Không xác định",
+                    tenTaiXeChinh = txChinhInfo?.TenTaiXeThucHien ?? "Không xác định",
                     maTaiXePhu = assignment.MaNguoiDungPhu,
-                    tenTaiXePhu = txPhuInfo?.TenNguoiDung ?? (assignment.MaNguoiDungPhu.HasValue ? "Không xác định" : null),
+                    tenTaiXePhu = txPhuInfo?.TenTaiXeThucHien ?? (assignment.MaNguoiDungPhu.HasValue ? "Không xác định" : null),
                     isActive = assignment.IsActive
                 };
 
